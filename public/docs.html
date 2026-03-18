@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Service - API Documentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a2e; --surface2: #16213e;
+      --primary: #4361ee; --text: #edf2f4; --text-muted: #8d99ae;
+      --border: #2b2d42; --green: #06d6a0; --red: #ef233c;
+      --orange: #f77f00; --blue: #4cc9f0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6;
+    }
+    .docs-container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 32px; margin-bottom: 8px; }
+    h2 { font-size: 24px; margin-top: 48px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 18px; margin-top: 32px; margin-bottom: 12px; }
+    p { margin-bottom: 12px; color: var(--text-muted); }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: var(--surface2); padding: 2px 6px;
+      border-radius: 4px; font-size: 13px; font-family: 'SF Mono', Monaco, monospace;
+    }
+    pre {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px; overflow-x: auto;
+      margin: 12px 0 20px; font-size: 13px; line-height: 1.5;
+    }
+    pre code { background: none; padding: 0; }
+    .subtitle { font-size: 18px; color: var(--text-muted); margin-bottom: 32px; }
+    .method {
+      display: inline-block; font-weight: 700; font-size: 12px;
+      padding: 2px 8px; border-radius: 4px; margin-right: 8px;
+      font-family: monospace;
+    }
+    .method.get { background: var(--green); color: #000; }
+    .method.post { background: var(--primary); color: #fff; }
+    .method.patch { background: var(--orange); color: #000; }
+    .method.delete { background: var(--red); color: #fff; }
+    .endpoint {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 20px; margin: 16px 0;
+    }
+    .endpoint-header {
+      display: flex; align-items: center; margin-bottom: 12px;
+      font-family: monospace; font-size: 15px;
+    }
+    .endpoint p { margin-bottom: 8px; }
+    table {
+      width: 100%; border-collapse: collapse; margin: 12px 0;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left; padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    td code { font-size: 12px; }
+    .note {
+      background: var(--surface2); border-left: 3px solid var(--primary);
+      padding: 12px 16px; border-radius: 0 8px 8px 0;
+      margin: 12px 0; font-size: 14px;
+    }
+    .toc { margin: 24px 0; }
+    .toc a { display: block; padding: 4px 0; color: var(--text-muted); }
+    .toc a:hover { color: var(--primary); }
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 4px; font-size: 11px; font-weight: 600;
+      margin-left: 8px;
+    }
+    .badge.required { background: var(--red); color: white; }
+    .badge.optional { background: var(--border); color: var(--text-muted); }
+    nav {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; display: flex; align-items: center; gap: 24px;
+    }
+    nav a { font-weight: 600; }
+    @media (max-width: 768px) {
+      .docs-container { padding: 20px 16px; }
+      .endpoint-header { font-size: 13px; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/">Home</a>
+  <a href="/docs">API Docs</a>
+</nav>
+
+<div class="docs-container">
+<h1>Meeting Service API</h1>
+<p class="subtitle">A simple, RESTful API for creating and managing video meetings. Built for agents, services, and humans.</p>
+
+<div class="note">
+  <strong>Base URL:</strong> <code>http://localhost:3000</code><br>
+  <strong>Default API Key:</strong> <code>mk_default_test_key</code> (for testing)
+</div>
+
+<h2>Table of Contents</h2>
+<div class="toc">
+  <a href="#auth">1. Authentication</a>
+  <a href="#meetings">2. Meetings</a>
+  <a href="#participants">3. Participant Controls</a>
+  <a href="#settings">4. Meeting Settings</a>
+  <a href="#realtime">5. Real-time Events (Socket.IO)</a>
+  <a href="#webrtc">6. WebRTC Signaling</a>
+  <a href="#quickstart">7. Quick Start Guide</a>
+  <a href="#errors">8. Error Handling</a>
+</div>
+
+<!-- ─── Auth ──────────────────────────────────────────────────────────── -->
+<h2 id="auth">1. Authentication</h2>
+<p>All REST API requests require an API key passed via the <code>x-api-key</code> header.</p>
+<p>Admin operations additionally require the <code>x-admin-token</code> header, which is returned when a meeting is created.</p>
+
+<pre><code># Example headers
+x-api-key: mk_default_test_key
+x-admin-token: &lt;admin-token-from-create&gt;
+</code></pre>
+
+<!-- ─── Meetings ─────────────────────────────────────────────────────── -->
+<h2 id="meetings">2. Meetings</h2>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings</div>
+  <p>Create a new meeting. Returns the meeting ID, admin token, and join URL.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>title</code> <span class="badge optional">optional</span></td><td>string</td><td>Meeting title (default: "Untitled Meeting")</td></tr>
+    <tr><td><code>muteOnJoin</code> <span class="badge optional">optional</span></td><td>boolean</td><td>Auto-mute new participants (default: false)</td></tr>
+    <tr><td><code>videoOffOnJoin</code> <span class="badge optional">optional</span></td><td>boolean</td><td>Auto-disable video for new participants (default: false)</td></tr>
+    <tr><td><code>maxParticipants</code> <span class="badge optional">optional</span></td><td>number</td><td>Max participants allowed (default: 50)</td></tr>
+  </table>
+
+  <h3>Response</h3>
+<pre><code>{
+  "meetingId": "abc-defg-hij",
+  "adminToken": "uuid-admin-token",
+  "joinUrl": "/join/abc-defg-hij",
+  "title": "Team Standup",
+  "settings": {
+    "muteOnJoin": false,
+    "videoOffOnJoin": false,
+    "maxParticipants": 50,
+    "locked": false
+  }
+}</code></pre>
+
+  <h3>Example</h3>
+<pre><code>curl -X POST http://localhost:3000/api/meetings \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: mk_default_test_key" \
+  -d '{"title": "Team Standup"}'</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/meetings</div>
+  <p>List all active meetings.</p>
+
+  <h3>Response</h3>
+<pre><code>{
+  "meetings": [
+    {
+      "meetingId": "abc-defg-hij",
+      "title": "Team Standup",
+      "createdAt": 1710000000000,
+      "participantCount": 3
+    }
+  ]
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/meetings/:meetingId</div>
+  <p>Get detailed information about a specific meeting, including all participants.</p>
+
+  <h3>Response</h3>
+<pre><code>{
+  "meetingId": "abc-defg-hij",
+  "title": "Team Standup",
+  "createdAt": 1710000000000,
+  "participantCount": 2,
+  "participants": [
+    {
+      "participantId": "a1b2c3d4",
+      "name": "Alice",
+      "isMuted": false,
+      "isVideoOff": false,
+      "isScreenSharing": false,
+      "joinedAt": 1710000001000
+    }
+  ],
+  "settings": {
+    "muteOnJoin": false,
+    "videoOffOnJoin": false,
+    "maxParticipants": 50,
+    "locked": false
+  }
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method delete">DELETE</span> /api/meetings/:meetingId</div>
+  <p>End a meeting and disconnect all participants. <span class="badge required">Admin</span></p>
+
+  <h3>Headers</h3>
+  <table>
+    <tr><th>Header</th><th>Description</th></tr>
+    <tr><td><code>x-admin-token</code></td><td>The admin token returned from meeting creation</td></tr>
+  </table>
+
+<pre><code>curl -X DELETE http://localhost:3000/api/meetings/abc-defg-hij \
+  -H "x-api-key: mk_default_test_key" \
+  -H "x-admin-token: your-admin-token"</code></pre>
+</div>
+
+<!-- ─── Settings ─────────────────────────────────────────────────────── -->
+<h2 id="settings">3. Meeting Settings</h2>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method patch">PATCH</span> /api/meetings/:meetingId/settings</div>
+  <p>Update meeting settings. <span class="badge required">Admin</span></p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>title</code></td><td>string</td><td>Update meeting title</td></tr>
+    <tr><td><code>muteOnJoin</code></td><td>boolean</td><td>Auto-mute new participants</td></tr>
+    <tr><td><code>videoOffOnJoin</code></td><td>boolean</td><td>Auto-disable video for new joins</td></tr>
+    <tr><td><code>maxParticipants</code></td><td>number</td><td>Max participants</td></tr>
+    <tr><td><code>locked</code></td><td>boolean</td><td>Prevent new participants from joining</td></tr>
+  </table>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/lock</div>
+  <p>Lock the meeting (no new joins). <span class="badge required">Admin</span></p>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/unlock</div>
+  <p>Unlock the meeting. <span class="badge required">Admin</span></p>
+</div>
+
+<!-- ─── Participant Controls ─────────────────────────────────────────── -->
+<h2 id="participants">4. Participant Controls</h2>
+<p>All participant control endpoints require <code>x-admin-token</code>.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/participants/:participantId/mute</div>
+  <p>Mute a specific participant. The participant receives a real-time event and their audio is disabled.</p>
+
+<pre><code>curl -X POST http://localhost:3000/api/meetings/abc-defg-hij/participants/a1b2c3d4/mute \
+  -H "x-api-key: mk_default_test_key" \
+  -H "x-admin-token: your-admin-token"</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/participants/:participantId/unmute</div>
+  <p>Unmute a specific participant.</p>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/participants/:participantId/kick</div>
+  <p>Remove a participant from the meeting. They will be disconnected immediately.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>reason</code> <span class="badge optional">optional</span></td><td>string</td><td>Reason for removal shown to the participant</td></tr>
+  </table>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/mute-all</div>
+  <p>Mute all participants in the meeting at once.</p>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/invite</div>
+  <p>Generate an invite link for a new participant.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>name</code> <span class="badge optional">optional</span></td><td>string</td><td>Pre-filled name for the invitee</td></tr>
+  </table>
+
+  <h3>Response</h3>
+<pre><code>{
+  "joinUrl": "/join/abc-defg-hij?invite=x1y2z3w4&name=Bob",
+  "inviteToken": "x1y2z3w4"
+}</code></pre>
+</div>
+
+<!-- ─── Real-time ────────────────────────────────────────────────────── -->
+<h2 id="realtime">5. Real-time Events (Socket.IO)</h2>
+<p>Connect to the Socket.IO server at the same base URL. Events enable real-time participant management and media signaling.</p>
+
+<h3>Client → Server Events</h3>
+<table>
+  <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+  <tr><td><code>join-meeting</code></td><td><code>{ meetingId, name, isAdmin, adminToken }</code></td><td>Join a meeting room</td></tr>
+  <tr><td><code>signal:offer</code></td><td><code>{ to, offer }</code></td><td>Send WebRTC offer to a participant</td></tr>
+  <tr><td><code>signal:answer</code></td><td><code>{ to, answer }</code></td><td>Send WebRTC answer</td></tr>
+  <tr><td><code>signal:ice-candidate</code></td><td><code>{ to, candidate }</code></td><td>Send ICE candidate</td></tr>
+  <tr><td><code>media:toggle-audio</code></td><td><code>{ isMuted }</code></td><td>Notify mute state change</td></tr>
+  <tr><td><code>media:toggle-video</code></td><td><code>{ isVideoOff }</code></td><td>Notify video state change</td></tr>
+  <tr><td><code>media:screen-share</code></td><td><code>{ isScreenSharing }</code></td><td>Notify screen share state</td></tr>
+  <tr><td><code>chat:message</code></td><td><code>{ text }</code></td><td>Send a chat message</td></tr>
+</table>
+
+<h3>Server → Client Events</h3>
+<table>
+  <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+  <tr><td><code>joined</code></td><td><code>{ participantId, participants, settings, title, isAdmin }</code></td><td>Confirmation of successful join with existing participants</td></tr>
+  <tr><td><code>participant:joined</code></td><td><code>{ participantId, name, isMuted, isVideoOff, isAdmin }</code></td><td>A new participant joined</td></tr>
+  <tr><td><code>participant:left</code></td><td><code>{ participantId, name }</code></td><td>A participant left</td></tr>
+  <tr><td><code>participant:updated</code></td><td><code>{ participantId, ...changes }</code></td><td>Participant state changed (mute/video/screen)</td></tr>
+  <tr><td><code>signal:offer</code></td><td><code>{ from, offer }</code></td><td>Incoming WebRTC offer</td></tr>
+  <tr><td><code>signal:answer</code></td><td><code>{ from, answer }</code></td><td>Incoming WebRTC answer</td></tr>
+  <tr><td><code>signal:ice-candidate</code></td><td><code>{ from, candidate }</code></td><td>Incoming ICE candidate</td></tr>
+  <tr><td><code>admin:mute</code></td><td><code>{}</code></td><td>You were muted by admin</td></tr>
+  <tr><td><code>admin:unmute</code></td><td><code>{}</code></td><td>You were unmuted by admin</td></tr>
+  <tr><td><code>admin:kick</code></td><td><code>{ reason }</code></td><td>You were removed from the meeting</td></tr>
+  <tr><td><code>meeting:ended</code></td><td><code>{ reason }</code></td><td>Meeting was ended by admin</td></tr>
+  <tr><td><code>meeting:all-muted</code></td><td><code>{}</code></td><td>All participants were muted</td></tr>
+  <tr><td><code>meeting:settings-updated</code></td><td><code>{ ...settings }</code></td><td>Meeting settings changed</td></tr>
+  <tr><td><code>chat:message</code></td><td><code>{ from, name, text, timestamp }</code></td><td>Chat message received</td></tr>
+  <tr><td><code>error</code></td><td><code>{ message }</code></td><td>Error (meeting not found, locked, full)</td></tr>
+</table>
+
+<!-- ─── WebRTC ────────────────────────────────────────────────────────── -->
+<h2 id="webrtc">6. WebRTC Flow</h2>
+<p>The service uses a mesh topology for WebRTC peer connections. Each participant connects directly to every other participant.</p>
+
+<h3>Connection Flow</h3>
+<pre><code>1. Client A joins → receives list of existing participants
+2. Client A creates RTCPeerConnection for each existing participant
+3. Client A sends offer via signal:offer
+4. Client B receives offer → creates answer → sends via signal:answer
+5. Both exchange ICE candidates via signal:ice-candidate
+6. Direct peer-to-peer media flows between A and B
+
+Media Tracks:
+- Audio: microphone (can be muted/unmuted)
+- Video: camera (can be toggled on/off)
+- Video: screen share (replaces camera track temporarily)
+- Video: blur filter (processed canvas stream replaces camera track)
+</code></pre>
+
+<h3>STUN Servers Used</h3>
+<pre><code>stun:stun.l.google.com:19302
+stun:stun1.l.google.com:19302
+</code></pre>
+<p>For production, add TURN servers for participants behind strict NATs/firewalls.</p>
+
+<!-- ─── Quick Start ──────────────────────────────────────────────────── -->
+<h2 id="quickstart">7. Quick Start Guide</h2>
+
+<h3>For Agents / Services (API-only)</h3>
+<pre><code># 1. Create a meeting
+RESPONSE=$(curl -s -X POST http://localhost:3000/api/meetings \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: mk_default_test_key" \
+  -d '{"title": "Agent Meeting"}')
+
+MEETING_ID=$(echo $RESPONSE | jq -r '.meetingId')
+ADMIN_TOKEN=$(echo $RESPONSE | jq -r '.adminToken')
+
+# 2. Share the join link with participants
+echo "Join: http://localhost:3000/join/$MEETING_ID"
+
+# 3. Monitor participants
+curl -s http://localhost:3000/api/meetings/$MEETING_ID \
+  -H "x-api-key: mk_default_test_key" | jq
+
+# 4. Mute a noisy participant
+curl -X POST http://localhost:3000/api/meetings/$MEETING_ID/participants/PARTICIPANT_ID/mute \
+  -H "x-api-key: mk_default_test_key" \
+  -H "x-admin-token: $ADMIN_TOKEN"
+
+# 5. End the meeting
+curl -X DELETE http://localhost:3000/api/meetings/$MEETING_ID \
+  -H "x-api-key: mk_default_test_key" \
+  -H "x-admin-token: $ADMIN_TOKEN"
+</code></pre>
+
+<h3>For Humans (Web UI)</h3>
+<pre><code>1. Open http://localhost:3000 in your browser
+2. Enter a meeting title and your name, click "Create Meeting"
+3. Share the meeting link with others
+4. Use the toolbar to: toggle mic, camera, share screen, blur background
+5. Open the People panel to manage participants (admin only)
+</code></pre>
+
+<h3>For Programmatic Clients (Socket.IO)</h3>
+<pre><code>const { io } = require("socket.io-client");
+
+const socket = io("http://localhost:3000");
+
+socket.emit("join-meeting", {
+  meetingId: "abc-defg-hij",
+  name: "Bot",
+  isAdmin: false,
+  adminToken: null,
+});
+
+socket.on("joined", (data) => {
+  console.log("Joined as", data.participantId);
+  console.log("Existing participants:", data.participants);
+});
+
+socket.on("participant:joined", (p) => {
+  console.log(p.name, "joined");
+});
+
+socket.on("chat:message", ({ name, text }) => {
+  console.log(`${name}: ${text}`);
+});
+
+// Send a chat message
+socket.emit("chat:message", { text: "Hello from the bot!" });
+</code></pre>
+
+<!-- ─── Errors ────────────────────────────────────────────────────────── -->
+<h2 id="errors">8. Error Handling</h2>
+<table>
+  <tr><th>Status</th><th>Error</th><th>Description</th></tr>
+  <tr><td>401</td><td><code>Invalid or missing API key</code></td><td>Missing or wrong <code>x-api-key</code> header</td></tr>
+  <tr><td>403</td><td><code>Admin token required</code></td><td>Missing or wrong <code>x-admin-token</code> for admin endpoints</td></tr>
+  <tr><td>404</td><td><code>Meeting not found</code></td><td>Meeting ID doesn't exist or has ended</td></tr>
+  <tr><td>404</td><td><code>Participant not found</code></td><td>Participant ID doesn't exist in the meeting</td></tr>
+</table>
+
+<p>Socket.IO errors are emitted via the <code>error</code> event with a <code>{ message }</code> payload.</p>
+
+<h2>9. Features Overview</h2>
+<table>
+  <tr><th>Feature</th><th>Description</th></tr>
+  <tr><td>Video Calls</td><td>WebRTC peer-to-peer video with camera selection</td></tr>
+  <tr><td>Audio</td><td>Microphone with mute/unmute, device selection</td></tr>
+  <tr><td>Screen Sharing</td><td>Share entire screen or application window</td></tr>
+  <tr><td>Background Blur</td><td>Canvas-based blur filter on camera feed</td></tr>
+  <tr><td>Chat</td><td>Real-time text chat within the meeting</td></tr>
+  <tr><td>Admin Controls</td><td>Mute/unmute/kick participants, mute all, lock meeting</td></tr>
+  <tr><td>Device Selection</td><td>Choose camera, microphone, and speaker</td></tr>
+  <tr><td>Mobile Responsive</td><td>Fully usable on phones and tablets</td></tr>
+  <tr><td>REST API</td><td>Full API for programmatic meeting management</td></tr>
+  <tr><td>Socket.IO Events</td><td>Real-time signaling and state synchronization</td></tr>
+</table>
+
+<div class="note" style="margin-top: 32px;">
+  <strong>Production Notes:</strong><br>
+  &bull; Add TURN servers (e.g. Twilio, Xirsys) for reliable NAT traversal<br>
+  &bull; Replace in-memory storage with a database (Redis/PostgreSQL)<br>
+  &bull; Generate proper API keys with rate limiting<br>
+  &bull; Add TLS/HTTPS (required for WebRTC in production)<br>
+  &bull; Consider an SFU (Selective Forwarding Unit) for meetings with 6+ participants
+</div>
+
+</div>
+</body>
+</html>

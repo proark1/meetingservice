@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Service</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="home-container">
+    <div class="home-card">
+      <h1>Meeting Service</h1>
+      <p class="subtitle">Simple, fast video meetings for everyone</p>
+
+      <div class="home-actions">
+        <div class="action-group">
+          <h2>Start a new meeting</h2>
+          <input type="text" id="meetingTitle" placeholder="Meeting title (optional)">
+          <input type="text" id="hostName" placeholder="Your name">
+          <button id="createBtn" class="btn btn-primary">Create Meeting</button>
+        </div>
+
+        <div class="divider"><span>or</span></div>
+
+        <div class="action-group">
+          <h2>Join a meeting</h2>
+          <input type="text" id="meetingCode" placeholder="Enter meeting code (e.g. abc-defg-hij)">
+          <input type="text" id="joinName" placeholder="Your name">
+          <button id="joinBtn" class="btn btn-secondary">Join</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = 'mk_default_test_key';
+
+    document.getElementById('createBtn').addEventListener('click', async () => {
+      const title = document.getElementById('meetingTitle').value.trim() || 'Untitled Meeting';
+      const name = document.getElementById('hostName').value.trim();
+      if (!name) return alert('Please enter your name');
+
+      const res = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ title }),
+      });
+      const data = await res.json();
+      // Store admin token and name
+      sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
+      sessionStorage.setItem('userName', name);
+      window.location.href = `/join/${data.meetingId}`;
+    });
+
+    document.getElementById('joinBtn').addEventListener('click', () => {
+      const code = document.getElementById('meetingCode').value.trim();
+      const name = document.getElementById('joinName').value.trim();
+      if (!code) return alert('Please enter a meeting code');
+      if (!name) return alert('Please enter your name');
+      sessionStorage.setItem('userName', name);
+      window.location.href = `/join/${code}`;
+    });
+
+    // Allow Enter key
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const group = e.target.closest('.action-group');
+          group.querySelector('button').click();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
