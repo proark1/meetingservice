@@ -1659,7 +1659,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     if (!currentMeetingId || !currentParticipantId) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
