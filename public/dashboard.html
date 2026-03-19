@@ -3,59 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Dashboard — Meeting Service</title>
+  <title>My Dashboard — MeetingService</title>
   <link rel="stylesheet" href="/styles.css">
   <style>
+    :root {
+      --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9;
+      --primary: #4361ee; --primary-hover: #3a56d4;
+      --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
+      --danger: #ef233c; --success: #06d6a0;
+      --radius: 12px; --radius-sm: 8px;
+    }
+    body { background: var(--bg); color: var(--text); }
     .dash-container { max-width: 700px; margin: 0 auto; padding: 48px 20px; }
     .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
-    .dash-header h1 { font-size: 22px; }
+    .dash-header h1 { font-size: 22px; font-weight: 800; }
     .user-badge { font-size: 13px; color: var(--text-muted); }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
     .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-    .card-header h2 { font-size: 15px; font-weight: 600; }
+    .card-header h2 { font-size: 15px; font-weight: 700; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 11px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
     th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; background: var(--surface2); }
     tr:last-child td { border-bottom: none; }
     .empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 14px; }
     .key-val { font-family: monospace; font-size: 12px; background: var(--surface2); padding: 3px 8px; border-radius: 4px; }
-    .badge-active   { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(6,214,160,.15); color: var(--success); }
-    .badge-revoked  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(239,35,60,.15); color: var(--danger); }
+    .badge-active   { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(6,214,160,.12); color: #16a34a; }
+    .badge-revoked  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(239,35,60,.1); color: var(--danger); }
     .btn-sm { padding: 5px 10px; font-size: 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    .btn-copy   { background: var(--border); color: var(--text); }
-    .btn-copy:hover { background: var(--primary); color: white; }
-    .btn-revoke { background: rgba(239,35,60,.15); color: var(--danger); }
+    .btn-copy   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-copy:hover { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-revoke { background: rgba(239,35,60,.1); color: var(--danger); border: none; }
     .btn-revoke:hover { background: var(--danger); color: white; }
-    .create-form { padding: 16px 20px; display: flex; gap: 10px; border-top: 1px solid var(--border); }
+    .create-form { padding: 16px 20px; display: flex; gap: 10px; border-top: 1px solid var(--border); background: var(--surface); }
     .create-form input {
-      flex: 1; padding: 9px 14px; background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text); font-size: 13px; outline: none;
+      flex: 1; padding: 9px 14px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px; outline: none; font-family: inherit;
     }
     .create-form input:focus { border-color: var(--primary); }
     .toast {
       position: fixed; top: 16px; right: 16px;
       background: var(--surface); border: 1px solid var(--border);
       padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 200;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
       animation: toastIn .3s ease;
     }
     @keyframes toastIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    #loginSection { max-width: 380px; margin: 80px auto; }
-    #loginSection h2 { margin-bottom: 20px; }
+    #loginSection { max-width: 380px; margin: 80px auto; padding: 20px; }
+    #loginSection h2 { margin-bottom: 20px; font-weight: 800; }
+
+    /* Login form light styles */
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; box-shadow: 0 4px 16px rgba(15,23,42,0.08); }
+    .login-card input {
+      width: 100%; padding: 12px 16px; background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; margin-bottom: 10px; outline: none; font-family: inherit;
+    }
+    .login-card input:focus { border-color: var(--primary); background: var(--surface); }
+
+    /* Balance card */
+    .balance-card {
+      background: var(--primary); color: white;
+      border-radius: var(--radius); padding: 24px 20px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .balance-amount { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; }
+    .balance-label { font-size: 12px; opacity: 0.8; margin-bottom: 2px; }
   </style>
 </head>
 <body>
 
 <!-- Login gate -->
-<div id="loginSection" style="display:none;padding:20px;">
-  <div class="card" style="padding:32px;">
+<div id="loginSection" style="display:none;">
+  <div class="login-card">
     <h2 style="font-size:20px;margin-bottom:6px;">Sign In</h2>
     <p style="color:var(--text-muted);font-size:13px;margin-bottom:24px;">Sign in to manage your API keys</p>
-    <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;"></div>
-    <input type="email"    id="li-email" placeholder="Email"    style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
-    <input type="password" id="li-pass"  placeholder="Password" style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:14px;outline:none;" />
-    <button id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:15px;font-weight:600;cursor:pointer;">Sign In</button>
+    <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;background:rgba(239,35,60,.08);border:1px solid rgba(239,35,60,.2);border-radius:6px;padding:10px 14px;"></div>
+    <input type="email"    id="li-email" placeholder="Email"    autocomplete="email" />
+    <input type="password" id="li-pass"  placeholder="Password" autocomplete="current-password" />
+    <button id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;">Sign In</button>
     <p style="margin-top:16px;font-size:13px;color:var(--text-muted);text-align:center;">
-      No account? <a href="/register" style="color:var(--primary);">Register →</a>
+      No account? <a href="/register" style="color:var(--primary);font-weight:600;">Register →</a>
     </p>
   </div>
 </div>
@@ -68,9 +94,55 @@
         <h1>My Dashboard</h1>
         <p class="user-badge" id="userEmail"></p>
       </div>
-      <div style="display:flex;gap:8px;">
-        <a href="/" style="padding:8px 16px;background:var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;">Home</a>
-        <button onclick="doLogout()" style="padding:8px 16px;background:var(--border);border:none;border-radius:8px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">Sign Out</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <a href="/" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;">Home</a>
+        <a href="/billing" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;">Billing</a>
+        <button onclick="doLogout()" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Credits Balance Card -->
+    <div class="card" id="billingCard" style="overflow:hidden;margin-bottom:20px;">
+      <div class="card-header" style="background:#4361ee;color:white;border-bottom-color:rgba(255,255,255,0.15);">
+        <h2 style="color:white;font-weight:700;">Credits Balance</h2>
+        <a href="/billing" style="font-size:12px;color:rgba(255,255,255,0.85);font-weight:700;text-decoration:none;">Top up →</a>
+      </div>
+      <div style="padding:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="font-size:36px;font-weight:800;color:#4361ee;" id="dashBalance">$0.00</div>
+        <div style="font-size:13px;color:var(--text-muted);">Available for meetings and API usage</div>
+      </div>
+    </div>
+
+    <!-- Company info (shown when in a company) -->
+    <div class="card" id="companyCard" style="display:none;margin-bottom:20px;">
+      <div class="card-header">
+        <h2>Company</h2>
+        <span id="companyPlan" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div style="padding:20px;">
+        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;" id="companyName"></p>
+        <div id="inviteCodeSection" style="display:none;">
+          <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Invite code — share with your team:</p>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <code id="inviteCode" style="background:var(--surface2);border:1px solid var(--border);padding:8px 14px;border-radius:6px;font-size:14px;"></code>
+            <button class="btn-sm btn-copy" onclick="copyInviteCode()">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Join company card (shown for personal accounts with no company) -->
+    <div class="card" id="joinCompanyCard" style="display:none;margin-bottom:20px;">
+      <div class="card-header">
+        <h2>Join a Company</h2>
+      </div>
+      <div style="padding:20px;">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Have an invite code? Join your team's company account to share credits and API keys.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <input type="text" id="joinCodeInput" placeholder="Enter invite code" style="flex:1;min-width:160px;padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;font-family:inherit;">
+          <button onclick="joinCompany()" style="padding:9px 18px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Join</button>
+        </div>
+        <p style="margin-top:12px;font-size:13px;color:var(--text-muted);">Or <a href="/register?type=company" style="color:var(--primary);font-weight:600;">create a company account →</a></p>
       </div>
     </div>
 
@@ -89,18 +161,18 @@
       </table>
       <div class="create-form">
         <input type="text" id="new-label" placeholder="Key label (e.g. Production, Dev…)" maxlength="100">
-        <button onclick="createKey()" style="padding:9px 18px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;">+ New Key</button>
+        <button onclick="createKey()" style="padding:9px 18px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">+ New Key</button>
       </div>
     </div>
 
     <div class="card" style="padding:20px;">
-      <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">Quick Start</h3>
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">Quick Start</h3>
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Use your API key in the <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">x-api-key</code> header:</p>
-      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;overflow-x:auto;">curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
+      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;overflow-x:auto;color:var(--text);">curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d '{"title": "My Meeting"}'</pre>
-      <p style="margin-top:12px;font-size:13px;"><a href="/docs" style="color:var(--primary);">View full API docs →</a></p>
+      <p style="margin-top:12px;font-size:13px;"><a href="/docs" style="color:var(--primary);font-weight:600;">View full API docs →</a></p>
     </div>
   </div>
 </div>
@@ -168,6 +240,32 @@ function copyKey(key) {
   navigator.clipboard.writeText(key).then(() => toast('Copied!')).catch(() => toast('Copy failed'));
 }
 
+function copyInviteCode() {
+  const code = document.getElementById('inviteCode').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('Invite code copied!')).catch(() => toast('Copy failed'));
+}
+
+async function joinCompany() {
+  const code = document.getElementById('joinCodeInput').value.trim();
+  if (!code) { toast('Please enter an invite code'); return; }
+  const res = await fetch('/api/company/join', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inviteCode: code }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error); return; }
+  toast('Joined ' + data.companyName + '!');
+  showDash();
+}
+
+async function loadBalance() {
+  const res = await fetch('/api/billing/history');
+  if (!res.ok) return;
+  const { balance } = await res.json();
+  const el = document.getElementById('dashBalance');
+  if (el) el.textContent = '$' + parseFloat(balance).toFixed(2);
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 function showLogin() {
   document.getElementById('dashSection').style.display  = 'none';
@@ -200,11 +298,42 @@ async function showDash() {
   const res = await fetch('/api/auth/me');
   if (res.status === 401) { showLogin(); return; }
   const user = await res.json();
-  document.getElementById('userEmail').textContent = user.email;
+  document.getElementById('userEmail').textContent = user.email + (user.company_name ? ` · ${user.company_name}` : '');
   document.getElementById('loginSection').style.display = 'none';
   document.getElementById('dashSection').style.display  = 'block';
+
+  // Show company info
+  if (user.company_id) {
+    const compCard = document.getElementById('companyCard');
+    compCard.style.display = 'block';
+    document.getElementById('companyName').textContent = user.company_name || 'Your Company';
+    document.getElementById('companyPlan').textContent = (user.plan || 'free').toUpperCase();
+    if (user.invite_code) {
+      document.getElementById('inviteCodeSection').style.display = 'block';
+      document.getElementById('inviteCode').textContent = user.invite_code;
+    }
+    document.getElementById('joinCompanyCard').style.display = 'none';
+  } else if (user.account_type !== 'company') {
+    document.getElementById('joinCompanyCard').style.display = 'block';
+  }
+
+  // Update balance from user data
+  const balEl = document.getElementById('dashBalance');
+  if (balEl) {
+    const credits = user.company_id ? (user.company_credits || 0) : (user.credits_usd || 0);
+    balEl.textContent = '$' + parseFloat(credits).toFixed(2);
+  }
+
   loadKeys();
+  loadBalance();
 }
+
+// Allow Enter on login form
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginSection').style.display !== 'none') {
+    doLogin();
+  }
+});
 
 // Init — check session first, fall back to login form
 (async () => {

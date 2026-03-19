@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billing — MeetingService</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8fafc; --surface: #fff; --surface2: #f1f5f9;
+      --primary: #4361ee; --primary-hover: #3a56d4; --primary-light: #eef0fd;
+      --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
+      --danger: #ef233c; --success: #06d6a0; --radius: 12px; --radius-sm: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    a { color: var(--primary); text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+
+    /* Nav */
+    .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; height: 60px; gap: 16px; }
+    .nav-logo { font-weight: 700; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; margin-right: auto; }
+    .nav-logo svg { color: var(--primary); }
+    .nav a { font-size: 14px; color: var(--text-muted); }
+    .nav a:hover { color: var(--text); }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+    .balance-card {
+      background: var(--primary); color: white;
+      border-radius: var(--radius); padding: 28px;
+      margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .balance-label { font-size: 13px; opacity: 0.8; margin-bottom: 4px; }
+    .balance-amount { font-size: 42px; font-weight: 800; letter-spacing: -0.03em; }
+    .balance-sub { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 28px; }
+    .tab { padding: 10px 20px; font-size: 14px; font-weight: 600; color: var(--text-muted); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; transition: color 0.15s; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }
+    .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .card p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+
+    /* Amount buttons */
+    .amounts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .amount-btn {
+      padding: 10px 20px; border-radius: var(--radius-sm);
+      border: 2px solid var(--border); background: var(--surface2);
+      font-size: 15px; font-weight: 700; color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .amount-btn.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .amount-btn:hover { border-color: var(--primary); }
+
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 11px 14px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-size: 14px; margin-bottom: 16px; outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    input:focus { border-color: var(--primary); background: var(--surface); }
+    .btn-pay {
+      width: 100%; padding: 14px; border: none; border-radius: var(--radius-sm);
+      font-size: 16px; font-weight: 700; color: white; background: var(--primary);
+      transition: background 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-pay:hover { background: var(--primary-hover); }
+    .btn-pay:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Crypto */
+    .crypto-addr {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px 16px;
+      font-family: monospace; font-size: 13px; word-break: break-all;
+      margin-bottom: 12px;
+    }
+    .copy-btn { font-size: 13px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; padding: 0; }
+    .info-box { background: var(--primary-light); border: 1px solid rgba(67,97,238,0.2); border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; color: var(--primary); margin-bottom: 16px; }
+    .info-box strong { display: block; margin-bottom: 4px; }
+
+    /* Transactions table */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    td { padding: 12px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .badge-credit { background: #f0fdf4; color: #16a34a; }
+    .badge-debit { background: #fef2f2; color: #dc2626; }
+    .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    MeetingService
+  </div>
+  <a href="/dashboard">Dashboard</a>
+  <a href="/">Home</a>
+</nav>
+
+<div class="container">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:10px;">
+    <h1>Billing</h1>
+    <span id="accountLabel" style="font-size:14px;color:var(--text-muted);"></span>
+  </div>
+
+  <!-- Balance card -->
+  <div class="balance-card">
+    <div>
+      <div class="balance-label">Available Credits</div>
+      <div class="balance-amount" id="balanceAmt">$0.00</div>
+      <div class="balance-sub">Used in meetings and API calls</div>
+    </div>
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+  </div>
+
+  <!-- Alert on success/cancel -->
+  <div id="alertBox" style="display:none;padding:14px 18px;border-radius:var(--radius-sm);margin-bottom:20px;font-size:14px;font-weight:600;"></div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" id="tabCard" onclick="showTab('card')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      Credit Card
+    </button>
+    <button class="tab" id="tabCrypto" onclick="showTab('crypto')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      USDC Crypto
+    </button>
+    <button class="tab" id="tabHistory" onclick="showTab('history')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      History
+    </button>
+  </div>
+
+  <!-- Card tab -->
+  <div id="panelCard">
+    <div class="card">
+      <h2>Top up with Credit Card</h2>
+      <p>Secure payments powered by Stripe. Your card is never stored on our servers.</p>
+      <div class="amounts">
+        <button class="amount-btn active" data-amount="10" onclick="selectAmount(10, this)">$10</button>
+        <button class="amount-btn" data-amount="25" onclick="selectAmount(25, this)">$25</button>
+        <button class="amount-btn" data-amount="50" onclick="selectAmount(50, this)">$50</button>
+        <button class="amount-btn" data-amount="100" onclick="selectAmount(100, this)">$100</button>
+      </div>
+      <label>Or enter a custom amount (min $5)</label>
+      <input type="number" id="customAmount" placeholder="Enter amount in USD" min="5" max="1000">
+      <button class="btn-pay" id="stripeBtn" onclick="doStripeCheckout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Pay $<span id="payAmount">10</span> with card
+      </button>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px;margin-bottom:0;text-align:center;">Payments are encrypted and secured by Stripe</p>
+    </div>
+  </div>
+
+  <!-- Crypto tab -->
+  <div id="panelCrypto" style="display:none;">
+    <div class="card">
+      <h2>Top up with USDC</h2>
+      <p>Send USDC on the Ethereum network to your dedicated deposit address. Credits are added automatically within minutes of confirmation.</p>
+      <div class="info-box">
+        <strong>Important</strong>
+        Send only USDC (ERC-20) on Ethereum mainnet. Other tokens or networks will result in permanent loss.
+      </div>
+      <label>Your deposit address</label>
+      <div class="crypto-addr" id="cryptoAddr">Loading…</div>
+      <button class="copy-btn" id="copyAddrBtn" onclick="copyAddr()">Copy address</button>
+      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:0;">Exchange rate: 1 USDC = $1.00 USD credit<br>Minimum deposit: $5 USDC</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- History tab -->
+  <div id="panelHistory" style="display:none;">
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead>
+        <tbody id="txBody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedAmount = 10;
+let cryptoAddress = null;
+
+function showTab(tab) {
+  ['card','crypto','history'].forEach(t => {
+    document.getElementById('panel'+t.charAt(0).toUpperCase()+t.slice(1)).style.display = t === tab ? 'block' : 'none';
+    document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('active', t === tab);
+  });
+  if (tab === 'history') loadHistory();
+  if (tab === 'crypto') loadCryptoAddr();
+}
+
+function selectAmount(amt, btn) {
+  selectedAmount = amt;
+  document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('customAmount').value = '';
+  document.getElementById('payAmount').textContent = amt;
+}
+
+document.getElementById('customAmount').addEventListener('input', function() {
+  const v = parseFloat(this.value);
+  if (v >= 5) {
+    selectedAmount = v;
+    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('payAmount').textContent = v;
+  }
+});
+
+async function doStripeCheckout() {
+  const btn = document.getElementById('stripeBtn');
+  btn.disabled = true; btn.textContent = 'Redirecting to Stripe…';
+  const res = await fetch('/api/billing/stripe/checkout', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amountUsd: selectedAmount }),
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay $<span id="payAmount">${selectedAmount}</span> with card`;
+  if (!res.ok) { alert(data.error || 'Payment error'); return; }
+  window.location.href = data.url;
+}
+
+async function loadCryptoAddr() {
+  if (cryptoAddress) return;
+  const res = await fetch('/api/billing/usdc/address');
+  if (res.status === 401) { window.location.href = '/dashboard'; return; }
+  const data = await res.json();
+  cryptoAddress = data.address;
+  document.getElementById('cryptoAddr').textContent = cryptoAddress || 'Not available';
+}
+
+function copyAddr() {
+  if (cryptoAddress) navigator.clipboard.writeText(cryptoAddress).then(() => { document.getElementById('copyAddrBtn').textContent = 'Copied!'; setTimeout(()=>{document.getElementById('copyAddrBtn').textContent='Copy address';},2000); });
+}
+
+async function loadHistory() {
+  const res = await fetch('/api/billing/history');
+  if (res.status === 401) { window.location.href = '/dashboard'; return; }
+  const { transactions, balance } = await res.json();
+  document.getElementById('balanceAmt').textContent = '$' + parseFloat(balance).toFixed(2);
+  const tbody = document.getElementById('txBody');
+  if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No transactions yet</td></tr>'; return; }
+  tbody.innerHTML = transactions.map(t => `
+    <tr>
+      <td>${new Date(t.created_at).toLocaleDateString()}</td>
+      <td>${t.description || t.type}</td>
+      <td style="font-weight:700;color:${t.amount_usd > 0 ? '#16a34a' : '#dc2626'}">${t.amount_usd > 0 ? '+' : ''}$${Math.abs(t.amount_usd).toFixed(2)}</td>
+      <td><span class="badge ${t.amount_usd > 0 ? 'badge-credit' : 'badge-debit'}">${t.type.replace(/_/g,' ')}</span></td>
+    </tr>`).join('');
+}
+
+// Show success/cancel alert
+const params = new URLSearchParams(location.search);
+if (params.get('success')) {
+  const box = document.getElementById('alertBox');
+  box.style.display = 'block'; box.style.background = '#f0fdf4'; box.style.color = '#16a34a'; box.style.border = '1px solid #bbf7d0';
+  box.textContent = 'Payment successful! Credits have been added to your account.';
+}
+if (params.get('cancel')) {
+  const box = document.getElementById('alertBox');
+  box.style.display = 'block'; box.style.background = '#fef2f2'; box.style.color = '#dc2626'; box.style.border = '1px solid #fecaca';
+  box.textContent = 'Payment cancelled.';
+}
+
+// Load balance on page load
+(async () => {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) { window.location.href = '/dashboard'; return; }
+  const user = await res.json();
+  document.getElementById('accountLabel').textContent = user.email;
+  document.getElementById('balanceAmt').textContent = '$' + parseFloat(user.credits_usd || 0).toFixed(2);
+})();
+</script>
+</body>
+</html>

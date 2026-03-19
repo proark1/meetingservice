@@ -3,86 +3,177 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Account — Meeting Service</title>
+  <title>Register — MeetingService</title>
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8fafc; --surface: #fff; --surface2: #f1f5f9;
+      --primary: #4361ee; --primary-hover: #3a56d4; --primary-light: #eef0fd;
+      --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
+      --danger: #ef233c; --success: #06d6a0;
+      --radius: 12px; --radius-sm: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .wrap { width: 100%; max-width: 420px; }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; color: var(--text); margin-bottom: 32px; justify-content: center; }
+    .logo svg { color: var(--primary); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px; box-shadow: 0 4px 16px rgba(15,23,42,0.08); }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .sub { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
+
+    /* Account type toggle */
+    .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+    .type-btn {
+      padding: 12px; border-radius: var(--radius-sm);
+      border: 2px solid var(--border); background: var(--surface2);
+      cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted);
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .type-btn.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .type-btn svg { transition: color 0.15s; }
+
+    label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; margin-top: 14px; }
+    input {
+      width: 100%; padding: 11px 14px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-size: 14px; outline: none; font-family: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    input:focus { border-color: var(--primary); background: var(--surface); }
+    .btn-submit {
+      width: 100%; padding: 13px; margin-top: 20px;
+      background: var(--primary); color: white; border: none;
+      border-radius: var(--radius-sm); font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: background 0.15s, transform 0.1s;
+    }
+    .btn-submit:hover { background: var(--primary-hover); }
+    .btn-submit:active { transform: scale(0.98); }
+    .error { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
+    .success-box { display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 20px; margin-top: 20px; }
+    .success-box h3 { font-size: 15px; font-weight: 700; color: var(--success); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .key-display { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; font-family: monospace; font-size: 13px; word-break: break-all; margin: 8px 0; }
+    .copy-btn { font-size: 12px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; padding: 0; }
+    .bottom-link { text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-muted); }
+    .bottom-link a { color: var(--primary); font-weight: 600; }
+    .company-only { display: none; }
+  </style>
 </head>
 <body>
-<div class="home-container">
-  <div class="home-card" style="max-width:420px;">
-    <h1 style="font-size:24px;margin-bottom:4px;">Create Account</h1>
-    <p class="subtitle" style="margin-bottom:28px;">Get your API key and start building</p>
+<div class="wrap">
+  <div class="logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    MeetingService
+  </div>
+  <div class="card">
+    <h1>Create your account</h1>
+    <p class="sub">Start meeting in seconds. Free forever.</p>
 
-    <div id="errorMsg"   style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;text-align:left;background:rgba(239,35,60,.1);border:1px solid var(--danger);border-radius:6px;padding:10px 14px;"></div>
-    <div id="successBox" style="display:none;margin-bottom:12px;">
-      <p style="color:var(--success);font-size:13px;margin-bottom:10px;">✓ Account created! Your API key:</p>
-      <div id="apiKeyDisplay" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-family:monospace;font-size:13px;color:var(--success);word-break:break-all;margin-bottom:10px;"></div>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Save this key — you can also view it anytime in your dashboard.</p>
-      <a href="/dashboard" class="btn btn-primary" style="display:block;text-align:center;padding:12px;font-size:15px;text-decoration:none;">Go to Dashboard →</a>
+    <div class="type-toggle">
+      <button class="type-btn active" id="typPersonal" onclick="setType('personal')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Personal
+      </button>
+      <button class="type-btn" id="typCompany" onclick="setType('company')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Company
+      </button>
     </div>
 
-    <div id="form">
-      <input type="email"    id="email"    placeholder="Email address"      style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
-      <input type="password" id="password" placeholder="Password (min 8 chars)" style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
-      <input type="password" id="confirm"  placeholder="Confirm password"    style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:16px;outline:none;" />
-      <button id="registerBtn" class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;">Create Account</button>
+    <div class="company-only" id="companyNameWrap">
+      <label for="companyName">Company name</label>
+      <input type="text" id="companyName" placeholder="Acme Corp" autocomplete="organization">
     </div>
 
-    <p style="margin-top:20px;font-size:13px;color:var(--text-muted);">
-      Already have an account? <a href="/dashboard" style="color:var(--primary);">Sign in →</a>
-      &nbsp;·&nbsp; <a href="/" style="color:var(--text-muted);">Home</a>
-    </p>
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password">
+
+    <label for="confirm">Confirm password</label>
+    <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password">
+
+    <div class="error" id="errMsg"></div>
+
+    <button class="btn-submit" id="submitBtn" onclick="doRegister()">Create account →</button>
+
+    <div class="success-box" id="successBox">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Account created!
+      </h3>
+      <div id="successBody"></div>
+      <a href="/dashboard" style="display:block;text-align:center;margin-top:14px;background:var(--primary);color:white;padding:11px;border-radius:var(--radius-sm);font-weight:700;font-size:14px;">Go to Dashboard →</a>
+    </div>
+
+    <div class="bottom-link">Already have an account? <a href="/dashboard">Sign in →</a></div>
   </div>
 </div>
-
 <script>
-const emailEl = document.getElementById('email');
-const passEl  = document.getElementById('password');
-const confEl  = document.getElementById('confirm');
-const btn     = document.getElementById('registerBtn');
-const errEl   = document.getElementById('errorMsg');
+let accountType = 'personal';
+// Pre-select from URL param
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.get('type') === 'company') setType('company');
 
-function showError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
-
-async function register() {
-  const email    = emailEl.value.trim();
-  const password = passEl.value;
-  const confirm  = confEl.value;
-
-  if (!email || !password) return showError('Please fill in all fields');
-  if (password !== confirm) return showError('Passwords do not match');
-  if (password.length < 8)  return showError('Password must be at least 8 characters');
-
-  btn.disabled = true;
-  btn.textContent = 'Creating account…';
-  errEl.style.display = 'none';
-
-  try {
-    const res  = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      showError(data.error || 'Registration failed');
-      btn.disabled = false;
-      btn.textContent = 'Create Account';
-      return;
-    }
-
-    document.getElementById('form').style.display = 'none';
-    document.getElementById('apiKeyDisplay').textContent = data.apiKey;
-    document.getElementById('successBox').style.display = 'block';
-  } catch (e) {
-    showError('Network error — please try again');
-    btn.disabled = false;
-    btn.textContent = 'Create Account';
-  }
+function setType(t) {
+  accountType = t;
+  document.getElementById('typPersonal').classList.toggle('active', t === 'personal');
+  document.getElementById('typCompany').classList.toggle('active', t === 'company');
+  document.getElementById('companyNameWrap').style.display = t === 'company' ? 'block' : 'none';
 }
 
-btn.addEventListener('click', register);
-[emailEl, passEl, confEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') register(); }));
+async function doRegister() {
+  const email       = document.getElementById('email').value.trim();
+  const password    = document.getElementById('password').value;
+  const confirm     = document.getElementById('confirm').value;
+  const companyName = document.getElementById('companyName').value.trim();
+  const errEl       = document.getElementById('errMsg');
+
+  errEl.style.display = 'none';
+  if (!email || !password) { showErr('Email and password are required'); return; }
+  if (password.length < 8) { showErr('Password must be at least 8 characters'); return; }
+  if (password !== confirm) { showErr('Passwords do not match'); return; }
+  if (accountType === 'company' && !companyName) { showErr('Company name is required'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  const res  = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, accountType, companyName }),
+  });
+  const data = await res.json();
+  btn.disabled = false; btn.textContent = 'Create account →';
+
+  if (!res.ok) { showErr(data.error); return; }
+
+  // Show success
+  document.getElementById('submitBtn').style.display = 'none';
+  document.getElementById('successBox').style.display = 'block';
+
+  let html = `<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Your API key — save this, it won't be shown again:</p>
+    <div class="key-display">${data.apiKey}</div>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText('${data.apiKey}').then(()=>this.textContent='Copied!')">Copy key</button>`;
+
+  if (data.inviteCode) {
+    html += `<p style="font-size:13px;color:var(--text-muted);margin:14px 0 8px;">Company invite code — share with your team:</p>
+      <div class="key-display">${data.inviteCode}</div>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('${data.inviteCode}').then(()=>this.textContent='Copied!')">Copy invite code</button>`;
+  }
+
+  document.getElementById('successBody').innerHTML = html;
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+document.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); }));
 </script>
 </body>
 </html>

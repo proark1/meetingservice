@@ -9,11 +9,70 @@ const session    = require('express-session');
 const pgSession  = require('connect-pg-simple')(session);
 const { pool, initDB, getSettings } = require('./db');
 
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+}
+
+let ethersHD = null;
+try {
+  const { ethers } = require('ethers');
+  const mnemonic = process.env.CRYPTO_MNEMONIC;
+  if (mnemonic) {
+    ethersHD = ethers.HDNodeWallet.fromPhrase(mnemonic);
+  }
+} catch(e) { console.warn('ethers not available:', e.message); }
+
+function getHDAddress(index) {
+  if (!ethersHD) return null;
+  return ethersHD.derivePath(`m/44'/60'/0'/0/${index}`).address;
+}
+
+function generateInviteCode() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
+
+// Stripe webhook — must be raw body, before express.json()
+app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return res.status(400).json({ error: 'Stripe not configured' });
+  }
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Stripe webhook error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const { userId, companyId, amountUsd } = session.metadata;
+    const amt = parseFloat(amountUsd);
+    try {
+      if (companyId) {
+        await pool.query(`UPDATE companies SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, companyId]);
+      } else if (userId) {
+        await pool.query(`UPDATE users SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, userId]);
+      }
+      await pool.query(`UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1`, [session.id]);
+      await pool.query(
+        `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, reference_id, description) VALUES ($1, $2, $3, 'stripe_topup', $4, $5)`,
+        [userId || null, companyId || null, amt, session.id, `Stripe top-up $${amt}`]
+      );
+      console.log(`Credits added: $${amt} to ${companyId ? 'company '+companyId : 'user '+userId}`);
+    } catch(err) { console.error('Credit add error:', err); }
+  }
+  res.json({ received: true });
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -117,9 +176,10 @@ app.get('/api/config', async (_req, res) => {
 
 // ─── User Auth ────────────────────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, accountType, companyName } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
   if (password.length < 8)  return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (accountType === 'company' && !companyName) return res.status(400).json({ error: 'Company name required' });
 
   try {
     const settings = await getSettings();
@@ -129,22 +189,40 @@ app.post('/api/auth/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await pool.query(
-      `INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, is_admin`,
-      [email.toLowerCase().trim(), hash]
+      `INSERT INTO users (email, password_hash, account_type) VALUES ($1, $2, $3) RETURNING id, email, is_admin`,
+      [email.toLowerCase().trim(), hash, accountType === 'company' ? 'company' : 'personal']
     );
     const user = rows[0];
 
-    // Auto-create a default API key
+    let companyId = null;
+    let inviteCode = null;
+
+    if (accountType === 'company') {
+      inviteCode = generateInviteCode();
+      // Assign HD wallet index
+      const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index), -1) + 1 AS next FROM companies`);
+      const hdIdx = idxRows[0].next;
+      const walletAddr = getHDAddress(hdIdx);
+      const { rows: compRows } = await pool.query(
+        `INSERT INTO companies (name, owner_id, invite_code, hd_wallet_index, wallet_address) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [companyName.trim(), user.id, inviteCode, hdIdx, walletAddr]
+      );
+      companyId = compRows[0].id;
+      await pool.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [companyId, user.id]);
+    }
+
+    // Auto-create default API key
     const key = generateApiKey();
     await pool.query(
       `INSERT INTO api_keys (user_id, key, label) VALUES ($1, $2, $3)`,
       [user.id, key, 'Default Key']
     );
 
-    req.session.userId  = user.id;
-    req.session.email   = user.email;
-    req.session.isAdmin = user.is_admin;
-    res.json({ message: 'Account created', email: user.email, apiKey: key });
+    req.session.userId    = user.id;
+    req.session.email     = user.email;
+    req.session.isAdmin   = user.is_admin;
+    req.session.companyId = companyId;
+    res.json({ message: 'Account created', email: user.email, apiKey: key, inviteCode, accountType: accountType || 'personal' });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already registered' });
     console.error('Register error:', err);
@@ -172,6 +250,9 @@ app.post('/api/auth/login', async (req, res) => {
     req.session.userId  = user.id;
     req.session.email   = user.email;
     req.session.isAdmin = user.is_admin;
+    // Get company_id for session
+    const { rows: compRows } = await pool.query(`SELECT company_id FROM users WHERE id = $1`, [user.id]);
+    req.session.companyId = compRows[0]?.company_id || null;
     res.json({ message: 'Logged in', isAdmin: user.is_admin });
   } catch (err) {
     console.error('Login error:', err);
@@ -185,10 +266,16 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/me', requireUserSession, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, email, is_admin, created_at FROM users WHERE id = $1`, [req.session.userId]
+    `SELECT u.id, u.email, u.is_admin, u.account_type, u.company_id, u.credits_usd, u.created_at,
+            c.name AS company_name, c.credits_usd AS company_credits, c.invite_code, c.plan
+     FROM users u
+     LEFT JOIN companies c ON c.id = u.company_id
+     WHERE u.id = $1`, [req.session.userId]
   );
   if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
-  res.json(rows[0]);
+  const u = rows[0];
+  req.session.companyId = u.company_id;
+  res.json(u);
 });
 
 // ─── User API Keys ────────────────────────────────────────────────────────────
@@ -374,6 +461,119 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
   res.json({ message: 'Settings updated' });
 });
 
+// ─── Billing ──────────────────────────────────────────────────────────────────
+
+app.post('/api/billing/stripe/checkout', requireUserSession, async (req, res) => {
+  if (!stripe) return res.status(400).json({ error: 'Stripe payments not configured' });
+  const { amountUsd } = req.body;
+  const amt = parseFloat(amountUsd);
+  if (!amt || amt < 5 || amt > 1000) return res.status(400).json({ error: 'Amount must be between $5 and $1000' });
+
+  try {
+    const appUrl = process.env.APP_URL || 'https://meetingservice-production.up.railway.app';
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `Meeting Credits — $${amt}`, description: 'Credits for MeetingService usage' },
+          unit_amount: Math.round(amt * 100),
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${appUrl}/billing?success=1`,
+      cancel_url:  `${appUrl}/billing?cancel=1`,
+      metadata: {
+        userId:    String(req.session.userId),
+        companyId: req.session.companyId ? String(req.session.companyId) : '',
+        amountUsd: String(amt),
+      },
+    });
+    await pool.query(
+      `INSERT INTO stripe_topups (user_id, company_id, amount_usd, session_id) VALUES ($1, $2, $3, $4)`,
+      [req.session.userId, req.session.companyId || null, amt, session.id]
+    );
+    res.json({ url: session.url });
+  } catch(err) {
+    console.error('Stripe checkout error:', err);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+app.get('/api/billing/usdc/address', requireUserSession, async (req, res) => {
+  try {
+    let address = null;
+    if (req.session.companyId) {
+      const { rows } = await pool.query(`SELECT wallet_address FROM companies WHERE id = $1`, [req.session.companyId]);
+      address = rows[0]?.wallet_address;
+    } else {
+      const { rows } = await pool.query(`SELECT wallet_address FROM users WHERE id = $1`, [req.session.userId]);
+      if (!rows[0]?.wallet_address) {
+        // Assign a new HD address
+        const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index),-1)+1 AS next FROM companies`);
+        const hdIdx = (idxRows[0].next || 0) + 10000; // offset to avoid collision with company indices
+        const addr  = getHDAddress(hdIdx);
+        if (addr) {
+          await pool.query(`UPDATE users SET wallet_address = $1 WHERE id = $2`, [addr, req.session.userId]);
+          address = addr;
+        }
+      } else {
+        address = rows[0].wallet_address;
+      }
+    }
+    res.json({ address: address || null });
+  } catch(err) {
+    console.error('USDC address error:', err);
+    res.status(500).json({ error: 'Failed to get address' });
+  }
+});
+
+app.get('/api/billing/history', requireUserSession, async (req, res) => {
+  try {
+    let balance, transactions;
+    if (req.session.companyId) {
+      const { rows: bRows } = await pool.query(`SELECT credits_usd FROM companies WHERE id = $1`, [req.session.companyId]);
+      balance = bRows[0]?.credits_usd || 0;
+      const { rows } = await pool.query(
+        `SELECT * FROM credit_transactions WHERE company_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [req.session.companyId]
+      );
+      transactions = rows;
+    } else {
+      const { rows: bRows } = await pool.query(`SELECT credits_usd FROM users WHERE id = $1`, [req.session.userId]);
+      balance = bRows[0]?.credits_usd || 0;
+      const { rows } = await pool.query(
+        `SELECT * FROM credit_transactions WHERE user_id = $1 AND company_id IS NULL ORDER BY created_at DESC LIMIT 50`,
+        [req.session.userId]
+      );
+      transactions = rows;
+    }
+    res.json({ balance, transactions });
+  } catch(err) {
+    res.status(500).json({ error: 'Failed to load history' });
+  }
+});
+
+// Join a company via invite code
+app.post('/api/company/join', requireUserSession, async (req, res) => {
+  const { inviteCode } = req.body;
+  if (!inviteCode) return res.status(400).json({ error: 'Invite code required' });
+  try {
+    const { rows } = await pool.query(`SELECT id, name FROM companies WHERE invite_code = $1`, [inviteCode.toLowerCase().trim()]);
+    if (!rows.length) return res.status(404).json({ error: 'Invalid invite code' });
+    const company = rows[0];
+    // Check user doesn't already have a company
+    const { rows: uRows } = await pool.query(`SELECT company_id FROM users WHERE id = $1`, [req.session.userId]);
+    if (uRows[0]?.company_id) return res.status(400).json({ error: 'You are already part of a company' });
+    await pool.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [company.id, req.session.userId]);
+    req.session.companyId = company.id;
+    res.json({ message: `Joined ${company.name}`, companyId: company.id, companyName: company.name });
+  } catch(err) {
+    res.status(500).json({ error: 'Failed to join company' });
+  }
+});
+
 // ─── Meetings REST API ────────────────────────────────────────────────────────
 app.post('/api/meetings', authApi, async (req, res) => {
   // Apply default max participants from settings
@@ -503,6 +703,7 @@ app.get('/',         (_req, res) => res.sendFile(path.join(__dirname, 'public', 
 app.get('/docs',     (_req, res) => res.sendFile(path.join(__dirname, 'public', 'docs.html')));
 app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/dashboard',(_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/billing',  requireUserSession, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'billing.html')));
 app.get('/join/:meetingId', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'meeting.html')));
 
 app.get('/admin', (req, res) => {

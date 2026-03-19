@@ -90,17 +90,24 @@
   </style>
 </head>
 <body>
-<nav>
-  <a href="/">Home</a>
-  <a href="/docs">API Docs</a>
+<nav style="background:white;border-bottom:1px solid #e2e8f0;">
+  <a href="/" style="color:#4361ee;">Home</a>
+  <a href="/docs" style="color:#4361ee;">API Docs</a>
+  <a href="/dashboard" style="color:#64748b;">Dashboard</a>
+  <a href="/register" style="color:#64748b;">Register</a>
 </nav>
 
 <div class="docs-container">
-<h1>Meeting Service API</h1>
-<p class="subtitle">A simple, RESTful API for creating and managing video meetings. Built for agents, services, and humans.</p>
+<h1>MeetingService API</h1>
+<p class="subtitle">A RESTful API for creating and managing video meetings. Built for agents, services, and humans.</p>
+
+<div style="display:flex;gap:16px;margin-bottom:32px;font-size:13px;color:#64748b;flex-wrap:wrap;">
+  <span>Version: <strong>2.1.0</strong></span>
+  <span>Last updated: <strong>March 19, 2026</strong></span>
+</div>
 
 <div class="note">
-  <strong>Base URL:</strong> <code>http://localhost:3000</code><br>
+  <strong>Base URL:</strong> <code>https://meetingservice-production.up.railway.app</code><br>
   <strong>Default API Key:</strong> <code>mk_default_test_key</code> (for testing)
 </div>
 
@@ -112,8 +119,10 @@
   <a href="#settings">4. Meeting Settings</a>
   <a href="#realtime">5. Real-time Events (Socket.IO)</a>
   <a href="#webrtc">6. WebRTC Signaling</a>
-  <a href="#quickstart">7. Quick Start Guide</a>
-  <a href="#errors">8. Error Handling</a>
+  <a href="#company">7. Company Accounts</a>
+  <a href="#billing">8. Billing</a>
+  <a href="#quickstart">9. Quick Start Guide</a>
+  <a href="#errors">10. Error Handling</a>
 </div>
 
 <!-- ─── Auth ──────────────────────────────────────────────────────────── -->
@@ -318,6 +327,8 @@ x-admin-token: &lt;admin-token-from-create&gt;
   <tr><td><code>media:toggle-video</code></td><td><code>{ isVideoOff }</code></td><td>Notify video state change</td></tr>
   <tr><td><code>media:screen-share</code></td><td><code>{ isScreenSharing }</code></td><td>Notify screen share state</td></tr>
   <tr><td><code>chat:message</code></td><td><code>{ text }</code></td><td>Send a chat message</td></tr>
+  <tr><td><code>raise-hand</code></td><td><code>{ isHandRaised }</code></td><td>Raise or lower hand; broadcast to all participants</td></tr>
+  <tr><td><code>react</code></td><td><code>{ emoji }</code></td><td>Send emoji reaction (👍 ❤️ 😂 🎉 👏); broadcast to all</td></tr>
 </table>
 
 <h3>Server → Client Events</h3>
@@ -338,6 +349,7 @@ x-admin-token: &lt;admin-token-from-create&gt;
   <tr><td><code>meeting:settings-updated</code></td><td><code>{ ...settings }</code></td><td>Meeting settings changed</td></tr>
   <tr><td><code>chat:message</code></td><td><code>{ from, name, text, timestamp }</code></td><td>Chat message received</td></tr>
   <tr><td><code>error</code></td><td><code>{ message }</code></td><td>Error (meeting not found, locked, full)</td></tr>
+  <tr><td><code>react</code></td><td><code>{ participantId, emoji }</code></td><td>Emoji reaction from a participant</td></tr>
 </table>
 
 <!-- ─── WebRTC ────────────────────────────────────────────────────────── -->
@@ -359,18 +371,126 @@ Media Tracks:
 - Video: blur filter (processed canvas stream replaces camera track)
 </code></pre>
 
-<h3>STUN Servers Used</h3>
+<h3>STUN/TURN Servers Used</h3>
 <pre><code>stun:stun.l.google.com:19302
 stun:stun1.l.google.com:19302
 </code></pre>
-<p>For production, add TURN servers for participants behind strict NATs/firewalls.</p>
+<p>The production deployment includes TURN server support for participants behind strict NATs and firewalls. For self-hosted deployments, configure TURN credentials via environment variables.</p>
+
+<!-- ─── Company Accounts ─────────────────────────────────────────────── -->
+<h2 id="company">7. Company Accounts</h2>
+<p>Company accounts allow multiple users to share a single credit balance and manage API keys under one organization.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/auth/register</div>
+  <p>Register a new account. Supports both personal and company account types.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>email</code> <span class="badge required">required</span></td><td>string</td><td>User email address</td></tr>
+    <tr><td><code>password</code> <span class="badge required">required</span></td><td>string</td><td>Password (min 8 characters)</td></tr>
+    <tr><td><code>accountType</code> <span class="badge optional">optional</span></td><td>string</td><td><code>"personal"</code> or <code>"company"</code> (default: personal)</td></tr>
+    <tr><td><code>companyName</code> <span class="badge optional">optional</span></td><td>string</td><td>Required when accountType is "company"</td></tr>
+  </table>
+
+  <h3>Response</h3>
+<pre><code>{
+  "message": "Account created",
+  "email": "user@example.com",
+  "apiKey": "mk_abc123...",
+  "inviteCode": "xyz789abc0",  // only for company accounts
+  "accountType": "company"
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/company/join</div>
+  <p>Join an existing company using an invite code. Requires an active user session.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>inviteCode</code> <span class="badge required">required</span></td><td>string</td><td>The 10-character invite code from the company owner</td></tr>
+  </table>
+
+  <h3>Response</h3>
+<pre><code>{
+  "message": "Joined Acme Corp",
+  "companyId": 1,
+  "companyName": "Acme Corp"
+}</code></pre>
+
+<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/company/join \
+  -H "Content-Type: application/json" \
+  -b "your-session-cookie" \
+  -d '{"inviteCode": "xyz789abc0"}'</code></pre>
+</div>
+
+<!-- ─── Billing ──────────────────────────────────────────────────────── -->
+<h2 id="billing">8. Billing</h2>
+<p>Top up credit balance using Stripe (credit card) or USDC (Ethereum ERC-20). Credits are shared at the company level for company accounts.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/billing/stripe/checkout</div>
+  <p>Create a Stripe Checkout session to top up credits with a credit card. Returns a redirect URL.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>amountUsd</code> <span class="badge required">required</span></td><td>number</td><td>Amount to top up in USD (min $5, max $1000)</td></tr>
+  </table>
+
+  <h3>Response</h3>
+<pre><code>{
+  "url": "https://checkout.stripe.com/c/pay/..."
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/billing/usdc/address</div>
+  <p>Get the USDC (ERC-20) deposit address for your account or company. Send USDC to this address to top up credits.</p>
+
+  <h3>Response</h3>
+<pre><code>{
+  "address": "0xABC123..."
+}</code></pre>
+
+  <div class="note">
+    Only send USDC on the Ethereum mainnet. 1 USDC = $1.00 USD credit. Minimum deposit: $5 USDC.
+  </div>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/billing/history</div>
+  <p>Get the credit balance and transaction history for the current user or company.</p>
+
+  <h3>Response</h3>
+<pre><code>{
+  "balance": "25.0000",
+  "transactions": [
+    {
+      "id": 1,
+      "amount_usd": "10.0000",
+      "type": "stripe_topup",
+      "description": "Stripe top-up $10",
+      "created_at": "2026-03-19T12:00:00Z"
+    }
+  ]
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/billing/stripe/webhook</div>
+  <p>Stripe webhook endpoint (internal use). Credits are automatically added when a Stripe Checkout session completes.</p>
+</div>
 
 <!-- ─── Quick Start ──────────────────────────────────────────────────── -->
-<h2 id="quickstart">7. Quick Start Guide</h2>
+<h2 id="quickstart">9. Quick Start Guide</h2>
 
 <h3>For Agents / Services (API-only)</h3>
 <pre><code># 1. Create a meeting
-RESPONSE=$(curl -s -X POST http://localhost:3000/api/meetings \
+RESPONSE=$(curl -s -X POST https://meetingservice-production.up.railway.app/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: mk_default_test_key" \
   -d '{"title": "Agent Meeting"}')
@@ -379,35 +499,36 @@ MEETING_ID=$(echo $RESPONSE | jq -r '.meetingId')
 ADMIN_TOKEN=$(echo $RESPONSE | jq -r '.adminToken')
 
 # 2. Share the join link with participants
-echo "Join: http://localhost:3000/join/$MEETING_ID"
+echo "Join: https://meetingservice-production.up.railway.app/join/$MEETING_ID"
 
 # 3. Monitor participants
-curl -s http://localhost:3000/api/meetings/$MEETING_ID \
+curl -s https://meetingservice-production.up.railway.app/api/meetings/$MEETING_ID \
   -H "x-api-key: mk_default_test_key" | jq
 
 # 4. Mute a noisy participant
-curl -X POST http://localhost:3000/api/meetings/$MEETING_ID/participants/PARTICIPANT_ID/mute \
+curl -X POST https://meetingservice-production.up.railway.app/api/meetings/$MEETING_ID/participants/PARTICIPANT_ID/mute \
   -H "x-api-key: mk_default_test_key" \
   -H "x-admin-token: $ADMIN_TOKEN"
 
 # 5. End the meeting
-curl -X DELETE http://localhost:3000/api/meetings/$MEETING_ID \
+curl -X DELETE https://meetingservice-production.up.railway.app/api/meetings/$MEETING_ID \
   -H "x-api-key: mk_default_test_key" \
   -H "x-admin-token: $ADMIN_TOKEN"
 </code></pre>
 
 <h3>For Humans (Web UI)</h3>
-<pre><code>1. Open http://localhost:3000 in your browser
-2. Enter a meeting title and your name, click "Create Meeting"
+<pre><code>1. Open https://meetingservice-production.up.railway.app in your browser
+2. Enter a meeting title and your name, click "Start a meeting now"
 3. Share the meeting link with others
-4. Use the toolbar to: toggle mic, camera, share screen, blur background
+4. Use the toolbar to: toggle mic, camera, share screen, blur background, react with emoji
 5. Open the People panel to manage participants (admin only)
+6. Raise your hand with the hand button to signal you want to speak
 </code></pre>
 
 <h3>For Programmatic Clients (Socket.IO)</h3>
 <pre><code>const { io } = require("socket.io-client");
 
-const socket = io("http://localhost:3000");
+const socket = io("https://meetingservice-production.up.railway.app");
 
 socket.emit("join-meeting", {
   meetingId: "abc-defg-hij",
@@ -431,10 +552,16 @@ socket.on("chat:message", ({ name, text }) => {
 
 // Send a chat message
 socket.emit("chat:message", { text: "Hello from the bot!" });
+
+// Raise hand
+socket.emit("raise-hand", { isHandRaised: true });
+
+// Send emoji reaction
+socket.emit("react", { emoji: "👍" });
 </code></pre>
 
 <!-- ─── Errors ────────────────────────────────────────────────────────── -->
-<h2 id="errors">8. Error Handling</h2>
+<h2 id="errors">10. Error Handling</h2>
 <table>
   <tr><th>Status</th><th>Error</th><th>Description</th></tr>
   <tr><td>401</td><td><code>Invalid or missing API key</code></td><td>Missing or wrong <code>x-api-key</code> header</td></tr>
@@ -445,7 +572,7 @@ socket.emit("chat:message", { text: "Hello from the bot!" });
 
 <p>Socket.IO errors are emitted via the <code>error</code> event with a <code>{ message }</code> payload.</p>
 
-<h2>9. Features Overview</h2>
+<h2>11. Features Overview</h2>
 <table>
   <tr><th>Feature</th><th>Description</th></tr>
   <tr><td>Video Calls</td><td>WebRTC peer-to-peer video with camera selection</td></tr>
@@ -453,11 +580,18 @@ socket.emit("chat:message", { text: "Hello from the bot!" });
   <tr><td>Screen Sharing</td><td>Share entire screen or application window</td></tr>
   <tr><td>Background Blur</td><td>Canvas-based blur filter on camera feed</td></tr>
   <tr><td>Chat</td><td>Real-time text chat within the meeting</td></tr>
+  <tr><td>Emoji Reactions</td><td>Send floating emoji reactions (👍 ❤️ 😂 🎉 👏) visible to all participants</td></tr>
+  <tr><td>Raise Hand</td><td>Signal the host you want to speak; visible badge on your tile</td></tr>
+  <tr><td>Speaking Indicator</td><td>Blue outline on the tile of the currently speaking participant</td></tr>
+  <tr><td>Spotlight / Pin</td><td>Pin a participant to the main view; others go to filmstrip sidebar</td></tr>
   <tr><td>Admin Controls</td><td>Mute/unmute/kick participants, mute all, lock meeting</td></tr>
   <tr><td>Device Selection</td><td>Choose camera, microphone, and speaker</td></tr>
   <tr><td>Mobile Responsive</td><td>Fully usable on phones and tablets</td></tr>
   <tr><td>REST API</td><td>Full API for programmatic meeting management</td></tr>
   <tr><td>Socket.IO Events</td><td>Real-time signaling and state synchronization</td></tr>
+  <tr><td>Company Accounts</td><td>Multi-user workspaces with shared credits and invite codes</td></tr>
+  <tr><td>Stripe Billing</td><td>Top up credits with credit/debit card via Stripe Checkout</td></tr>
+  <tr><td>USDC Crypto</td><td>Top up credits with USDC (ERC-20) to a dedicated HD wallet address</td></tr>
 </table>
 
 <div class="note" style="margin-top: 32px;">

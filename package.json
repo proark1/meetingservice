@@ -15,6 +15,8 @@
     "pg": "^8.11.3",
     "bcryptjs": "^2.4.3",
     "express-session": "^1.17.3",
-    "connect-pg-simple": "^9.0.1"
+    "connect-pg-simple": "^9.0.1",
+    "stripe": "^14.21.0",
+    "ethers": "^6.11.0"
   }
 }
