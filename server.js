@@ -188,6 +188,34 @@ app.use(session({
 
 // ─── In-memory store (meetings stay ephemeral) ───────────────────────────────
 const meetings = new Map();
+const scheduledMeetings = new Map(); // meetingId -> { id, adminToken, title, scheduledAt, settings, status }
+
+// ─── Scheduled meeting activation ───────────────────────────────────────────
+function activateScheduledMeeting(scheduled) {
+  const meeting = {
+    id: scheduled.id,
+    adminToken: scheduled.adminToken,
+    title: scheduled.title,
+    createdAt: Date.now(),
+    participants: new Map(),
+    waitingRoom: new Map(),
+    peakParticipants: 0,
+    logId: null,
+    settings: { ...scheduled.settings },
+  };
+  meetings.set(scheduled.id, meeting);
+  scheduled.status = 'active';
+}
+
+// Check every 15s for scheduled meetings that need activating
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, s] of scheduledMeetings) {
+    if (s.status === 'scheduled' && s.scheduledAt <= now) {
+      activateScheduledMeeting(s);
+    }
+  }
+}, 15000);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function generateMeetingId() {
@@ -1080,6 +1108,48 @@ app.post('/api/meetings', authApi, async (req, res) => {
 
   const id         = generateMeetingId();
   const adminToken = uuidv4();
+  const settings   = {
+    muteOnJoin:      req.body.muteOnJoin      ?? false,
+    videoOffOnJoin:  req.body.videoOffOnJoin  ?? false,
+    maxParticipants: req.body.maxParticipants ?? maxDefault,
+    locked:          false,
+    waitingRoom:     req.body.waitingRoom     ?? false,
+  };
+
+  // Handle scheduled meetings
+  if (req.body.scheduledAt) {
+    const scheduledAt = new Date(req.body.scheduledAt).getTime();
+    if (isNaN(scheduledAt)) {
+      return res.status(400).json({ error: 'Invalid scheduledAt date format. Use ISO 8601 (e.g. 2026-03-20T14:00:00Z)' });
+    }
+    if (scheduledAt <= Date.now()) {
+      return res.status(400).json({ error: 'scheduledAt must be in the future' });
+    }
+
+    const scheduled = {
+      id, adminToken,
+      title: ((req.body.title || 'Untitled Meeting') + '').slice(0, 100),
+      scheduledAt, createdAt: Date.now(),
+      status: 'scheduled', settings,
+    };
+    scheduledMeetings.set(id, scheduled);
+
+    // Set a timer for exact activation
+    const delay = scheduledAt - Date.now();
+    setTimeout(() => {
+      const s = scheduledMeetings.get(id);
+      if (s && s.status === 'scheduled') activateScheduledMeeting(s);
+    }, delay);
+
+    return res.status(201).json({
+      meetingId: id, adminToken, joinUrl: `/join/${id}`,
+      title: scheduled.title,
+      scheduledAt: new Date(scheduledAt).toISOString(),
+      status: 'scheduled', settings,
+    });
+  }
+
+  // Instant meeting
   const meeting    = {
     id,
     adminToken,
@@ -1089,13 +1159,7 @@ app.post('/api/meetings', authApi, async (req, res) => {
     waitingRoom:      new Map(),
     peakParticipants: 0,
     logId:            null,
-    settings: {
-      muteOnJoin:      req.body.muteOnJoin      ?? false,
-      videoOffOnJoin:  req.body.videoOffOnJoin  ?? false,
-      maxParticipants: req.body.maxParticipants ?? maxDefault,
-      locked:          false,
-      waitingRoom:     req.body.waitingRoom     ?? false,
-    },
+    settings,
   };
   meetings.set(id, meeting);
 
@@ -1125,37 +1189,85 @@ app.post('/api/meetings', authApi, async (req, res) => {
 
   res.status(201).json({
     meetingId: id, adminToken, joinUrl: `/join/${id}`,
-    title: meeting.title, settings: meeting.settings,
+    title: meeting.title, status: 'active', settings: meeting.settings,
   });
 });
 
 app.get('/api/meetings', authApi, (_req, res) => {
-  const list = [...meetings.values()].map(m => ({
+  const active = [...meetings.values()].map(m => ({
     meetingId: m.id, title: m.title, createdAt: m.createdAt,
-    participantCount: m.participants.size,
+    status: 'active', participantCount: m.participants.size,
+  }));
+  const scheduled = [...scheduledMeetings.values()]
+    .filter(s => s.status === 'scheduled')
+    .map(s => ({
+      meetingId: s.id, title: s.title, createdAt: s.createdAt,
+      scheduledAt: new Date(s.scheduledAt).toISOString(),
+      status: 'scheduled', participantCount: 0,
+    }));
+  res.json({ meetings: [...active, ...scheduled] });
+});
+
+// List only scheduled meetings
+app.get('/api/meetings/scheduled/list', authApi, (_req, res) => {
+  const list = [...scheduledMeetings.values()].map(s => ({
+    meetingId: s.id, title: s.title,
+    scheduledAt: new Date(s.scheduledAt).toISOString(),
+    status: s.status, createdAt: s.createdAt,
   }));
   res.json({ meetings: list });
 });
 
-app.get('/api/meetings/:meetingId', authApi, findMeeting, (req, res) => {
-  const m = req.meeting;
-  res.json({
-    meetingId: m.id, title: m.title, createdAt: m.createdAt,
-    participantCount: m.participants.size,
-    participants: [...m.participants.values()].map(p => ({
-      participantId: p.id, name: p.name, isMuted: p.isMuted,
-      isVideoOff: p.isVideoOff, isScreenSharing: p.isScreenSharing, joinedAt: p.joinedAt,
-    })),
-    settings: m.settings,
-  });
+app.get('/api/meetings/:meetingId', authApi, (req, res) => {
+  const m = meetings.get(req.params.meetingId);
+  if (m) {
+    return res.json({
+      meetingId: m.id, title: m.title, createdAt: m.createdAt,
+      status: 'active', participantCount: m.participants.size,
+      participants: [...m.participants.values()].map(p => ({
+        participantId: p.id, name: p.name, isMuted: p.isMuted,
+        isVideoOff: p.isVideoOff, isScreenSharing: p.isScreenSharing, joinedAt: p.joinedAt,
+      })),
+      settings: m.settings,
+    });
+  }
+  const s = scheduledMeetings.get(req.params.meetingId);
+  if (s) {
+    return res.json({
+      meetingId: s.id, title: s.title, createdAt: s.createdAt,
+      scheduledAt: new Date(s.scheduledAt).toISOString(),
+      status: s.status, settings: s.settings,
+    });
+  }
+  return res.status(404).json({ error: 'Meeting not found' });
 });
 
-app.delete('/api/meetings/:meetingId', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
-  const m = req.meeting;
-  io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by admin' });
-  meetings.delete(m.id);
-  chargeMeeting(m).catch(() => {});
-  res.json({ message: 'Meeting ended' });
+app.delete('/api/meetings/:meetingId', authApi, (req, res) => {
+  const m = meetings.get(req.params.meetingId);
+  const s = scheduledMeetings.get(req.params.meetingId);
+
+  if (m) {
+    const adminToken = req.headers['x-admin-token'];
+    if (!adminToken || adminToken !== m.adminToken) {
+      return res.status(403).json({ error: 'Admin token required' });
+    }
+    io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by admin' });
+    meetings.delete(m.id);
+    scheduledMeetings.delete(m.id);
+    chargeMeeting(m).catch(() => {});
+    return res.json({ message: 'Meeting ended' });
+  }
+
+  if (s) {
+    const adminToken = req.headers['x-admin-token'];
+    if (!adminToken || adminToken !== s.adminToken) {
+      return res.status(403).json({ error: 'Admin token required' });
+    }
+    scheduledMeetings.delete(s.id);
+    return res.json({ message: 'Scheduled meeting cancelled' });
+  }
+
+  return res.status(404).json({ error: 'Meeting not found' });
 });
 
 app.patch('/api/meetings/:meetingId/settings', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
@@ -1330,7 +1442,13 @@ io.on('connection', (socket) => {
 
   socket.on('join-meeting', ({ meetingId, name, isAdmin, adminToken }) => {
     const meeting = meetings.get(meetingId);
-    if (!meeting) return socket.emit('error', { message: 'Meeting not found' });
+    if (!meeting) {
+      const scheduled = scheduledMeetings.get(meetingId);
+      if (scheduled && scheduled.status === 'scheduled') {
+        return socket.emit('error', { message: `This meeting is scheduled for ${new Date(scheduled.scheduledAt).toLocaleString()}. Please wait until it starts.` });
+      }
+      return socket.emit('error', { message: 'Meeting not found' });
+    }
 
     if (meeting.settings.locked && !(isAdmin && adminToken === meeting.adminToken)) {
       return socket.emit('error', { message: 'Meeting is locked' });

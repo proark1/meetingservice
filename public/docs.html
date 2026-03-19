@@ -4,16 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meeting Service - API Documentation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #0f0f0f; --surface: #1a1a2e; --surface2: #16213e;
-      --primary: #4361ee; --text: #edf2f4; --text-muted: #8d99ae;
-      --border: #2b2d42; --green: #06d6a0; --red: #ef233c;
-      --orange: #f77f00; --blue: #4cc9f0;
+      --bg: #f5f7fa; --surface: #ffffff; --surface2: #f0f2f5;
+      --primary: #4f6ef7; --primary-light: #eef1ff; --text: #1a1a2e; --text-muted: #6b7280;
+      --border: #e5e7eb; --green: #30a46c; --red: #e5484d;
+      --orange: #f59e0b; --blue: #3b82f6;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg); color: var(--text);
       line-height: 1.6;
     }
@@ -26,27 +27,30 @@
     a:hover { text-decoration: underline; }
     code {
       background: var(--surface2); padding: 2px 6px;
-      border-radius: 4px; font-size: 13px; font-family: 'SF Mono', Monaco, monospace;
+      border-radius: 6px; font-size: 13px; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      color: var(--text);
     }
     pre {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 16px; overflow-x: auto;
+      background: #1a1a2e; border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; overflow-x: auto;
       margin: 12px 0 20px; font-size: 13px; line-height: 1.5;
+      color: #e2e8f0;
     }
-    pre code { background: none; padding: 0; }
+    pre code { background: none; padding: 0; color: inherit; }
     .subtitle { font-size: 18px; color: var(--text-muted); margin-bottom: 32px; }
     .method {
       display: inline-block; font-weight: 700; font-size: 12px;
       padding: 2px 8px; border-radius: 4px; margin-right: 8px;
       font-family: monospace;
     }
-    .method.get { background: var(--green); color: #000; }
-    .method.post { background: var(--primary); color: #fff; }
-    .method.patch { background: var(--orange); color: #000; }
-    .method.delete { background: var(--red); color: #fff; }
+    .method.get { background: #dcfce7; color: #166534; }
+    .method.post { background: var(--primary-light); color: var(--primary); }
+    .method.patch { background: #fef3c7; color: #92400e; }
+    .method.delete { background: #fee2e2; color: #991b1b; }
     .endpoint {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 20px; margin: 16px 0;
+      border-radius: 12px; padding: 24px; margin: 16px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .endpoint-header {
       display: flex; align-items: center; margin-bottom: 12px;
@@ -64,25 +68,28 @@
     th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
     td code { font-size: 12px; }
     .note {
-      background: var(--surface2); border-left: 3px solid var(--primary);
-      padding: 12px 16px; border-radius: 0 8px 8px 0;
-      margin: 12px 0; font-size: 14px;
+      background: var(--primary-light); border-left: 3px solid var(--primary);
+      padding: 14px 18px; border-radius: 0 12px 12px 0;
+      margin: 12px 0; font-size: 14px; color: var(--text);
     }
+    .note strong { color: var(--text); }
     .toc { margin: 24px 0; }
-    .toc a { display: block; padding: 4px 0; color: var(--text-muted); }
-    .toc a:hover { color: var(--primary); }
+    .toc a { display: block; padding: 6px 12px; color: var(--text-muted); border-radius: 8px; transition: all 0.15s; }
+    .toc a:hover { color: var(--primary); background: var(--primary-light); text-decoration: none; }
     .badge {
       display: inline-block; padding: 2px 8px;
-      border-radius: 4px; font-size: 11px; font-weight: 600;
+      border-radius: 6px; font-size: 11px; font-weight: 600;
       margin-left: 8px;
     }
-    .badge.required { background: var(--red); color: white; }
-    .badge.optional { background: var(--border); color: var(--text-muted); }
+    .badge.required { background: #fee2e2; color: #991b1b; }
+    .badge.optional { background: var(--surface2); color: var(--text-muted); }
     nav {
       background: var(--surface); border-bottom: 1px solid var(--border);
-      padding: 12px 20px; display: flex; align-items: center; gap: 24px;
+      padding: 14px 24px; display: flex; align-items: center; gap: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    nav a { font-weight: 600; }
+    nav a { font-weight: 600; color: var(--text-muted); }
+    nav a:hover { color: var(--primary); text-decoration: none; }
     @media (max-width: 768px) {
       .docs-container { padding: 20px 16px; }
       .endpoint-header { font-size: 13px; flex-wrap: wrap; }
@@ -115,14 +122,16 @@
 <div class="toc">
   <a href="#auth">1. Authentication</a>
   <a href="#meetings">2. Meetings</a>
-  <a href="#participants">3. Participant Controls</a>
-  <a href="#settings">4. Meeting Settings</a>
-  <a href="#realtime">5. Real-time Events (Socket.IO)</a>
-  <a href="#webrtc">6. WebRTC Signaling</a>
-  <a href="#company">7. Company Accounts</a>
-  <a href="#billing">8. Billing</a>
-  <a href="#quickstart">9. Quick Start Guide</a>
-  <a href="#errors">10. Error Handling</a>
+  <a href="#scheduled">3. Scheduled Meetings</a>
+  <a href="#participants">4. Participant Controls</a>
+  <a href="#settings">5. Meeting Settings</a>
+  <a href="#realtime">6. Real-time Events (Socket.IO)</a>
+  <a href="#webrtc">7. WebRTC Signaling</a>
+  <a href="#company">8. Company Accounts</a>
+  <a href="#billing">9. Billing</a>
+  <a href="#quickstart">10. Quick Start Guide</a>
+  <a href="#errors">11. Error Handling</a>
+  <a href="#features">12. Features Overview</a>
 </div>
 
 <!-- ─── Auth ──────────────────────────────────────────────────────────── -->
@@ -140,41 +149,55 @@ x-admin-token: &lt;admin-token-from-create&gt;
 
 <div class="endpoint">
   <div class="endpoint-header"><span class="method post">POST</span> /api/meetings</div>
-  <p>Create a new meeting. Returns the meeting ID, admin token, and join URL.</p>
+  <p>Create a new meeting (instant or scheduled). Returns the meeting ID, admin token, and join URL.</p>
 
   <h3>Request Body</h3>
   <table>
     <tr><th>Field</th><th>Type</th><th>Description</th></tr>
     <tr><td><code>title</code> <span class="badge optional">optional</span></td><td>string</td><td>Meeting title (default: "Untitled Meeting")</td></tr>
+    <tr><td><code>scheduledAt</code> <span class="badge optional">optional</span></td><td>string</td><td>ISO 8601 date to schedule the meeting for the future (e.g. <code>2026-03-20T14:00:00Z</code>). If omitted, meeting starts immediately.</td></tr>
     <tr><td><code>muteOnJoin</code> <span class="badge optional">optional</span></td><td>boolean</td><td>Auto-mute new participants (default: false)</td></tr>
     <tr><td><code>videoOffOnJoin</code> <span class="badge optional">optional</span></td><td>boolean</td><td>Auto-disable video for new participants (default: false)</td></tr>
     <tr><td><code>maxParticipants</code> <span class="badge optional">optional</span></td><td>number</td><td>Max participants allowed (default: 50)</td></tr>
   </table>
 
-  <h3>Response</h3>
+  <h3>Response (Instant Meeting)</h3>
 <pre><code>{
   "meetingId": "abc-defg-hij",
   "adminToken": "uuid-admin-token",
   "joinUrl": "/join/abc-defg-hij",
   "title": "Team Standup",
-  "settings": {
-    "muteOnJoin": false,
-    "videoOffOnJoin": false,
-    "maxParticipants": 50,
-    "locked": false
-  }
+  "status": "active",
+  "settings": { "muteOnJoin": false, "videoOffOnJoin": false, "maxParticipants": 50, "locked": false }
 }</code></pre>
 
-  <h3>Example</h3>
-<pre><code>curl -X POST http://localhost:3000/api/meetings \
+  <h3>Response (Scheduled Meeting)</h3>
+<pre><code>{
+  "meetingId": "xyz-abcd-efg",
+  "adminToken": "uuid-admin-token",
+  "joinUrl": "/join/xyz-abcd-efg",
+  "title": "Weekly Sync",
+  "scheduledAt": "2026-03-20T14:00:00.000Z",
+  "status": "scheduled",
+  "settings": { "muteOnJoin": false, "videoOffOnJoin": false, "maxParticipants": 50, "locked": false }
+}</code></pre>
+
+  <h3>Example (Instant)</h3>
+<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: mk_default_test_key" \
   -d '{"title": "Team Standup"}'</code></pre>
+
+  <h3>Example (Scheduled)</h3>
+<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: mk_default_test_key" \
+  -d '{"title": "Weekly Sync", "scheduledAt": "2026-03-20T14:00:00Z"}'</code></pre>
 </div>
 
 <div class="endpoint">
   <div class="endpoint-header"><span class="method get">GET</span> /api/meetings</div>
-  <p>List all active meetings.</p>
+  <p>List all meetings (both active and scheduled).</p>
 
   <h3>Response</h3>
 <pre><code>{
@@ -183,7 +206,16 @@ x-admin-token: &lt;admin-token-from-create&gt;
       "meetingId": "abc-defg-hij",
       "title": "Team Standup",
       "createdAt": 1710000000000,
+      "status": "active",
       "participantCount": 3
+    },
+    {
+      "meetingId": "xyz-abcd-efg",
+      "title": "Weekly Sync",
+      "createdAt": 1710000000000,
+      "scheduledAt": "2026-03-20T14:00:00.000Z",
+      "status": "scheduled",
+      "participantCount": 0
     }
   ]
 }</code></pre>
@@ -228,13 +260,48 @@ x-admin-token: &lt;admin-token-from-create&gt;
     <tr><td><code>x-admin-token</code></td><td>The admin token returned from meeting creation</td></tr>
   </table>
 
-<pre><code>curl -X DELETE http://localhost:3000/api/meetings/abc-defg-hij \
+<pre><code>curl -X DELETE https://meetingservice-production.up.railway.app/api/meetings/abc-defg-hij \
   -H "x-api-key: mk_default_test_key" \
   -H "x-admin-token: your-admin-token"</code></pre>
 </div>
 
+<!-- ─── Scheduled Meetings ───────────────────────────────────────────── -->
+<h2 id="scheduled">3. Scheduled Meetings</h2>
+<p>Schedule meetings for the future. Scheduled meetings auto-activate at the specified time and become joinable.</p>
+
+<div class="note">
+  <strong>How scheduling works:</strong><br>
+  &bull; Pass <code>scheduledAt</code> (ISO 8601) when creating a meeting via <code>POST /api/meetings</code><br>
+  &bull; The meeting stays in <code>scheduled</code> status until the scheduled time<br>
+  &bull; At the scheduled time, the meeting auto-activates and becomes joinable<br>
+  &bull; If someone tries to join before the scheduled time, they see a "please wait" message<br>
+  &bull; Scheduled meetings can be cancelled via <code>DELETE /api/meetings/:meetingId</code>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/meetings/scheduled/list</div>
+  <p>List only scheduled meetings (both pending and already activated).</p>
+
+  <h3>Response</h3>
+<pre><code>{
+  "meetings": [
+    {
+      "meetingId": "xyz-abcd-efg",
+      "title": "Weekly Sync",
+      "scheduledAt": "2026-03-20T14:00:00.000Z",
+      "status": "scheduled",
+      "createdAt": 1710000000000
+    }
+  ]
+}</code></pre>
+
+  <h3>Example</h3>
+<pre><code>curl https://meetingservice-production.up.railway.app/api/meetings/scheduled/list \
+  -H "x-api-key: mk_default_test_key"</code></pre>
+</div>
+
 <!-- ─── Settings ─────────────────────────────────────────────────────── -->
-<h2 id="settings">3. Meeting Settings</h2>
+<h2 id="settings">4. Meeting Settings</h2>
 
 <div class="endpoint">
   <div class="endpoint-header"><span class="method patch">PATCH</span> /api/meetings/:meetingId/settings</div>
@@ -262,14 +329,14 @@ x-admin-token: &lt;admin-token-from-create&gt;
 </div>
 
 <!-- ─── Participant Controls ─────────────────────────────────────────── -->
-<h2 id="participants">4. Participant Controls</h2>
+<h2 id="participants">5. Participant Controls</h2>
 <p>All participant control endpoints require <code>x-admin-token</code>.</p>
 
 <div class="endpoint">
   <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/participants/:participantId/mute</div>
   <p>Mute a specific participant. The participant receives a real-time event and their audio is disabled.</p>
 
-<pre><code>curl -X POST http://localhost:3000/api/meetings/abc-defg-hij/participants/a1b2c3d4/mute \
+<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/meetings/abc-defg-hij/participants/a1b2c3d4/mute \
   -H "x-api-key: mk_default_test_key" \
   -H "x-admin-token: your-admin-token"</code></pre>
 </div>
@@ -313,7 +380,7 @@ x-admin-token: &lt;admin-token-from-create&gt;
 </div>
 
 <!-- ─── Real-time ────────────────────────────────────────────────────── -->
-<h2 id="realtime">5. Real-time Events (Socket.IO)</h2>
+<h2 id="realtime">6. Real-time Events (Socket.IO)</h2>
 <p>Connect to the Socket.IO server at the same base URL. Events enable real-time participant management and media signaling.</p>
 
 <h3>Client → Server Events</h3>
@@ -353,7 +420,7 @@ x-admin-token: &lt;admin-token-from-create&gt;
 </table>
 
 <!-- ─── WebRTC ────────────────────────────────────────────────────────── -->
-<h2 id="webrtc">6. WebRTC Flow</h2>
+<h2 id="webrtc">7. WebRTC Flow</h2>
 <p>The service uses a mesh topology for WebRTC peer connections. Each participant connects directly to every other participant.</p>
 
 <h3>Connection Flow</h3>
@@ -378,7 +445,7 @@ stun:stun1.l.google.com:19302
 <p>The production deployment includes TURN server support for participants behind strict NATs and firewalls. For self-hosted deployments, configure TURN credentials via environment variables.</p>
 
 <!-- ─── Company Accounts ─────────────────────────────────────────────── -->
-<h2 id="company">7. Company Accounts</h2>
+<h2 id="company">8. Company Accounts</h2>
 <p>Company accounts allow multiple users to share a single credit balance and manage API keys under one organization.</p>
 
 <div class="endpoint">
@@ -428,7 +495,7 @@ stun:stun1.l.google.com:19302
 </div>
 
 <!-- ─── Billing ──────────────────────────────────────────────────────── -->
-<h2 id="billing">8. Billing</h2>
+<h2 id="billing">9. Billing</h2>
 <p>Top up credit balance using Stripe (credit card) or USDC (Ethereum ERC-20). Credits are shared at the company level for company accounts.</p>
 
 <div class="endpoint">
@@ -486,7 +553,7 @@ stun:stun1.l.google.com:19302
 </div>
 
 <!-- ─── Quick Start ──────────────────────────────────────────────────── -->
-<h2 id="quickstart">9. Quick Start Guide</h2>
+<h2 id="quickstart">10. Quick Start Guide</h2>
 
 <h3>For Agents / Services (API-only)</h3>
 <pre><code># 1. Create a meeting
@@ -514,6 +581,23 @@ curl -X POST https://meetingservice-production.up.railway.app/api/meetings/$MEET
 curl -X DELETE https://meetingservice-production.up.railway.app/api/meetings/$MEETING_ID \
   -H "x-api-key: mk_default_test_key" \
   -H "x-admin-token: $ADMIN_TOKEN"
+</code></pre>
+
+<h3>For Agents: Schedule a Future Meeting</h3>
+<pre><code># Schedule a meeting for a specific date and time
+RESPONSE=$(curl -s -X POST https://meetingservice-production.up.railway.app/api/meetings \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: mk_default_test_key" \
+  -d '{"title": "Daily Standup", "scheduledAt": "2026-03-20T09:00:00Z"}')
+
+echo "Meeting scheduled!"
+echo "Meeting ID: $(echo $RESPONSE | jq -r '.meetingId')"
+echo "Starts at: $(echo $RESPONSE | jq -r '.scheduledAt')"
+echo "Status: $(echo $RESPONSE | jq -r '.status')"
+
+# List all scheduled meetings
+curl -s https://meetingservice-production.up.railway.app/api/meetings/scheduled/list \
+  -H "x-api-key: mk_default_test_key" | jq
 </code></pre>
 
 <h3>For Humans (Web UI)</h3>
@@ -561,9 +645,11 @@ socket.emit("react", { emoji: "👍" });
 </code></pre>
 
 <!-- ─── Errors ────────────────────────────────────────────────────────── -->
-<h2 id="errors">10. Error Handling</h2>
+<h2 id="errors">11. Error Handling</h2>
 <table>
   <tr><th>Status</th><th>Error</th><th>Description</th></tr>
+  <tr><td>400</td><td><code>Invalid scheduledAt date format</code></td><td>The <code>scheduledAt</code> field is not valid ISO 8601</td></tr>
+  <tr><td>400</td><td><code>scheduledAt must be in the future</code></td><td>The scheduled date is in the past</td></tr>
   <tr><td>401</td><td><code>Invalid or missing API key</code></td><td>Missing or wrong <code>x-api-key</code> header</td></tr>
   <tr><td>403</td><td><code>Admin token required</code></td><td>Missing or wrong <code>x-admin-token</code> for admin endpoints</td></tr>
   <tr><td>404</td><td><code>Meeting not found</code></td><td>Meeting ID doesn't exist or has ended</td></tr>
@@ -572,7 +658,7 @@ socket.emit("react", { emoji: "👍" });
 
 <p>Socket.IO errors are emitted via the <code>error</code> event with a <code>{ message }</code> payload.</p>
 
-<h2>11. Features Overview</h2>
+<h2 id="features">12. Features Overview</h2>
 <table>
   <tr><th>Feature</th><th>Description</th></tr>
   <tr><td>Video Calls</td><td>WebRTC peer-to-peer video with camera selection</td></tr>
@@ -580,6 +666,7 @@ socket.emit("react", { emoji: "👍" });
   <tr><td>Screen Sharing</td><td>Share entire screen or application window</td></tr>
   <tr><td>Background Blur</td><td>Canvas-based blur filter on camera feed</td></tr>
   <tr><td>Chat</td><td>Real-time text chat within the meeting</td></tr>
+  <tr><td>Scheduled Meetings</td><td>Plan meetings for the future with auto-activation at scheduled time</td></tr>
   <tr><td>Emoji Reactions</td><td>Send floating emoji reactions (👍 ❤️ 😂 🎉 👏) visible to all participants</td></tr>
   <tr><td>Raise Hand</td><td>Signal the host you want to speak; visible badge on your tile</td></tr>
   <tr><td>Speaking Indicator</td><td>Blue outline on the tile of the currently speaking participant</td></tr>
