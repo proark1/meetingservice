@@ -224,6 +224,13 @@ function joinMeeting() {
   $('#lobbyJoinBtn').textContent = 'Joining…';
 }
 
+// Apply server feature flags (hide disabled buttons)
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  if (!cfg.screenShareEnabled) $('#screenBtn').style.display = 'none';
+  if (!cfg.recordingEnabled)   $('#recordBtn').style.display = 'none';
+  if (!cfg.blurEnabled)        $('#blurBtn').style.display   = 'none';
+}).catch(() => {});
+
 initPreview();
 
 // ─── Socket events ────────────────────────────────────────────────────────────

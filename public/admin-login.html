@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — Meeting Service</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="home-container">
+  <div class="home-card" style="max-width:380px;">
+    <h1 style="font-size:22px;margin-bottom:4px;">Admin Panel</h1>
+    <p class="subtitle" style="margin-bottom:28px;">Meeting Service</p>
+
+    <div id="errorMsg" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;text-align:left;background:rgba(239,35,60,.1);border:1px solid var(--danger);border-radius:6px;padding:10px 14px;"></div>
+
+    <input type="email"    id="email"    placeholder="Email address" style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
+    <input type="password" id="password" placeholder="Password"      style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:16px;outline:none;" />
+    <button id="loginBtn" class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;">Sign In</button>
+
+    <p style="margin-top:20px;font-size:13px;color:var(--text-muted);">
+      <a href="/" style="color:var(--primary);">← Back to home</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const emailEl = document.getElementById('email');
+const passEl  = document.getElementById('password');
+const btn     = document.getElementById('loginBtn');
+const errEl   = document.getElementById('errorMsg');
+
+function showError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+
+async function login() {
+  const email    = emailEl.value.trim();
+  const password = passEl.value;
+  if (!email || !password) return showError('Please enter email and password');
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  errEl.style.display = 'none';
+
+  try {
+    const res  = await fetch('/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Login failed'); }
+    else         { window.location.href = '/admin/dashboard'; }
+  } catch (e) {
+    showError('Network error — please try again');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+btn.addEventListener('click', login);
+[emailEl, passEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') login(); }));
+</script>
+</body>
+</html>

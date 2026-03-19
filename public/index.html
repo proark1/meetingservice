@@ -7,7 +7,11 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="home-container">
+  <nav style="position:fixed;top:0;right:0;left:0;padding:12px 24px;display:flex;justify-content:flex-end;gap:12px;z-index:10;">
+    <a href="/dashboard" style="font-size:13px;font-weight:600;color:var(--text-muted);text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:8px;">Dashboard</a>
+    <a href="/register"  style="font-size:13px;font-weight:600;color:white;text-decoration:none;padding:6px 14px;background:var(--primary);border-radius:8px;">Get API Key</a>
+  </nav>
+  <div class="home-container" style="padding-top:60px;">
     <div class="home-card">
       <h1>Meeting Service</h1>
       <p class="subtitle">Simple, fast video meetings for everyone</p>

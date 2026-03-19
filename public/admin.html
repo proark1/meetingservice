@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Meeting Service</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a2e; --surface2: #16213e;
+      --primary: #4361ee; --primary-hover: #3a56d4;
+      --danger: #ef233c; --danger-hover: #d90429;
+      --success: #06d6a0; --warning: #fb8500;
+      --text: #edf2f4; --text-muted: #8d99ae;
+      --border: #2b2d42; --radius: 12px; --radius-sm: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    a { color: var(--primary); text-decoration: none; }
+
+    /* Layout */
+    .layout { display: flex; flex: 1; min-height: 100vh; }
+    .sidebar {
+      width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 0; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
+    }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo h2 { font-size: 15px; font-weight: 700; }
+    .sidebar-logo p  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; color: var(--text-muted);
+      border: none; background: none; width: 100%; text-align: left;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .nav-item:hover  { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--primary); color: #fff; }
+    .nav-item span.icon { font-size: 16px; }
+    .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
+
+    .main { flex: 1; padding: 28px 32px; overflow-y: auto; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+
+    /* Tabs (sections) */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* Stat cards */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .stat-card .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: .5px; }
+    .stat-card .stat-value { font-size: 32px; font-weight: 700; }
+    .stat-card .stat-value.green { color: var(--success); }
+    .stat-card .stat-value.blue  { color: var(--primary); }
+    .stat-card .stat-value.orange{ color: var(--warning); }
+
+    /* Tables */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+    .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .table-header h3 { font-size: 14px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 11px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; background: var(--surface2); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge.green  { background: rgba(6,214,160,.15);  color: var(--success); }
+    .badge.red    { background: rgba(239,35,60,.15);   color: var(--danger);  }
+    .badge.blue   { background: rgba(67,97,238,.15);   color: var(--primary); }
+    .badge.orange { background: rgba(251,133,0,.15);   color: var(--warning); }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger  { background: var(--danger);  color: #fff; }
+    .btn-danger:hover  { background: var(--danger-hover); }
+    .btn-ghost   { background: var(--border); color: var(--text); }
+    .btn-ghost:hover   { background: #3d405b; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* Settings */
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .setting-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .setting-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .setting-info p  { font-size: 12px; color: var(--text-muted); }
+    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: var(--border);
+      border-radius: 24px; cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 18px; height: 18px;
+      left: 3px; top: 3px; background: white; border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--primary); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+    .number-input {
+      width: 100px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 14px; outline: none;
+    }
+    .number-input:focus { border-color: var(--primary); }
+
+    .settings-save { margin-top: 20px; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-backdrop.hidden { display: none; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 28px; min-width: 360px; max-width: 480px; width: 100%;
+    }
+    .modal h3 { font-size: 16px; margin-bottom: 16px; }
+    .modal input, .modal select {
+      width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+      margin-bottom: 12px; outline: none;
+    }
+    .modal input:focus, .modal select:focus { border-color: var(--primary); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+    .code-box {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 12px 16px; font-family: monospace; font-size: 13px;
+      word-break: break-all; margin-bottom: 12px; color: var(--success);
+    }
+
+    /* Empty state */
+    .empty { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; top: 16px; right: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 12px 20px; border-radius: var(--radius-sm);
+      font-size: 13px; z-index: 200; animation: slideIn .3s ease;
+    }
+    .toast.error { border-color: var(--danger); color: #ff6b7a; }
+    @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 56px; }
+      .sidebar-logo, .nav-item span.label, .sidebar-footer .btn { display: none; }
+      .main { padding: 20px 16px; }
+      .settings-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h2>Meeting Service</h2>
+      <p>Admin Panel</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="overview">
+        <span class="icon">📊</span><span class="label">Overview</span>
+      </button>
+      <button class="nav-item" data-section="meetings">
+        <span class="icon">🎥</span><span class="label">Meetings</span>
+      </button>
+      <button class="nav-item" data-section="users">
+        <span class="icon">👥</span><span class="label">Users</span>
+      </button>
+      <button class="nav-item" data-section="apikeys">
+        <span class="icon">🔑</span><span class="label">API Keys</span>
+      </button>
+      <button class="nav-item" data-section="settings">
+        <span class="icon">⚙</span><span class="label">Settings</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Overview -->
+    <div class="section active" id="section-overview">
+      <div class="page-title">Overview</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Active Meetings</div>
+          <div class="stat-value green" id="stat-meetings">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Registered Users</div>
+          <div class="stat-value blue" id="stat-users">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active API Keys</div>
+          <div class="stat-value orange" id="stat-keys">—</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Active Meetings</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadOverview()">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Meeting ID</th><th>Title</th><th>Participants</th><th>Created</th><th></th></tr></thead>
+          <tbody id="overview-meetings-body"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Meetings -->
+    <div class="section" id="section-meetings">
+      <div class="page-title">Active Meetings</div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>All Active Meetings</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadMeetings()">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Meeting ID</th><th>Title</th><th>Participants</th><th>Locked</th><th>Created</th><th></th></tr></thead>
+          <tbody id="meetings-body"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="section" id="section-users">
+      <div class="page-title">Users</div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>All Users</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>API Keys</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="users-body"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- API Keys -->
+    <div class="section" id="section-apikeys">
+      <div class="page-title">API Keys</div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>All API Keys</h3>
+          <button class="btn btn-primary btn-sm" onclick="openCreateKeyModal()">+ Create Key</button>
+        </div>
+        <table>
+          <thead><tr><th>Key</th><th>Label</th><th>User</th><th>Status</th><th>Last Used</th><th>Created</th><th></th></tr></thead>
+          <tbody id="keys-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="section" id="section-settings">
+      <div class="page-title">Settings</div>
+
+      <div class="settings-grid" id="settings-grid">
+        <!-- Feature toggles -->
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Recording</h4>
+            <p>Allow participants to record meetings</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s-recording" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Screen Sharing</h4>
+            <p>Allow participants to share their screen</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s-screenshare" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Background Blur</h4>
+            <p>Allow participants to blur their background</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s-blur" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>User Registration</h4>
+            <p>Allow new users to create accounts</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s-registration" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Default Max Participants</h4>
+            <p>Default cap for new meetings</p>
+          </div>
+          <input type="number" class="number-input" id="s-maxparticipants" min="2" max="500" value="50">
+        </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Meeting Auto-Delete</h4>
+            <p>Minutes before empty meeting is removed</p>
+          </div>
+          <input type="number" class="number-input" id="s-autodelete" min="1" max="1440" value="60">
+        </div>
+      </div>
+
+      <div class="settings-save">
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Create API Key Modal -->
+<div class="modal-backdrop hidden" id="createKeyModal">
+  <div class="modal">
+    <h3>Create API Key</h3>
+    <select id="modal-user-select"><option value="">Select user…</option></select>
+    <input type="text" id="modal-key-label" placeholder="Key label (optional)">
+    <div id="modal-key-result" class="hidden">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">New API key (copy it — shown once):</p>
+      <div class="code-box" id="modal-key-value"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCreateKeyModal()">Close</button>
+      <button class="btn btn-primary" id="modal-create-btn" onclick="createKey()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Navigation ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    const section = btn.dataset.section;
+    document.getElementById('section-' + section).classList.add('active');
+    if (section === 'overview') loadOverview();
+    else if (section === 'meetings') loadMeetings();
+    else if (section === 'users')    loadUsers();
+    else if (section === 'apikeys')  loadKeys();
+    else if (section === 'settings') loadSettings();
+  });
+});
+
+function toast(msg, type = '') {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function fmt(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+}
+
+// ─── Overview ────────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const [stats, mtgs] = await Promise.all([
+    fetch('/admin/api/stats').then(r => r.json()),
+    fetch('/admin/api/meetings').then(r => r.json()),
+  ]);
+  document.getElementById('stat-meetings').textContent = stats.activeMeetings;
+  document.getElementById('stat-users').textContent    = stats.totalUsers;
+  document.getElementById('stat-keys').textContent     = stats.activeApiKeys;
+
+  const tbody = document.getElementById('overview-meetings-body');
+  if (!mtgs.meetings.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No active meetings</td></tr>';
+    return;
+  }
+  tbody.innerHTML = mtgs.meetings.map(m => `
+    <tr>
+      <td><code style="font-size:12px">${m.meetingId}</code></td>
+      <td>${esc(m.title)}</td>
+      <td>${m.participantCount}</td>
+      <td>${fmt(m.createdAt)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${m.meetingId}')">End</button></td>
+    </tr>`).join('');
+}
+
+// ─── Meetings ────────────────────────────────────────────────────────────────
+async function loadMeetings() {
+  const { meetings } = await fetch('/admin/api/meetings').then(r => r.json());
+  const tbody = document.getElementById('meetings-body');
+  if (!meetings.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No active meetings</td></tr>';
+    return;
+  }
+  tbody.innerHTML = meetings.map(m => `
+    <tr>
+      <td><code style="font-size:12px">${m.meetingId}</code></td>
+      <td>${esc(m.title)}</td>
+      <td>${m.participantCount}</td>
+      <td>${m.settings.locked ? '<span class="badge red">Locked</span>' : '<span class="badge green">Open</span>'}</td>
+      <td>${fmt(m.createdAt)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${m.meetingId}')">End</button></td>
+    </tr>`).join('');
+}
+
+async function endMeeting(id) {
+  if (!confirm('End this meeting and disconnect all participants?')) return;
+  const res = await fetch(`/admin/api/meetings/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  toast(res.ok ? 'Meeting ended' : data.error, res.ok ? '' : 'error');
+  loadMeetings();
+  loadOverview();
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const { users } = await fetch('/admin/api/users').then(r => r.json());
+  const tbody = document.getElementById('users-body');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No users</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td>${esc(u.email)}</td>
+      <td>${u.is_admin ? '<span class="badge blue">Admin</span>' : '<span class="badge orange">User</span>'}</td>
+      <td>${u.is_active ? '<span class="badge green">Active</span>' : '<span class="badge red">Disabled</span>'}</td>
+      <td>${u.active_key_count}</td>
+      <td>${fmt(u.created_at)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="toggleUser(${u.id}, ${u.is_active})">${u.is_active ? 'Disable' : 'Enable'}</button>
+        ${!u.is_admin ? `<button class="btn btn-ghost btn-sm" onclick="makeAdmin(${u.id})">Make Admin</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function toggleUser(id, currently) {
+  await fetch(`/admin/api/users/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isActive: !currently }),
+  });
+  toast(currently ? 'User disabled' : 'User enabled');
+  loadUsers();
+}
+
+async function makeAdmin(id) {
+  if (!confirm('Grant admin access to this user?')) return;
+  await fetch(`/admin/api/users/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isAdmin: true }),
+  });
+  toast('User is now an admin');
+  loadUsers();
+}
+
+async function deleteUser(id) {
+  if (!confirm('Permanently delete this user and all their API keys?')) return;
+  const res  = await fetch(`/admin/api/users/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  toast(res.ok ? 'User deleted' : data.error, res.ok ? '' : 'error');
+  loadUsers();
+}
+
+// ─── API Keys ────────────────────────────────────────────────────────────────
+async function loadKeys() {
+  const { keys } = await fetch('/admin/api/keys').then(r => r.json());
+  const tbody = document.getElementById('keys-body');
+  if (!keys.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No API keys</td></tr>';
+    return;
+  }
+  tbody.innerHTML = keys.map(k => `
+    <tr>
+      <td><code style="font-size:11px">${k.key}</code>
+        <button onclick="copyText('${k.key}')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
+      </td>
+      <td>${esc(k.label || '—')}</td>
+      <td>${esc(k.user_email)}</td>
+      <td>${k.is_active ? '<span class="badge green">Active</span>' : '<span class="badge red">Revoked</span>'}</td>
+      <td>${fmt(k.last_used_at)}</td>
+      <td>${fmt(k.created_at)}</td>
+      <td>${k.is_active ? `<button class="btn btn-danger btn-sm" onclick="revokeKey(${k.id})">Revoke</button>` : '—'}</td>
+    </tr>`).join('');
+}
+
+async function revokeKey(id) {
+  if (!confirm('Revoke this API key?')) return;
+  await fetch(`/admin/api/keys/${id}`, { method: 'DELETE' });
+  toast('API key revoked');
+  loadKeys();
+}
+
+// ─── Create Key Modal ────────────────────────────────────────────────────────
+async function openCreateKeyModal() {
+  document.getElementById('modal-key-result').classList.add('hidden');
+  document.getElementById('modal-create-btn').style.display = '';
+  document.getElementById('modal-key-label').value = '';
+  const sel = document.getElementById('modal-user-select');
+  sel.innerHTML = '<option value="">Select user…</option>';
+  const { users } = await fetch('/admin/api/users').then(r => r.json());
+  users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.id;
+    opt.textContent = u.email;
+    sel.appendChild(opt);
+  });
+  document.getElementById('createKeyModal').classList.remove('hidden');
+}
+
+function closeCreateKeyModal() {
+  document.getElementById('createKeyModal').classList.add('hidden');
+}
+
+async function createKey() {
+  const userId = document.getElementById('modal-user-select').value;
+  const label  = document.getElementById('modal-key-label').value.trim();
+  if (!userId) return alert('Please select a user');
+
+  const res  = await fetch('/admin/api/keys', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: parseInt(userId), label }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error, 'error'); return; }
+
+  document.getElementById('modal-key-value').textContent = data.key;
+  document.getElementById('modal-key-result').classList.remove('hidden');
+  document.getElementById('modal-create-btn').style.display = 'none';
+  loadKeys();
+  toast('API key created');
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const s = await fetch('/admin/api/settings').then(r => r.json());
+  document.getElementById('s-recording').checked      = s.recording_enabled      !== 'false';
+  document.getElementById('s-screenshare').checked    = s.screen_share_enabled   !== 'false';
+  document.getElementById('s-blur').checked           = s.blur_enabled           !== 'false';
+  document.getElementById('s-registration').checked   = s.registration_enabled   !== 'false';
+  document.getElementById('s-maxparticipants').value  = s.max_participants_default || 50;
+  document.getElementById('s-autodelete').value       = s.meeting_auto_delete_minutes || 60;
+}
+
+async function saveSettings() {
+  const body = {
+    recording_enabled:           document.getElementById('s-recording').checked    ? 'true' : 'false',
+    screen_share_enabled:        document.getElementById('s-screenshare').checked  ? 'true' : 'false',
+    blur_enabled:                document.getElementById('s-blur').checked         ? 'true' : 'false',
+    registration_enabled:        document.getElementById('s-registration').checked ? 'true' : 'false',
+    max_participants_default:    document.getElementById('s-maxparticipants').value,
+    meeting_auto_delete_minutes: document.getElementById('s-autodelete').value,
+  };
+  const res = await fetch('/admin/api/settings', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  toast(res.ok ? 'Settings saved' : data.error, res.ok ? '' : 'error');
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return '';
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied!')).catch(() => toast('Copy failed', 'error'));
+}
+
+async function logout() {
+  await fetch('/admin/logout', { method: 'POST' });
+  window.location.href = '/admin';
+}
+
+// Initial load
+loadOverview();
+</script>
+</body>
+</html>

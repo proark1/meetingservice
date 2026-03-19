@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Dashboard — Meeting Service</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .dash-container { max-width: 700px; margin: 0 auto; padding: 48px 20px; }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
+    .dash-header h1 { font-size: 22px; }
+    .user-badge { font-size: 13px; color: var(--text-muted); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .card-header h2 { font-size: 15px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 11px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; background: var(--surface2); }
+    tr:last-child td { border-bottom: none; }
+    .empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 14px; }
+    .key-val { font-family: monospace; font-size: 12px; background: var(--surface2); padding: 3px 8px; border-radius: 4px; }
+    .badge-active   { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(6,214,160,.15); color: var(--success); }
+    .badge-revoked  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(239,35,60,.15); color: var(--danger); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn-copy   { background: var(--border); color: var(--text); }
+    .btn-copy:hover { background: var(--primary); color: white; }
+    .btn-revoke { background: rgba(239,35,60,.15); color: var(--danger); }
+    .btn-revoke:hover { background: var(--danger); color: white; }
+    .create-form { padding: 16px 20px; display: flex; gap: 10px; border-top: 1px solid var(--border); }
+    .create-form input {
+      flex: 1; padding: 9px 14px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px; outline: none;
+    }
+    .create-form input:focus { border-color: var(--primary); }
+    .toast {
+      position: fixed; top: 16px; right: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 200;
+      animation: toastIn .3s ease;
+    }
+    @keyframes toastIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    #loginSection { max-width: 380px; margin: 80px auto; }
+    #loginSection h2 { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+<!-- Login gate -->
+<div id="loginSection" style="display:none;padding:20px;">
+  <div class="card" style="padding:32px;">
+    <h2 style="font-size:20px;margin-bottom:6px;">Sign In</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:24px;">Sign in to manage your API keys</p>
+    <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;"></div>
+    <input type="email"    id="li-email" placeholder="Email"    style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
+    <input type="password" id="li-pass"  placeholder="Password" style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:14px;outline:none;" />
+    <button id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:15px;font-weight:600;cursor:pointer;">Sign In</button>
+    <p style="margin-top:16px;font-size:13px;color:var(--text-muted);text-align:center;">
+      No account? <a href="/register" style="color:var(--primary);">Register →</a>
+    </p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashSection" style="display:none;">
+  <div class="dash-container">
+    <div class="dash-header">
+      <div>
+        <h1>My Dashboard</h1>
+        <p class="user-badge" id="userEmail"></p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <a href="/" style="padding:8px 16px;background:var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;">Home</a>
+        <button onclick="doLogout()" style="padding:8px 16px;background:var(--border);border:none;border-radius:8px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>API Keys</h2>
+        <span style="font-size:12px;color:var(--text-muted);">Max 5 active keys</span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Key</th><th>Label</th><th>Status</th><th>Last Used</th><th></th></tr>
+        </thead>
+        <tbody id="keys-tbody">
+          <tr><td colspan="5" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="create-form">
+        <input type="text" id="new-label" placeholder="Key label (e.g. Production, Dev…)" maxlength="100">
+        <button onclick="createKey()" style="padding:9px 18px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;">+ New Key</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:20px;">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">Quick Start</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Use your API key in the <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">x-api-key</code> header:</p>
+      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;overflow-x:auto;">curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"title": "My Meeting"}'</pre>
+      <p style="margin-top:12px;font-size:13px;"><a href="/docs" style="color:var(--primary);">View full API docs →</a></p>
+    </div>
+  </div>
+</div>
+
+<script>
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function fmt(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function esc(s) {
+  const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML;
+}
+
+async function loadKeys() {
+  const res  = await fetch('/api/user/keys');
+  if (res.status === 401) { showLogin(); return; }
+  const { keys } = await res.json();
+  const tbody = document.getElementById('keys-tbody');
+  if (!keys.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No API keys yet — create one below</td></tr>';
+    return;
+  }
+  tbody.innerHTML = keys.map(k => `
+    <tr>
+      <td>
+        <span class="key-val">${k.key}</span>
+        <button class="btn-sm btn-copy" style="margin-left:6px;" onclick="copyKey('${k.key}')">Copy</button>
+      </td>
+      <td>${esc(k.label)}</td>
+      <td>${k.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-revoked">Revoked</span>'}</td>
+      <td>${fmt(k.last_used_at)}</td>
+      <td>${k.is_active ? `<button class="btn-sm btn-revoke" onclick="revokeKey(${k.id})">Revoke</button>` : '—'}</td>
+    </tr>`).join('');
+}
+
+async function createKey() {
+  const label = document.getElementById('new-label').value.trim();
+  const res   = await fetch('/api/user/keys', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: label || 'My API Key' }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error); return; }
+  document.getElementById('new-label').value = '';
+  toast('Key created — ' + data.key);
+  loadKeys();
+}
+
+async function revokeKey(id) {
+  if (!confirm('Revoke this API key? It will stop working immediately.')) return;
+  await fetch(`/api/user/keys/${id}`, { method: 'DELETE' });
+  toast('Key revoked');
+  loadKeys();
+}
+
+function copyKey(key) {
+  navigator.clipboard.writeText(key).then(() => toast('Copied!')).catch(() => toast('Copy failed'));
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+function showLogin() {
+  document.getElementById('dashSection').style.display  = 'none';
+  document.getElementById('loginSection').style.display = 'block';
+}
+
+async function doLogin() {
+  const email    = document.getElementById('li-email').value.trim();
+  const password = document.getElementById('li-pass').value;
+  const errEl    = document.getElementById('loginError');
+
+  const res  = await fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+
+  errEl.style.display = 'none';
+  if (data.isAdmin) { window.location.href = '/admin/dashboard'; return; }
+  showDash();
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  showLogin();
+}
+
+async function showDash() {
+  const res = await fetch('/api/auth/me');
+  if (res.status === 401) { showLogin(); return; }
+  const user = await res.json();
+  document.getElementById('userEmail').textContent = user.email;
+  document.getElementById('loginSection').style.display = 'none';
+  document.getElementById('dashSection').style.display  = 'block';
+  loadKeys();
+}
+
+// Init — check session first, fall back to login form
+(async () => {
+  const res = await fetch('/api/auth/me');
+  if (res.ok) showDash();
+  else showLogin();
+})();
+</script>
+</body>
+</html>

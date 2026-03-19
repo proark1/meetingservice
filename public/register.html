@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — Meeting Service</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="home-container">
+  <div class="home-card" style="max-width:420px;">
+    <h1 style="font-size:24px;margin-bottom:4px;">Create Account</h1>
+    <p class="subtitle" style="margin-bottom:28px;">Get your API key and start building</p>
+
+    <div id="errorMsg"   style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;text-align:left;background:rgba(239,35,60,.1);border:1px solid var(--danger);border-radius:6px;padding:10px 14px;"></div>
+    <div id="successBox" style="display:none;margin-bottom:12px;">
+      <p style="color:var(--success);font-size:13px;margin-bottom:10px;">✓ Account created! Your API key:</p>
+      <div id="apiKeyDisplay" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-family:monospace;font-size:13px;color:var(--success);word-break:break-all;margin-bottom:10px;"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Save this key — you can also view it anytime in your dashboard.</p>
+      <a href="/dashboard" class="btn btn-primary" style="display:block;text-align:center;padding:12px;font-size:15px;text-decoration:none;">Go to Dashboard →</a>
+    </div>
+
+    <div id="form">
+      <input type="email"    id="email"    placeholder="Email address"      style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
+      <input type="password" id="password" placeholder="Password (min 8 chars)" style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:10px;outline:none;" />
+      <input type="password" id="confirm"  placeholder="Confirm password"    style="width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;margin-bottom:16px;outline:none;" />
+      <button id="registerBtn" class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;">Create Account</button>
+    </div>
+
+    <p style="margin-top:20px;font-size:13px;color:var(--text-muted);">
+      Already have an account? <a href="/dashboard" style="color:var(--primary);">Sign in →</a>
+      &nbsp;·&nbsp; <a href="/" style="color:var(--text-muted);">Home</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const emailEl = document.getElementById('email');
+const passEl  = document.getElementById('password');
+const confEl  = document.getElementById('confirm');
+const btn     = document.getElementById('registerBtn');
+const errEl   = document.getElementById('errorMsg');
+
+function showError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+
+async function register() {
+  const email    = emailEl.value.trim();
+  const password = passEl.value;
+  const confirm  = confEl.value;
+
+  if (!email || !password) return showError('Please fill in all fields');
+  if (password !== confirm) return showError('Passwords do not match');
+  if (password.length < 8)  return showError('Password must be at least 8 characters');
+
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+  errEl.style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showError(data.error || 'Registration failed');
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+      return;
+    }
+
+    document.getElementById('form').style.display = 'none';
+    document.getElementById('apiKeyDisplay').textContent = data.apiKey;
+    document.getElementById('successBox').style.display = 'block';
+  } catch (e) {
+    showError('Network error — please try again');
+    btn.disabled = false;
+    btn.textContent = 'Create Account';
+  }
+}
+
+btn.addEventListener('click', register);
+[emailEl, passEl, confEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') register(); }));
+</script>
+</body>
+</html>
