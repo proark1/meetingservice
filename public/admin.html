@@ -4,17 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard — Meeting Service</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9;
-      --primary: #4361ee; --primary-hover: #3a56d4;
+      --primary: #4361ee; --primary-hover: #3a56d4; --primary-light: #eef0fd;
       --danger: #ef233c; --danger-hover: #d90429;
       --success: #059669; --warning: #d97706;
-      --text: #0f172a; --text-muted: #64748b;
+      --text: #0f172a; --text-muted: #64748b; --text-xmuted: #94a3b8;
       --border: #e2e8f0; --radius: 12px; --radius-sm: 8px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow: 0 4px 16px rgba(0,0,0,0.08);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
     button { cursor: pointer; font-family: inherit; }
     input, select, textarea { font-family: inherit; }
     a { color: var(--primary); text-decoration: none; }
@@ -22,68 +27,83 @@
     /* Layout */
     .layout { display: flex; flex: 1; min-height: 100vh; }
     .sidebar {
-      width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+      width: 228px; background: var(--surface); border-right: 1px solid var(--border);
       display: flex; flex-direction: column; padding: 0; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
     }
-    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
-    .sidebar-logo h2 { font-size: 15px; font-weight: 700; }
-    .sidebar-logo p  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .sidebar-nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+    .sidebar-logo {
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; height: 60px;
+    }
+    .sidebar-logo-icon {
+      width: 30px; height: 30px; background: var(--primary); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .sidebar-logo h2 { font-size: 14px; font-weight: 800; line-height: 1.2; }
+    .sidebar-logo p  { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+    .sidebar-nav { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; }
+    .nav-section-lbl { font-size: 10px; font-weight: 700; color: var(--text-xmuted); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px 4px; }
     .nav-item {
       display: flex; align-items: center; gap: 10px;
-      padding: 9px 12px; border-radius: var(--radius-sm);
+      padding: 9px 10px; border-radius: var(--radius-sm);
       font-size: 13px; font-weight: 500; color: var(--text-muted);
       border: none; background: none; width: 100%; text-align: left;
       cursor: pointer; transition: background 0.15s, color 0.15s;
     }
     .nav-item:hover  { background: var(--surface2); color: var(--text); }
-    .nav-item.active { background: var(--primary); color: #fff; }
-    .nav-item span.icon { font-size: 16px; }
-    .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
+    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+    .nav-item span.icon { font-size: 15px; opacity: 0.8; }
+    .nav-item.active span.icon { opacity: 1; }
+    .sidebar-footer { padding: 10px 8px; border-top: 1px solid var(--border); }
 
     .main { flex: 1; padding: 28px 32px; overflow-y: auto; }
-    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+    .page-title {
+      font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
+      margin-bottom: 24px; display: flex; align-items: center; gap: 10px;
+    }
 
     /* Tabs (sections) */
     .section { display: none; }
     .section.active { display: block; }
 
     /* Stat cards */
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
     .stat-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 20px; display: flex; flex-direction: column; gap: 8px;
+      padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;
+      box-shadow: var(--shadow-sm); transition: box-shadow 0.2s;
     }
-    .stat-card .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: .5px; }
-    .stat-card .stat-value { font-size: 32px; font-weight: 700; }
+    .stat-card:hover { box-shadow: var(--shadow); }
+    .stat-card .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
+    .stat-card .stat-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
     .stat-card .stat-value.green { color: var(--success); }
     .stat-card .stat-value.blue  { color: var(--primary); }
     .stat-card .stat-value.orange{ color: var(--warning); }
 
     /* Tables */
-    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
-    .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); }
-    .table-header h3 { font-size: 14px; font-weight: 600; }
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; box-shadow: var(--shadow-sm); }
+    .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .table-header h3 { font-size: 14px; font-weight: 700; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 11px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
-    th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; background: var(--surface2); }
+    th, td { text-align: left; padding: 11px 18px; font-size: 13px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: var(--surface2); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(67,97,238,.04); }
+    tr:hover td { background: rgba(67,97,238,.02); }
     .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: 11px; font-weight: 600;
+      display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 99px;
+      font-size: 11px; font-weight: 700;
     }
-    .badge.green  { background: rgba(6,214,160,.15);  color: var(--success); }
-    .badge.red    { background: rgba(239,35,60,.15);   color: var(--danger);  }
-    .badge.blue   { background: rgba(67,97,238,.15);   color: var(--primary); }
-    .badge.orange { background: rgba(251,133,0,.15);   color: var(--warning); }
+    .badge.green  { background: rgba(5,150,105,.1);   color: var(--success); }
+    .badge.red    { background: rgba(239,35,60,.1);    color: var(--danger);  }
+    .badge.blue   { background: rgba(67,97,238,.1);    color: var(--primary); }
+    .badge.orange { background: rgba(217,119,6,.1);    color: var(--warning); }
 
     /* Buttons */
-    .btn { padding: 8px 16px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .btn { padding: 8px 16px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:active { transform: scale(0.98); }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-primary:hover { background: var(--primary-hover); }
-    .btn-danger  { background: var(--danger);  color: #fff; }
-    .btn-danger:hover  { background: var(--danger-hover); }
+    .btn-danger  { background: rgba(239,35,60,.1); color: var(--danger); border: none; }
+    .btn-danger:hover  { background: var(--danger); color: white; }
     .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
     .btn-ghost:hover   { background: var(--border); }
     .btn-sm { padding: 5px 10px; font-size: 12px; }
@@ -199,10 +219,16 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <h2>Meeting Service</h2>
-      <p>Admin Panel</p>
+      <div class="sidebar-logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      </div>
+      <div>
+        <h2>MeetingService</h2>
+        <p>Admin Panel</p>
+      </div>
     </div>
     <nav class="sidebar-nav">
+      <div class="nav-section-lbl">Dashboard</div>
       <button class="nav-item active" data-section="overview">
         <span class="icon">📊</span><span class="label">Overview</span>
       </button>
@@ -215,9 +241,7 @@
       <button class="nav-item" data-section="apikeys">
         <span class="icon">🔑</span><span class="label">API Keys</span>
       </button>
-      <button class="nav-item" data-section="settings">
-        <span class="icon">⚙</span><span class="label">Settings</span>
-      </button>
+      <div class="nav-section-lbl">Finance</div>
       <button class="nav-item" data-section="billing">
         <span class="icon">💳</span><span class="label">Billing</span>
       </button>
@@ -226,6 +250,10 @@
       </button>
       <button class="nav-item" data-section="crypto">
         <span class="icon">🔗</span><span class="label">Crypto</span>
+      </button>
+      <div class="nav-section-lbl">Config</div>
+      <button class="nav-item" data-section="settings">
+        <span class="icon">⚙️</span><span class="label">Settings</span>
       </button>
     </nav>
     <div class="sidebar-footer">

@@ -3,343 +3,1168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Dashboard — MeetingService</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>Dashboard — MeetingService</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9;
-      --primary: #4361ee; --primary-hover: #3a56d4;
-      --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
-      --danger: #ef233c; --success: #06d6a0;
-      --radius: 12px; --radius-sm: 8px;
+      --primary: #4361ee; --primary-hover: #3451d1; --primary-light: #eef0fd;
+      --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9; --surface3: #e8edf2;
+      --text: #0f172a; --text-muted: #64748b; --text-xmuted: #94a3b8;
+      --border: #e2e8f0; --border-focus: rgba(67,97,238,0.4);
+      --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+      --sidebar-w: 240px;
+      --radius: 14px; --radius-sm: 10px; --radius-xs: 7px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow: 0 4px 16px rgba(0,0,0,0.08);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    body { background: var(--bg); color: var(--text); }
-    .dash-container { max-width: 700px; margin: 0 auto; padding: 48px 20px; }
-    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
-    .dash-header h1 { font-size: 22px; font-weight: 800; }
-    .user-badge { font-size: 13px; color: var(--text-muted); }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-    .card-header h2 { font-size: 15px; font-weight: 700; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 11px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
-    th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; background: var(--surface2); }
-    tr:last-child td { border-bottom: none; }
-    .empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 14px; }
-    .key-val { font-family: monospace; font-size: 12px; background: var(--surface2); padding: 3px 8px; border-radius: 4px; }
-    .badge-active   { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(6,214,160,.12); color: #16a34a; }
-    .badge-revoked  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(239,35,60,.1); color: var(--danger); }
-    .btn-sm { padding: 5px 10px; font-size: 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    .btn-copy   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-    .btn-copy:hover { background: var(--primary); color: white; border-color: var(--primary); }
-    .btn-revoke { background: rgba(239,35,60,.1); color: var(--danger); border: none; }
-    .btn-revoke:hover { background: var(--danger); color: white; }
-    .create-form { padding: 16px 20px; display: flex; gap: 10px; border-top: 1px solid var(--border); background: var(--surface); }
-    .create-form input {
-      flex: 1; padding: 9px 14px; background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text); font-size: 13px; outline: none; font-family: inherit;
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; border: none; }
+
+    /* ─── Login page ─── */
+    #loginPage {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--bg); padding: 20px;
     }
-    .create-form input:focus { border-color: var(--primary); }
-    .toast {
-      position: fixed; top: 16px; right: 16px;
+    .login-box {
+      width: 100%; max-width: 400px;
       background: var(--surface); border: 1px solid var(--border);
-      padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 200;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-      animation: toastIn .3s ease;
+      border-radius: var(--radius); padding: 40px;
+      box-shadow: var(--shadow);
     }
+    .login-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; margin-bottom: 32px; }
+    .logo-icon { width: 34px; height: 34px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .login-box h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .login-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
+    .form-field { margin-bottom: 14px; }
+    .form-field label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input {
+      width: 100%; padding: 12px 16px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-xs); color: var(--text);
+      font-size: 14px; outline: none; font-family: inherit;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .form-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(67,97,238,0.1); }
+    .btn-primary {
+      width: 100%; padding: 13px; background: var(--primary); color: white;
+      border-radius: var(--radius-xs); font-size: 15px; font-weight: 700;
+      transition: background 0.15s, transform 0.1s; margin-top: 4px;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:active { transform: scale(0.98); }
+    .login-error {
+      display: none; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: var(--radius-xs); padding: 10px 14px;
+      font-size: 13px; color: var(--danger); margin-bottom: 16px;
+    }
+
+    /* ─── App shell ─── */
+    #appPage { display: none; min-height: 100vh; }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w); background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      z-index: 100; transition: transform 0.25s ease;
+    }
+    .sidebar-logo {
+      height: 64px; padding: 0 20px;
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-section-label { font-size: 11px; font-weight: 700; color: var(--text-xmuted); text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 12px; margin-top: 8px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: var(--radius-xs);
+      font-size: 14px; font-weight: 500; color: var(--text-muted);
+      transition: background 0.15s, color 0.15s;
+      cursor: pointer; margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+    .nav-item svg { flex-shrink: 0; opacity: 0.7; }
+    .nav-item.active svg { opacity: 1; }
+    .sidebar-footer {
+      border-top: 1px solid var(--border); padding: 14px 10px;
+      flex-shrink: 0;
+    }
+    .user-info {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius-xs);
+    }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .user-email { font-size: 12px; color: var(--text-muted); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-logout { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-xs); font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+    .btn-logout:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+    /* ─── Main content ─── */
+    .main-content {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    .topbar {
+      height: 64px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title { font-size: 17px; font-weight: 700; }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; }
+    .page-content { padding: 32px; flex: 1; }
+
+    /* ─── Sections ─── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ─── Cards ─── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+    }
+    .card-header h2 { font-size: 15px; font-weight: 700; }
+    .card-body { padding: 20px; }
+    .card-body-padded { padding: 24px 20px; }
+
+    /* ─── Stats grid ─── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-card-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .stat-card-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
+    .stat-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .stat-card.primary { background: linear-gradient(135deg, var(--primary), #7c3aed); border-color: transparent; }
+    .stat-card.primary .stat-card-label, .stat-card.primary .stat-card-value, .stat-card.primary .stat-card-sub { color: white; }
+    .stat-card.primary .stat-card-label { opacity: 0.8; }
+    .stat-card.primary .stat-card-sub { opacity: 0.7; }
+
+    /* ─── Quick actions ─── */
+    .quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+    .quick-action-btn {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); cursor: pointer; font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      text-align: left;
+    }
+    .quick-action-btn:hover { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(67,97,238,0.08); transform: translateY(-1px); }
+    .qa-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+    .qa-label { font-size: 14px; font-weight: 600; color: var(--text); }
+    .qa-sub { font-size: 12px; color: var(--text-muted); }
+
+    /* ─── Tables ─── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); text-align: left; }
+    td { padding: 13px 16px; font-size: 13.5px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(67,97,238,0.02); }
+    .empty-state { padding: 48px; text-align: center; color: var(--text-muted); font-size: 14px; }
+    .empty-state svg { margin: 0 auto 12px; opacity: 0.3; }
+    .key-mono { font-family: monospace; font-size: 12px; background: var(--surface2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 5px; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .badge-green { background: rgba(16,185,129,0.1); color: #059669; }
+    .badge-red { background: rgba(239,68,68,0.1); color: #dc2626; }
+    .badge-blue { background: rgba(67,97,238,0.1); color: var(--primary); }
+    .badge-yellow { background: rgba(245,158,11,0.1); color: #d97706; }
+
+    /* ─── Buttons ─── */
+    .btn { padding: 8px 16px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 600; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-blue { background: var(--primary); color: white; }
+    .btn-blue:hover { background: var(--primary-hover); }
+    .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface3); }
+    .btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: none; }
+    .btn-danger:hover { background: var(--danger); color: white; }
+    .btn-success { background: rgba(16,185,129,0.1); color: var(--success); border: none; }
+    .btn-success:hover { background: var(--success); color: white; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-full { width: 100%; justify-content: center; padding: 13px; font-size: 15px; }
+
+    /* ─── Form elements ─── */
+    .field-group { display: flex; flex-direction: column; gap: 14px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+    .field label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 11px 14px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-xs); color: var(--text);
+      font-size: 14px; outline: none; font-family: inherit;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(67,97,238,0.1); }
+    .field input[readonly] { opacity: 0.6; cursor: default; }
+    .divider-text { display: flex; align-items: center; gap: 14px; color: var(--text-xmuted); font-size: 13px; margin: 20px 0; }
+    .divider-text::before, .divider-text::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ─── Alert boxes ─── */
+    .alert { padding: 12px 16px; border-radius: var(--radius-xs); font-size: 13px; margin-bottom: 16px; }
+    .alert-blue { background: rgba(67,97,238,0.08); border: 1px solid rgba(67,97,238,0.2); color: #3451d1; }
+    .alert-green { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: #047857; }
+    .alert-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #b91c1c; }
+
+    /* ─── Credit balance card ─── */
+    .balance-highlight {
+      background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+      border-radius: var(--radius); padding: 24px 28px;
+      color: white; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    }
+    .balance-amount { font-size: 44px; font-weight: 900; letter-spacing: -0.04em; }
+    .balance-label { font-size: 13px; opacity: 0.8; margin-bottom: 2px; }
+    .balance-sub { font-size: 12px; opacity: 0.65; }
+
+    /* ─── Code block ─── */
+    .code-block {
+      background: #0d1117; border-radius: var(--radius-xs); border: 1px solid rgba(255,255,255,0.06);
+      padding: 18px; overflow-x: auto; position: relative;
+    }
+    .code-block pre { font-family: 'SF Mono','Fira Code',monospace; font-size: 12.5px; line-height: 1.75; color: #c9d1d9; }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600;
+      color: #8b949e; cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+
+    /* ─── Invite code display ─── */
+    .invite-code-box {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-xs); padding: 12px 16px;
+    }
+    .invite-code-val { font-family: monospace; font-size: 18px; font-weight: 700; color: var(--primary); letter-spacing: 0.1em; flex: 1; }
+
+    /* ─── Toast ─── */
+    #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-xs); padding: 12px 18px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: var(--shadow); min-width: 220px;
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn 0.3s ease;
+    }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
     @keyframes toastIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    #loginSection { max-width: 380px; margin: 80px auto; padding: 20px; }
-    #loginSection h2 { margin-bottom: 20px; font-weight: 800; }
 
-    /* Login form light styles */
-    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; box-shadow: 0 4px 16px rgba(15,23,42,0.08); }
-    .login-card input {
-      width: 100%; padding: 12px 16px; background: var(--surface2); border: 1.5px solid var(--border);
-      border-radius: 8px; color: var(--text); font-size: 14px; margin-bottom: 10px; outline: none; font-family: inherit;
+    /* ─── Mobile sidebar toggle ─── */
+    .sidebar-toggle { display: none; }
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); box-shadow: 0 0 0 100vw rgba(0,0,0,0.3); }
+      .main-content { margin-left: 0; }
+      .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-xs); background: var(--surface2); border: 1px solid var(--border); }
+      .page-content { padding: 20px 16px; }
     }
-    .login-card input:focus { border-color: var(--primary); background: var(--surface); }
 
-    /* Balance card */
-    .balance-card {
-      background: var(--primary); color: white;
-      border-radius: var(--radius); padding: 24px 20px;
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    }
-    .balance-amount { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; }
-    .balance-label { font-size: 12px; opacity: 0.8; margin-bottom: 2px; }
+    /* ─── Section layout helpers ─── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+    .section-gap { margin-bottom: 24px; }
+    .inset { padding: 20px; }
+    .text-muted { color: var(--text-muted); }
+    .text-sm { font-size: 13px; }
+    .mt-4 { margin-top: 4px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mb-16 { margin-bottom: 16px; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .flex-end { display: flex; justify-content: flex-end; gap: 10px; }
+    .h-sep { height: 1px; background: var(--border); margin: 20px 0; }
   </style>
 </head>
 <body>
+<div id="toastContainer"></div>
 
-<!-- Login gate -->
-<div id="loginSection" style="display:none;">
-  <div class="login-card">
-    <h2 style="font-size:20px;margin-bottom:6px;">Sign In</h2>
-    <p style="color:var(--text-muted);font-size:13px;margin-bottom:24px;">Sign in to manage your API keys</p>
-    <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;background:rgba(239,35,60,.08);border:1px solid rgba(239,35,60,.2);border-radius:6px;padding:10px 14px;"></div>
-    <input type="email"    id="li-email" placeholder="Email"    autocomplete="email" />
-    <input type="password" id="li-pass"  placeholder="Password" autocomplete="current-password" />
-    <button id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;">Sign In</button>
-    <p style="margin-top:16px;font-size:13px;color:var(--text-muted);text-align:center;">
-      No account? <a href="/register" style="color:var(--primary);font-weight:600;">Register →</a>
+<!-- ─── Login ─── -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      </div>
+      MeetingService
+    </div>
+    <h1>Sign In</h1>
+    <p>Access your dashboard, API keys, and billing.</p>
+    <div class="login-error" id="loginError"></div>
+    <div class="form-field">
+      <label>Email</label>
+      <input type="email" class="form-input" id="li-email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="form-field">
+      <label>Password</label>
+      <input type="password" class="form-input" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <p style="margin-top:20px;font-size:13px;color:var(--text-muted);text-align:center;">
+      No account? <a href="/register" style="color:var(--primary);font-weight:600;">Create one free →</a>
     </p>
   </div>
 </div>
 
-<!-- Dashboard -->
-<div id="dashSection" style="display:none;">
-  <div class="dash-container">
-    <div class="dash-header">
-      <div>
-        <h1>My Dashboard</h1>
-        <p class="user-badge" id="userEmail"></p>
+<!-- ─── App shell ─── -->
+<div id="appPage">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <a href="/" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;">Home</a>
-        <a href="/billing" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;">Billing</a>
-        <button onclick="doLogout()" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Sign Out</button>
+      MeetingService
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-section="overview" onclick="goTo('overview')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" data-section="meeting" onclick="goTo('meeting')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        New Meeting
+      </div>
+
+      <div class="nav-section-label">Workspace</div>
+      <div class="nav-item" data-section="apikeys" onclick="goTo('apikeys')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        API Keys
+      </div>
+      <div class="nav-item" data-section="company" onclick="goTo('company')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Company
+      </div>
+      <div class="nav-item" data-section="billing" onclick="goTo('billing')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Billing
+      </div>
+
+      <div class="nav-section-label">Account</div>
+      <div class="nav-item" data-section="settings" onclick="goTo('settings')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </div>
+      <a href="/" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-email" id="sidebarEmail">Loading…</div>
+        <button class="btn-logout" onclick="doLogout()">Out</button>
       </div>
     </div>
+  </aside>
 
-    <!-- Credits Balance Card -->
-    <div class="card" id="billingCard" style="overflow:hidden;margin-bottom:20px;">
-      <div class="card-header" style="background:#4361ee;color:white;border-bottom-color:rgba(255,255,255,0.15);">
-        <h2 style="color:white;font-weight:700;">Credits Balance</h2>
-        <a href="/billing" style="font-size:12px;color:rgba(255,255,255,0.85);font-weight:700;text-decoration:none;">Top up →</a>
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-title" id="topbarTitle">Overview</div>
       </div>
-      <div style="padding:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div style="font-size:36px;font-weight:800;color:#4361ee;" id="dashBalance">$0.00</div>
-        <div style="font-size:13px;color:var(--text-muted);">Available for meetings and API usage</div>
+      <div class="topbar-actions">
+        <button class="btn btn-blue" onclick="goTo('meeting')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          New Meeting
+        </button>
       </div>
-    </div>
+    </header>
 
-    <!-- Company info (shown when in a company) -->
-    <div class="card" id="companyCard" style="display:none;margin-bottom:20px;">
-      <div class="card-header">
-        <h2>Company</h2>
-        <span id="companyPlan" style="font-size:12px;color:var(--text-muted);"></span>
-      </div>
-      <div style="padding:20px;">
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;" id="companyName"></p>
-        <div id="inviteCodeSection" style="display:none;">
-          <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Invite code — share with your team:</p>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <code id="inviteCode" style="background:var(--surface2);border:1px solid var(--border);padding:8px 14px;border-radius:6px;font-size:14px;"></code>
-            <button class="btn-sm btn-copy" onclick="copyInviteCode()">Copy</button>
+    <main class="page-content">
+
+      <!-- ─── Overview ─── -->
+      <div class="section active" id="sec-overview">
+        <div class="stats-grid">
+          <div class="stat-card primary">
+            <div class="stat-card-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              Credit Balance
+            </div>
+            <div class="stat-card-value" id="ov-balance">$0.00</div>
+            <div class="stat-card-sub" id="ov-balance-src">Personal account</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+              Active API Keys
+            </div>
+            <div class="stat-card-value" id="ov-keys">0</div>
+            <div class="stat-card-sub">of 5 maximum</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              Account Type
+            </div>
+            <div class="stat-card-value" style="font-size:20px;margin-top:4px;" id="ov-type">Personal</div>
+            <div class="stat-card-sub" id="ov-company">No company</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              Quick Start
+            </div>
+            <div class="stat-card-value" style="font-size:14px;font-weight:600;margin-top:8px;letter-spacing:0;">Launch a meeting now</div>
+            <div class="stat-card-sub mt-4"><a href="javascript:goTo('meeting')" style="color:var(--primary);font-weight:600;">New meeting →</a></div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Join company card (shown for personal accounts with no company) -->
-    <div class="card" id="joinCompanyCard" style="display:none;margin-bottom:20px;">
-      <div class="card-header">
-        <h2>Join a Company</h2>
-      </div>
-      <div style="padding:20px;">
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Have an invite code? Join your team's company account to share credits and API keys.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <input type="text" id="joinCodeInput" placeholder="Enter invite code" style="flex:1;min-width:160px;padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;font-family:inherit;">
-          <button onclick="joinCompany()" style="padding:9px 18px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Join</button>
+        <div class="quick-actions section-gap">
+          <button class="quick-action-btn" onclick="goTo('meeting')">
+            <div class="qa-icon" style="background:#eef0fd;">🎥</div>
+            <div>
+              <div class="qa-label">Start a meeting</div>
+              <div class="qa-sub">Create or join instantly</div>
+            </div>
+          </button>
+          <button class="quick-action-btn" onclick="goTo('apikeys')">
+            <div class="qa-icon" style="background:#f0fdf4;">🔑</div>
+            <div>
+              <div class="qa-label">Manage API keys</div>
+              <div class="qa-sub">Create, copy, revoke</div>
+            </div>
+          </button>
+          <button class="quick-action-btn" onclick="goTo('billing')">
+            <div class="qa-icon" style="background:#fef3c7;">💳</div>
+            <div>
+              <div class="qa-label">Top up credits</div>
+              <div class="qa-sub">Stripe or USDC</div>
+            </div>
+          </button>
+          <button class="quick-action-btn" onclick="goTo('company')">
+            <div class="qa-icon" style="background:#fdf4ff;">🏢</div>
+            <div>
+              <div class="qa-label">Company account</div>
+              <div class="qa-sub">Create or join a workspace</div>
+            </div>
+          </button>
         </div>
-        <p style="margin-top:12px;font-size:13px;color:var(--text-muted);">Or <a href="/register?type=company" style="color:var(--primary);font-weight:600;">create a company account →</a></p>
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-header">
-        <h2>API Keys</h2>
-        <span style="font-size:12px;color:var(--text-muted);">Max 5 active keys</span>
-      </div>
-      <table>
-        <thead>
-          <tr><th>Key</th><th>Label</th><th>Status</th><th>Last Used</th><th></th></tr>
-        </thead>
-        <tbody id="keys-tbody">
-          <tr><td colspan="5" class="empty">Loading…</td></tr>
-        </tbody>
-      </table>
-      <div class="create-form">
-        <input type="text" id="new-label" placeholder="Key label (e.g. Production, Dev…)" maxlength="100">
-        <button onclick="createKey()" style="padding:9px 18px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">+ New Key</button>
-      </div>
-    </div>
-
-    <div class="card" style="padding:20px;">
-      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">Quick Start</h3>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Use your API key in the <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">x-api-key</code> header:</p>
-      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;overflow-x:auto;color:var(--text);">curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
+        <div class="card section-gap">
+          <div class="card-header">
+            <h2>API Quick Start</h2>
+            <a href="/docs" style="font-size:13px;color:var(--primary);font-weight:600;">Full docs →</a>
+          </div>
+          <div class="card-body">
+            <p class="text-sm text-muted mb-16">Use your API key in the <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">x-api-key</code> header to create and manage meetings programmatically:</p>
+            <div class="code-block" id="quickstartCodeBlock">
+              <button class="copy-btn" onclick="copyCode('quickstartCodeBlock')">Copy</button>
+              <pre id="quickstartCode">curl -X POST https://meetingservice.app/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d '{"title": "My Meeting"}'</pre>
-      <p style="margin-top:12px;font-size:13px;"><a href="/docs" style="color:var(--primary);font-weight:600;">View full API docs →</a></p>
-    </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── New Meeting ─── -->
+      <div class="section" id="sec-meeting">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <h2>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:8px;vertical-align:-2px;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                Create a Meeting
+              </h2>
+            </div>
+            <div class="card-body">
+              <div class="field-group">
+                <div class="field">
+                  <label>Meeting Title</label>
+                  <input type="text" id="nm-title" placeholder="e.g. Team Standup, Product Review…">
+                </div>
+                <div class="field">
+                  <label>Your Name *</label>
+                  <input type="text" id="nm-name" placeholder="Your display name">
+                </div>
+              </div>
+              <div style="margin-top:20px;">
+                <button class="btn btn-blue btn-full" onclick="createMeeting()">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                  Start meeting →
+                </button>
+              </div>
+              <p class="text-sm text-muted mt-12">Creates a new meeting room instantly. You'll be the host with admin controls.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:8px;vertical-align:-2px;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                Join a Meeting
+              </h2>
+            </div>
+            <div class="card-body">
+              <div class="field-group">
+                <div class="field">
+                  <label>Meeting Code or ID *</label>
+                  <input type="text" id="jm-code" placeholder="e.g. team-standup-qk7">
+                </div>
+                <div class="field">
+                  <label>Your Name *</label>
+                  <input type="text" id="jm-name" placeholder="Your display name">
+                </div>
+              </div>
+              <div style="margin-top:20px;">
+                <button class="btn btn-ghost btn-full" onclick="joinMeeting()">
+                  Join meeting →
+                </button>
+              </div>
+              <p class="text-sm text-muted mt-12">Got a meeting link? Paste just the ID portion (the last part of the URL).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16" id="recentMeetingsCard" style="display:none;">
+          <div class="card-header">
+            <h2>Recent Meetings</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Title</th><th>Meeting ID</th><th>Created</th><th></th></tr></thead>
+              <tbody id="meetings-tbody">
+                <tr><td colspan="4" class="empty-state">No meetings yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── API Keys ─── -->
+      <div class="section" id="sec-apikeys">
+        <div class="card section-gap">
+          <div class="card-header">
+            <h2>Your API Keys</h2>
+            <span class="text-sm text-muted">Max 5 active keys</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Key</th><th>Label</th><th>Status</th><th>Last Used</th><th>Created</th><th></th></tr></thead>
+              <tbody id="keys-tbody">
+                <tr><td colspan="6" class="empty-state">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                  No API keys yet
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="padding:16px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--surface);">
+            <input type="text" id="new-key-label" style="flex:1;padding:10px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:13px;outline:none;font-family:inherit;" placeholder="Key label (e.g. Production, Development…)" maxlength="100">
+            <button class="btn btn-blue" onclick="createKey()">+ New Key</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>Using your API key</h2></div>
+          <div class="card-body">
+            <p class="text-sm text-muted mb-16">Pass your API key in the <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">x-api-key</code> header on every request:</p>
+            <div class="code-block" id="apiCodeBlock">
+              <button class="copy-btn" onclick="copyCode('apiCodeBlock')">Copy</button>
+              <pre># Create a meeting
+curl -X POST https://meetingservice.app/api/meetings \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"title": "Team Standup"}'
+
+# List your meetings
+curl https://meetingservice.app/api/meetings \
+  -H "x-api-key: YOUR_API_KEY"</pre>
+            </div>
+            <p class="text-sm text-muted mt-12"><a href="/docs" style="color:var(--primary);font-weight:600;">View full API documentation →</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Company ─── -->
+      <div class="section" id="sec-company">
+
+        <!-- Has company -->
+        <div id="hasCompany" style="display:none;">
+          <div class="two-col section-gap">
+            <div class="card">
+              <div class="card-header">
+                <h2 id="co-name">Company</h2>
+                <span class="badge badge-blue" id="co-plan">free</span>
+              </div>
+              <div class="card-body">
+                <div class="field-group">
+                  <div>
+                    <div class="text-sm text-muted mb-16">Share this invite code to add team members:</div>
+                    <div class="invite-code-box">
+                      <span class="invite-code-val" id="co-invite">—</span>
+                      <button class="btn btn-ghost btn-sm" onclick="copyInviteCode()">Copy</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="stat-card primary" style="display:flex;flex-direction:column;justify-content:center;">
+              <div class="stat-card-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Company Credit Balance
+              </div>
+              <div class="stat-card-value" id="co-balance">$0.00</div>
+              <div class="stat-card-sub">Shared across all team members</div>
+              <button class="btn btn-full" style="margin-top:16px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);font-size:13px;" onclick="goTo('billing')">Top up →</button>
+            </div>
+          </div>
+
+          <div class="card section-gap">
+            <div class="card-header"><h2>Upgrade Plan</h2></div>
+            <div class="card-body">
+              <p class="text-sm text-muted mb-16">Contact your administrator to upgrade your company plan for higher limits and additional features.</p>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                <div style="border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:16px;text-align:center;">
+                  <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Starter</div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text);">Free</div>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Basic features</div>
+                </div>
+                <div style="border:1.5px solid var(--primary);border-radius:var(--radius-xs);padding:16px;text-align:center;background:var(--primary-light);">
+                  <div style="font-size:12px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Pro</div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text);">$25<span style="font-size:13px;font-weight:500;color:var(--text-muted);">/mo</span></div>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Priority support</div>
+                </div>
+                <div style="border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:16px;text-align:center;">
+                  <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Business</div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text);">$99<span style="font-size:13px;font-weight:500;color:var(--text-muted);">/mo</span></div>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Enterprise SLA</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No company -->
+        <div id="noCompany" style="display:none;">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <h2>Create a Company</h2>
+              </div>
+              <div class="card-body">
+                <p class="text-sm text-muted mb-16">Create a workspace to share credits and API keys with your team. You'll be the company owner.</p>
+                <div class="alert alert-blue mb-16">You need to create a company account to get started. Register with a company account type to create one.</div>
+                <a href="/register?type=company" class="btn btn-blue btn-full" style="text-decoration:none;display:flex;justify-content:center;">Create company account →</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>Join a Company</h2>
+              </div>
+              <div class="card-body">
+                <p class="text-sm text-muted mb-16">Have an invite code? Join your team's workspace and share their credit balance and API keys.</p>
+                <div class="field section-gap">
+                  <label>Invite Code</label>
+                  <input type="text" id="joinCodeInput" placeholder="e.g. ACME-X7K3P2" style="text-transform:uppercase;">
+                </div>
+                <button class="btn btn-blue btn-full" onclick="joinCompany()">Join company →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ─── Billing ─── -->
+      <div class="section" id="sec-billing">
+        <div class="balance-highlight section-gap">
+          <div>
+            <div style="font-size:13px;opacity:0.8;margin-bottom:4px;">Available Balance</div>
+            <div class="balance-amount" id="billing-balance">$0.00</div>
+            <div style="font-size:12px;opacity:0.65;" id="billing-balance-src">Personal account</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end;">
+            <div style="font-size:12px;color:rgba(255,255,255,0.7);">Top up via:</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button onclick="topupStripe()" style="background:white;color:var(--primary);border:none;padding:10px 20px;border-radius:var(--radius-xs);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
+                💳 Stripe (Card)
+              </button>
+              <button onclick="topupCrypto()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:10px 20px;border-radius:var(--radius-xs);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
+                ⟠ USDC On-chain
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- USDC deposit info (shown after clicking USDC) -->
+        <div class="card section-gap" id="usdcDepositCard" style="display:none;">
+          <div class="card-header">
+            <h2>⟠ USDC Deposit Address</h2>
+            <button onclick="document.getElementById('usdcDepositCard').style.display='none'" class="btn btn-ghost btn-sm">✕ Close</button>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-blue mb-16">Send USDC (ERC-20 on Ethereum) to the address below. Your balance will be credited automatically after confirmation. Minimum: $1 USDC.</div>
+            <div class="field">
+              <label>Your Deposit Address</label>
+              <div class="invite-code-box" id="usdcAddressBox">
+                <span style="font-family:monospace;font-size:13px;color:var(--text);flex:1;word-break:break-all;" id="usdcWalletAddress">Loading…</span>
+                <button class="btn btn-ghost btn-sm" onclick="copyUsdcAddress()">Copy</button>
+              </div>
+            </div>
+            <p class="text-sm text-muted mt-12">Only send USDC on the Ethereum network. Sending other tokens may result in permanent loss.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Transaction History</h2>
+            <button class="btn btn-ghost btn-sm" onclick="loadBillingHistory()">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Type</th><th>Amount</th><th>Description</th><th>Date</th></tr></thead>
+              <tbody id="billing-tbody">
+                <tr><td colspan="4" class="empty-state">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  No transactions yet
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Settings ─── -->
+      <div class="section" id="sec-settings">
+        <div class="two-col">
+          <div class="card section-gap">
+            <div class="card-header"><h2>Account Information</h2></div>
+            <div class="card-body">
+              <div class="field-group">
+                <div class="field">
+                  <label>Email Address</label>
+                  <input type="email" id="set-email" readonly>
+                </div>
+                <div class="field">
+                  <label>Account Type</label>
+                  <input type="text" id="set-type" readonly>
+                </div>
+                <div class="field" id="set-company-field" style="display:none;">
+                  <label>Company</label>
+                  <input type="text" id="set-company" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-gap">
+            <div class="card-header"><h2>Change Password</h2></div>
+            <div class="card-body">
+              <div class="field-group">
+                <div class="field">
+                  <label>Current Password</label>
+                  <input type="password" id="pw-current" placeholder="••••••••">
+                </div>
+                <div class="field">
+                  <label>New Password</label>
+                  <input type="password" id="pw-new" placeholder="Min 8 characters">
+                </div>
+                <div class="field">
+                  <label>Confirm New Password</label>
+                  <input type="password" id="pw-confirm" placeholder="Repeat new password">
+                </div>
+              </div>
+              <div class="flex-end mt-16">
+                <button class="btn btn-blue" onclick="changePassword()">Update Password</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>Danger Zone</h2></div>
+          <div class="card-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+              <div>
+                <div style="font-size:14px;font-weight:600;">Sign out of all sessions</div>
+                <div class="text-sm text-muted mt-4">This will invalidate your current session and sign you out.</div>
+              </div>
+              <button class="btn btn-danger" onclick="doLogout()">Sign out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
   </div>
 </div>
 
 <script>
-function toast(msg) {
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentUser = null;
+const API_KEY = 'mk_default_test_key';
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
-  t.className = 'toast'; t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${type === 'success' ? '✓' : '✗'}</span>${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
 }
 
-function fmt(ts) {
-  if (!ts) return '—';
-  return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+// ─── Formatting ───────────────────────────────────────────────────────────────
+function fmt(ts) { if (!ts) return '—'; return new Date(ts).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
+function fmtFull(ts) { if (!ts) return '—'; return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }); }
+function fmtUsd(v) { return '$' + parseFloat(v || 0).toFixed(2); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', company: 'Company', billing: 'Billing', settings: 'Settings' };
+
+function goTo(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item[data-section]').forEach(n => n.classList.remove('active'));
+  const sec = document.getElementById('sec-' + name);
+  if (sec) sec.classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-section="${name}"]`);
+  if (nav) nav.classList.add('active');
+  document.getElementById('topbarTitle').textContent = sectionTitles[name] || name;
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  // Load section data
+  if (name === 'apikeys') loadKeys();
+  if (name === 'billing') loadBillingHistory();
+  if (name === 'company') loadCompanySection();
 }
 
-function esc(s) {
-  const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML;
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('li-email').value.trim();
+  const pass  = document.getElementById('li-pass').value;
+  const errEl = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const res  = await fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: pass }),
+  });
+  const data = await res.json();
+  btn.disabled = false; btn.textContent = 'Sign In';
+  if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  if (data.isAdmin) { window.location.href = '/admin/dashboard'; return; }
+  await initApp();
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  currentUser = null;
+  document.getElementById('appPage').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function initApp() {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) {
+    document.getElementById('loginPage').style.display = 'flex';
+    document.getElementById('appPage').style.display = 'none';
+    return;
+  }
+  currentUser = await res.json();
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('appPage').style.display = 'block';
+  populateOverview();
+  loadKeys();
+}
+
+function populateOverview() {
+  if (!currentUser) return;
+  const credits = currentUser.company_id ? (currentUser.company_credits || 0) : (currentUser.credits_usd || 0);
+  document.getElementById('ov-balance').textContent = fmtUsd(credits);
+  document.getElementById('ov-balance-src').textContent = currentUser.company_id ? `Company: ${currentUser.company_name}` : 'Personal account';
+  document.getElementById('ov-type').textContent = (currentUser.account_type || 'personal') === 'company' ? 'Company' : 'Personal';
+  document.getElementById('ov-company').textContent = currentUser.company_name || 'No company';
+
+  // Update sidebar
+  const email = currentUser.email || '';
+  document.getElementById('sidebarEmail').textContent = email;
+  document.getElementById('sidebarAvatar').textContent = email[0]?.toUpperCase() || '?';
+
+  // Update billing section header
+  document.getElementById('billing-balance').textContent = fmtUsd(credits);
+  document.getElementById('billing-balance-src').textContent = currentUser.company_id ? `Shared balance · ${currentUser.company_name}` : 'Personal account';
+
+  // Settings
+  document.getElementById('set-email').value = currentUser.email || '';
+  document.getElementById('set-type').value = currentUser.account_type === 'company' ? 'Company Owner' : 'Personal';
+  if (currentUser.company_name) {
+    document.getElementById('set-company-field').style.display = '';
+    document.getElementById('set-company').value = currentUser.company_name;
+  }
+
+  // Quick start code
+  fetch('/api/user/keys').then(r => r.json()).then(({ keys }) => {
+    const activeKey = (keys || []).find(k => k.is_active);
+    if (activeKey) {
+      document.getElementById('quickstartCode').textContent = `curl -X POST https://meetingservice.app/api/meetings \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: ${activeKey.key}" \\
+  -d '{"title": "My Meeting"}'`;
+    }
+    document.getElementById('ov-keys').textContent = (keys || []).filter(k => k.is_active).length;
+  }).catch(() => {});
+}
+
+// ─── API Keys ─────────────────────────────────────────────────────────────────
 async function loadKeys() {
-  const res  = await fetch('/api/user/keys');
-  if (res.status === 401) { showLogin(); return; }
+  const res = await fetch('/api/user/keys');
+  if (res.status === 401) return;
   const { keys } = await res.json();
+  document.getElementById('ov-keys').textContent = (keys || []).filter(k => k.is_active).length;
   const tbody = document.getElementById('keys-tbody');
-  if (!keys.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No API keys yet — create one below</td></tr>';
+  if (!keys || !keys.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      No API keys yet — create one below
+    </td></tr>`;
     return;
   }
   tbody.innerHTML = keys.map(k => `
     <tr>
       <td>
-        <span class="key-val">${k.key}</span>
-        <button class="btn-sm btn-copy" style="margin-left:6px;" onclick="copyKey('${k.key}')">Copy</button>
+        <span class="key-mono">${esc(k.key)}</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:6px;" onclick="navigator.clipboard.writeText('${esc(k.key)}').then(()=>toast('Copied!'))">Copy</button>
       </td>
       <td>${esc(k.label)}</td>
-      <td>${k.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-revoked">Revoked</span>'}</td>
-      <td>${fmt(k.last_used_at)}</td>
-      <td>${k.is_active ? `<button class="btn-sm btn-revoke" onclick="revokeKey(${k.id})">Revoke</button>` : '—'}</td>
+      <td><span class="badge ${k.is_active ? 'badge-green' : 'badge-red'}">${k.is_active ? 'Active' : 'Revoked'}</span></td>
+      <td class="text-muted">${fmtFull(k.last_used_at)}</td>
+      <td class="text-muted">${fmt(k.created_at)}</td>
+      <td>${k.is_active ? `<button class="btn btn-danger btn-sm" onclick="revokeKey(${k.id})">Revoke</button>` : '—'}</td>
     </tr>`).join('');
 }
 
 async function createKey() {
-  const label = document.getElementById('new-label').value.trim();
+  const label = document.getElementById('new-key-label').value.trim();
   const res   = await fetch('/api/user/keys', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ label: label || 'My API Key' }),
   });
   const data = await res.json();
-  if (!res.ok) { toast(data.error); return; }
-  document.getElementById('new-label').value = '';
-  toast('Key created — ' + data.key);
+  if (!res.ok) { toast(data.error, 'error'); return; }
+  document.getElementById('new-key-label').value = '';
+  toast('API key created');
   loadKeys();
 }
 
 async function revokeKey(id) {
-  if (!confirm('Revoke this API key? It will stop working immediately.')) return;
+  if (!confirm('Revoke this API key? It will stop working immediately and cannot be restored.')) return;
   await fetch(`/api/user/keys/${id}`, { method: 'DELETE' });
   toast('Key revoked');
   loadKeys();
 }
 
-function copyKey(key) {
-  navigator.clipboard.writeText(key).then(() => toast('Copied!')).catch(() => toast('Copy failed'));
+// ─── Meetings ─────────────────────────────────────────────────────────────────
+async function createMeeting() {
+  const title = document.getElementById('nm-title').value.trim() || 'Untitled Meeting';
+  const name  = document.getElementById('nm-name').value.trim();
+  if (!name) { toast('Please enter your name', 'error'); return; }
+  const res  = await fetch('/api/meetings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+    body: JSON.stringify({ title }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Could not create meeting', 'error'); return; }
+  sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
+  sessionStorage.setItem('userName', name);
+  window.location.href = `/join/${data.meetingId}`;
 }
 
-function copyInviteCode() {
-  const code = document.getElementById('inviteCode').textContent;
-  navigator.clipboard.writeText(code).then(() => toast('Invite code copied!')).catch(() => toast('Copy failed'));
+function joinMeeting() {
+  const code = document.getElementById('jm-code').value.trim();
+  const name = document.getElementById('jm-name').value.trim();
+  if (!code) { toast('Please enter a meeting code', 'error'); return; }
+  if (!name) { toast('Please enter your name', 'error'); return; }
+  sessionStorage.setItem('userName', name);
+  window.location.href = `/join/${code}`;
+}
+
+// ─── Company ──────────────────────────────────────────────────────────────────
+function loadCompanySection() {
+  if (!currentUser) return;
+  if (currentUser.company_id) {
+    document.getElementById('hasCompany').style.display = '';
+    document.getElementById('noCompany').style.display = 'none';
+    document.getElementById('co-name').textContent = currentUser.company_name || 'Company';
+    document.getElementById('co-plan').textContent = (currentUser.plan || 'free').toUpperCase();
+    document.getElementById('co-invite').textContent = currentUser.invite_code || '—';
+    const credits = currentUser.company_credits || 0;
+    document.getElementById('co-balance').textContent = fmtUsd(credits);
+  } else {
+    document.getElementById('hasCompany').style.display = 'none';
+    document.getElementById('noCompany').style.display = '';
+  }
 }
 
 async function joinCompany() {
-  const code = document.getElementById('joinCodeInput').value.trim();
-  if (!code) { toast('Please enter an invite code'); return; }
-  const res = await fetch('/api/company/join', {
+  const code = (document.getElementById('joinCodeInput').value || '').trim().toUpperCase();
+  if (!code) { toast('Please enter an invite code', 'error'); return; }
+  const res  = await fetch('/api/company/join', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inviteCode: code }),
   });
   const data = await res.json();
-  if (!res.ok) { toast(data.error); return; }
+  if (!res.ok) { toast(data.error, 'error'); return; }
   toast('Joined ' + data.companyName + '!');
-  showDash();
+  const meRes = await fetch('/api/auth/me');
+  if (meRes.ok) { currentUser = await meRes.json(); }
+  loadCompanySection();
+  populateOverview();
 }
 
-async function loadBalance() {
+function copyInviteCode() {
+  const code = document.getElementById('co-invite').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('Invite code copied!')).catch(() => toast('Copy failed', 'error'));
+}
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+async function loadBillingHistory() {
   const res = await fetch('/api/billing/history');
   if (!res.ok) return;
-  const { balance } = await res.json();
-  const el = document.getElementById('dashBalance');
-  if (el) el.textContent = '$' + parseFloat(balance).toFixed(2);
+  const data = await res.json();
+  const balance = data.balance || 0;
+  document.getElementById('billing-balance').textContent = fmtUsd(balance);
+  const tbody = document.getElementById('billing-tbody');
+  const txs = data.transactions || [];
+  if (!txs.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      No transactions yet
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = txs.map(tx => {
+    const isCredit = parseFloat(tx.amount_usd) > 0;
+    return `<tr>
+      <td><span class="badge ${isCredit ? 'badge-green' : 'badge-blue'}">${esc(tx.type)}</span></td>
+      <td style="font-weight:700;color:${isCredit ? 'var(--success)' : 'var(--text)'};">
+        ${isCredit ? '+' : ''}${fmtUsd(tx.amount_usd)}
+      </td>
+      <td class="text-muted">${esc(tx.description || '—')}</td>
+      <td class="text-muted">${fmt(tx.created_at)}</td>
+    </tr>`;
+  }).join('');
 }
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-function showLogin() {
-  document.getElementById('dashSection').style.display  = 'none';
-  document.getElementById('loginSection').style.display = 'block';
-}
-
-async function doLogin() {
-  const email    = document.getElementById('li-email').value.trim();
-  const password = document.getElementById('li-pass').value;
-  const errEl    = document.getElementById('loginError');
-
-  const res  = await fetch('/api/auth/login', {
+async function topupStripe() {
+  const res = await fetch('/api/billing/stripe/checkout', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ amount: 10 }),
   });
   const data = await res.json();
-  if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
-
-  errEl.style.display = 'none';
-  if (data.isAdmin) { window.location.href = '/admin/dashboard'; return; }
-  showDash();
+  if (data.url) window.location.href = data.url;
+  else toast(data.error || 'Could not start Stripe checkout', 'error');
 }
 
-async function doLogout() {
-  await fetch('/api/auth/logout', { method: 'POST' });
-  showLogin();
+async function topupCrypto() {
+  const card = document.getElementById('usdcDepositCard');
+  card.style.display = 'block';
+  const addrEl = document.getElementById('usdcWalletAddress');
+  addrEl.textContent = 'Loading…';
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const res = await fetch('/api/billing/usdc/address');
+  const data = await res.json();
+  addrEl.textContent = data.address || 'No USDC address configured — contact support';
 }
 
-async function showDash() {
-  const res = await fetch('/api/auth/me');
-  if (res.status === 401) { showLogin(); return; }
-  const user = await res.json();
-  document.getElementById('userEmail').textContent = user.email + (user.company_name ? ` · ${user.company_name}` : '');
-  document.getElementById('loginSection').style.display = 'none';
-  document.getElementById('dashSection').style.display  = 'block';
-
-  // Show company info
-  if (user.company_id) {
-    const compCard = document.getElementById('companyCard');
-    compCard.style.display = 'block';
-    document.getElementById('companyName').textContent = user.company_name || 'Your Company';
-    document.getElementById('companyPlan').textContent = (user.plan || 'free').toUpperCase();
-    if (user.invite_code) {
-      document.getElementById('inviteCodeSection').style.display = 'block';
-      document.getElementById('inviteCode').textContent = user.invite_code;
-    }
-    document.getElementById('joinCompanyCard').style.display = 'none';
-  } else if (user.account_type !== 'company') {
-    document.getElementById('joinCompanyCard').style.display = 'block';
-  }
-
-  // Update balance from user data
-  const balEl = document.getElementById('dashBalance');
-  if (balEl) {
-    const credits = user.company_id ? (user.company_credits || 0) : (user.credits_usd || 0);
-    balEl.textContent = '$' + parseFloat(credits).toFixed(2);
-  }
-
-  loadKeys();
-  loadBalance();
+function copyUsdcAddress() {
+  const addr = document.getElementById('usdcWalletAddress').textContent;
+  navigator.clipboard.writeText(addr).then(() => toast('Address copied!')).catch(() => toast('Copy failed', 'error'));
 }
 
-// Allow Enter on login form
+// ─── Settings ─────────────────────────────────────────────────────────────────
+async function changePassword() {
+  const current  = document.getElementById('pw-current').value;
+  const newPw    = document.getElementById('pw-new').value;
+  const confirm  = document.getElementById('pw-confirm').value;
+  if (!current || !newPw) { toast('Please fill all fields', 'error'); return; }
+  if (newPw !== confirm) { toast('Passwords do not match', 'error'); return; }
+  if (newPw.length < 8) { toast('Password must be at least 8 characters', 'error'); return; }
+  const res = await fetch('/api/auth/password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword: current, newPassword: newPw }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Could not update password', 'error'); return; }
+  toast('Password updated successfully');
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+}
+
+// ─── Code copy ────────────────────────────────────────────────────────────────
+function copyCode(blockId) {
+  const el = document.querySelector(`#${blockId} pre`);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => toast('Copied!')).catch(() => toast('Copy failed', 'error'));
+}
+
+// ─── Enter key support ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('loginSection').style.display !== 'none') {
+  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') {
     doLogin();
   }
 });
 
-// Init — check session first, fall back to login form
+['nm-title','nm-name'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => { if (e.key === 'Enter') createMeeting(); });
+});
+['jm-code','jm-name'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => { if (e.key === 'Enter') joinMeeting(); });
+});
+document.getElementById('joinCodeInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') joinCompany(); });
+document.getElementById('new-key-label')?.addEventListener('keydown', e => { if (e.key === 'Enter') createKey(); });
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
 (async () => {
   const res = await fetch('/api/auth/me');
-  if (res.ok) showDash();
-  else showLogin();
+  if (res.ok) {
+    await initApp();
+  } else {
+    document.getElementById('loginPage').style.display = 'flex';
+  }
 })();
 </script>
 </body>
