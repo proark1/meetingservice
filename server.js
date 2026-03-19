@@ -78,17 +78,12 @@ app.use(cors({
 }));
 
 // ─── Security, compression, logging ──────────────────────────────────────────
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      frameAncestors: ["'self'", 'https://*.lovable.app', 'https://onetabai.lovable.app'],
-    },
-    // Only set frame-ancestors — leave all other CSP directives to helmet defaults
-    useDefaults: false,
-  },
-  frameguard: false, // disables X-Frame-Options so frame-ancestors CSP takes precedence
-  crossOriginEmbedderPolicy: false,
-}));
+app.use(helmet({ contentSecurityPolicy: false, frameguard: false, crossOriginEmbedderPolicy: false }));
+// Allow embedding from lovable.app; omit X-Frame-Options so this CSP takes precedence
+app.use((_req, res, next) => {
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://*.lovable.app https://onetabai.lovable.app");
+  next();
+});
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
