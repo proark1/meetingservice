@@ -12,6 +12,8 @@ const rateLimit  = require('express-rate-limit');
 const compression = require('compression');
 const morgan     = require('morgan');
 const { pool, initDB, getSettings } = require('./db');
+const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail } = require('./email');
+const crypto = require('crypto');
 
 // ─── Environment validation ───────────────────────────────────────────────────
 if (!process.env.DATABASE_PUBLIC_URL) {
@@ -99,6 +101,14 @@ const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
   message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many reset requests — please try again in 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -314,6 +324,10 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     req.session.email     = user.email;
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = companyId;
+
+    // Send welcome email (fire-and-forget)
+    sendEmail({ to: user.email, subject: 'Welcome to MeetingService!', html: welcomeEmail(user.email, key) }).catch(() => {});
+
     res.json({ message: 'Account created', email: user.email, apiKey: key, inviteCode, accountType: safeAccountType });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already registered' });
@@ -373,6 +387,79 @@ app.get('/api/auth/me', requireUserSession, async (req, res) => {
   const u = rows[0];
   req.session.companyId = u.company_id;
   res.json(u);
+});
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+app.post('/api/auth/forgot-password', resetLimiter, async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim().slice(0, 255);
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  // Always respond 200 to prevent email enumeration
+  try {
+    const { rows } = await pool.query(`SELECT id, email FROM users WHERE email = $1`, [email]);
+    if (rows.length > 0) {
+      const user  = rows[0];
+      const token = crypto.randomBytes(32).toString('hex');
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+        [user.id, token]
+      );
+      sendEmail({ to: user.email, subject: 'Reset your MeetingService password', html: passwordResetEmail(token) }).catch(() => {});
+    }
+  } catch (err) {
+    console.error('Forgot password error:', err);
+  }
+  res.json({ message: 'If that email is registered, a reset link has been sent.' });
+});
+
+app.get('/api/auth/reset-password', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Token required' });
+  const { rows } = await pool.query(
+    `SELECT id FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()`,
+    [token]
+  );
+  if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset link' });
+  res.json({ valid: true });
+});
+
+app.post('/api/auth/reset-password', resetLimiter, async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ error: 'Token and newPassword required' });
+  if (newPassword.length < 8)   return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (newPassword.length > 128) return res.status(400).json({ error: 'Password too long' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, user_id FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()`,
+      [token]
+    );
+    if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset link' });
+    const { id: tokenId, user_id } = rows[0];
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, user_id]);
+    await pool.query(`UPDATE password_reset_tokens SET used = TRUE WHERE id = $1`, [tokenId]);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+app.post('/api/auth/change-password', requireUserSession, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' });
+  if (newPassword.length < 8)   return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (newPassword.length > 128) return res.status(400).json({ error: 'Password too long' });
+  try {
+    const { rows } = await pool.query(`SELECT password_hash FROM users WHERE id = $1`, [req.session.userId]);
+    const ok = await bcrypt.compare(currentPassword, rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, req.session.userId]);
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
 });
 
 // ─── User API Keys ────────────────────────────────────────────────────────────
@@ -863,6 +950,125 @@ app.post('/api/company/join', requireUserSession, async (req, res) => {
   }
 });
 
+// ─── Company Member Management ───────────────────────────────────────────────
+app.get('/api/company/members', requireUserSession, async (req, res) => {
+  if (!req.session.companyId) return res.status(400).json({ error: 'You are not part of a company' });
+  const { rows } = await pool.query(
+    `SELECT u.id, u.email, u.account_type, u.created_at,
+            COALESCE(SUM(ABS(ct.amount_usd)) FILTER (WHERE ct.type = 'meeting_usage'), 0) AS credits_used
+     FROM users u
+     LEFT JOIN credit_transactions ct ON ct.user_id = u.id AND ct.company_id = $1 AND ct.type = 'meeting_usage'
+     WHERE u.company_id = $1
+     GROUP BY u.id
+     ORDER BY u.created_at ASC`,
+    [req.session.companyId]
+  );
+  // Is requester the owner?
+  const { rows: cRows } = await pool.query(`SELECT owner_id FROM companies WHERE id = $1`, [req.session.companyId]);
+  const isOwner = cRows[0]?.owner_id === req.session.userId;
+  res.json({ members: rows, isOwner });
+});
+
+app.delete('/api/company/members/:id', requireUserSession, async (req, res) => {
+  if (!req.session.companyId) return res.status(400).json({ error: 'You are not part of a company' });
+  const { rows: cRows } = await pool.query(`SELECT owner_id FROM companies WHERE id = $1`, [req.session.companyId]);
+  if (cRows[0]?.owner_id !== req.session.userId) return res.status(403).json({ error: 'Only the company owner can remove members' });
+  const memberId = parseInt(req.params.id);
+  if (memberId === req.session.userId) return res.status(400).json({ error: 'Cannot remove yourself' });
+  const { rowCount } = await pool.query(
+    `UPDATE users SET company_id = NULL WHERE id = $1 AND company_id = $2`,
+    [memberId, req.session.companyId]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Member not found' });
+  res.json({ message: 'Member removed' });
+});
+
+// ─── Meeting charge helper ────────────────────────────────────────────────────
+async function chargeMeeting(meeting) {
+  try {
+    if (!meeting.logId) return; // not persisted
+    const mins = (Date.now() - meeting.createdAt) / 60000;
+    const s = await getSettings();
+    const rate = parseFloat(s.meeting_cost_per_participant_minute) || 0.01;
+    const cost = parseFloat((mins * (meeting.peakParticipants || 1) * rate).toFixed(4));
+    if (cost < 0.0001) return;
+
+    // Look up who created the meeting to find user/company
+    const { rows } = await pool.query(
+      `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
+    );
+    if (!rows.length) return;
+    const { user_id, company_id } = rows[0];
+
+    if (company_id) {
+      const { rows: bRows } = await pool.query(
+        `UPDATE companies SET credits_usd = GREATEST(credits_usd - $1, 0) WHERE id = $2 RETURNING credits_usd`,
+        [cost, company_id]
+      );
+      const newBal = parseFloat(bRows[0]?.credits_usd || 0);
+      const { rows: uRows } = await pool.query(`SELECT email FROM users WHERE id = $1`, [user_id]);
+      const thresh = parseFloat(s.low_balance_threshold_usd) || 2.0;
+      const prevBal = newBal + cost;
+      if (prevBal >= thresh && newBal < thresh && uRows[0]?.email) {
+        sendEmail({ to: uRows[0].email, subject: 'Low balance alert — MeetingService', html: lowBalanceEmail(newBal, uRows[0].email) }).catch(() => {});
+      }
+    } else if (user_id) {
+      const { rows: bRows } = await pool.query(
+        `UPDATE users SET credits_usd = GREATEST(credits_usd - $1, 0) WHERE id = $2 RETURNING credits_usd, email`,
+        [cost, user_id]
+      );
+      const newBal = parseFloat(bRows[0]?.credits_usd || 0);
+      const thresh = parseFloat(s.low_balance_threshold_usd) || 2.0;
+      if ((newBal + cost) >= thresh && newBal < thresh && bRows[0]?.email) {
+        sendEmail({ to: bRows[0].email, subject: 'Low balance alert — MeetingService', html: lowBalanceEmail(newBal, bRows[0].email) }).catch(() => {});
+      }
+    }
+
+    await pool.query(
+      `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, reference_id, description) VALUES ($1,$2,$3,'meeting_usage',$4,$5)`,
+      [user_id, company_id, -cost, meeting.id, `Meeting ${meeting.id} — ${Math.round(mins)}m × ${meeting.peakParticipants || 1} participants`]
+    );
+
+    await pool.query(
+      `UPDATE meetings_log SET ended_at = NOW(), peak_participants = $1, duration_minutes = $2, cost_usd = $3 WHERE id = $4`,
+      [meeting.peakParticipants || 1, parseFloat(mins.toFixed(2)), cost, meeting.logId]
+    );
+
+    // Fire webhook
+    deliverWebhook(meeting.logId, user_id, company_id, 'meeting.ended', {
+      meetingId: meeting.id, title: meeting.title,
+      durationMinutes: parseFloat(mins.toFixed(2)),
+      peakParticipants: meeting.peakParticipants || 1,
+      costUsd: cost,
+    }).catch(() => {});
+
+  } catch (err) {
+    console.error('chargeMeeting error:', err);
+  }
+}
+
+// ─── Webhook delivery ─────────────────────────────────────────────────────────
+async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, url, secret FROM webhooks WHERE is_active = TRUE AND $1 = ANY(events) AND (user_id = $2 OR company_id = $3)`,
+      [event, userId || null, companyId || null]
+    );
+    const body = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
+    for (const wh of rows) {
+      const sig = 'sha256=' + crypto.createHmac('sha256', wh.secret).update(body).digest('hex');
+      fetch(wh.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-MeetingService-Event': event },
+        body,
+        signal: AbortSignal.timeout(8000),
+      }).catch(err => console.error(`Webhook delivery failed for ${wh.url}:`, err.message));
+    }
+  } catch (err) {
+    console.error('deliverWebhook error:', err);
+  }
+}
+
 // ─── Meetings REST API ────────────────────────────────────────────────────────
 app.post('/api/meetings', authApi, async (req, res) => {
   // Apply default max participants from settings
@@ -879,15 +1085,44 @@ app.post('/api/meetings', authApi, async (req, res) => {
     adminToken,
     title:    ((req.body.title || 'Untitled Meeting') + '').slice(0, 100),
     createdAt: Date.now(),
-    participants: new Map(),
+    participants:     new Map(),
+    waitingRoom:      new Map(),
+    peakParticipants: 0,
+    logId:            null,
     settings: {
       muteOnJoin:      req.body.muteOnJoin      ?? false,
       videoOffOnJoin:  req.body.videoOffOnJoin  ?? false,
       maxParticipants: req.body.maxParticipants ?? maxDefault,
       locked:          false,
+      waitingRoom:     req.body.waitingRoom     ?? false,
     },
   };
   meetings.set(id, meeting);
+
+  // Persist to meetings_log — look up user from api key
+  try {
+    const apiKey = req.headers['x-api-key'];
+    const { rows: keyRows } = await pool.query(
+      `SELECT ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1`,
+      [apiKey]
+    );
+    if (keyRows.length > 0) {
+      const { user_id, company_id } = keyRows[0];
+      const { rows: logRows } = await pool.query(
+        `INSERT INTO meetings_log (meeting_id, title, created_by_key, user_id, company_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+        [id, meeting.title, apiKey, user_id, company_id || null]
+      );
+      meeting.logId = logRows[0].id;
+
+      // Fire meeting.started webhook
+      deliverWebhook(logRows[0].id, user_id, company_id, 'meeting.started', {
+        meetingId: id, title: meeting.title,
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.error('meetings_log insert error:', err);
+  }
+
   res.status(201).json({
     meetingId: id, adminToken, joinUrl: `/join/${id}`,
     title: meeting.title, settings: meeting.settings,
@@ -916,8 +1151,10 @@ app.get('/api/meetings/:meetingId', authApi, findMeeting, (req, res) => {
 });
 
 app.delete('/api/meetings/:meetingId', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
-  io.to(req.meeting.id).emit('meeting:ended', { reason: 'Meeting ended by admin' });
-  meetings.delete(req.meeting.id);
+  const m = req.meeting;
+  io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by admin' });
+  meetings.delete(m.id);
+  chargeMeeting(m).catch(() => {});
   res.json({ message: 'Meeting ended' });
 });
 
@@ -987,10 +1224,92 @@ app.post('/api/meetings/:meetingId/unlock', authApi, findMeeting, requireMeeting
   res.json({ locked: false });
 });
 
+// ─── Meeting history ──────────────────────────────────────────────────────────
+app.get('/api/meetings/history', requireUserSession, async (req, res) => {
+  try {
+    let rows;
+    if (req.session.companyId) {
+      ({ rows } = await pool.query(
+        `SELECT meeting_id, title, started_at, ended_at, peak_participants, duration_minutes, cost_usd
+         FROM meetings_log WHERE company_id = $1 ORDER BY started_at DESC LIMIT 50`,
+        [req.session.companyId]
+      ));
+    } else {
+      ({ rows } = await pool.query(
+        `SELECT meeting_id, title, started_at, ended_at, peak_participants, duration_minutes, cost_usd
+         FROM meetings_log WHERE user_id = $1 ORDER BY started_at DESC LIMIT 50`,
+        [req.session.userId]
+      ));
+    }
+    res.json({ meetings: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load meeting history' });
+  }
+});
+
+app.get('/admin/api/meetings/history', requireAdminSession, async (_req, res) => {
+  const { rows } = await pool.query(`
+    SELECT ml.meeting_id, ml.title, ml.started_at, ml.ended_at, ml.peak_participants,
+           ml.duration_minutes, ml.cost_usd, u.email AS user_email, c.name AS company_name
+    FROM meetings_log ml
+    LEFT JOIN users u ON u.id = ml.user_id
+    LEFT JOIN companies c ON c.id = ml.company_id
+    ORDER BY ml.started_at DESC LIMIT 100
+  `);
+  res.json({ meetings: rows });
+});
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+app.get('/api/webhooks', requireUserSession, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, url, events, is_active, created_at FROM webhooks WHERE user_id = $1 OR company_id = $2 ORDER BY created_at DESC`,
+    [req.session.userId, req.session.companyId || null]
+  );
+  res.json({ webhooks: rows });
+});
+
+app.post('/api/webhooks', requireUserSession, async (req, res) => {
+  const { url, events } = req.body;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try { new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  const allowed = ['meeting.started','meeting.ended','participant.joined','participant.left'];
+  const safeEvents = (Array.isArray(events) ? events : []).filter(e => allowed.includes(e));
+  if (!safeEvents.length) return res.status(400).json({ error: 'At least one valid event required' });
+  const secret = crypto.randomBytes(24).toString('hex');
+  const { rows } = await pool.query(
+    `INSERT INTO webhooks (user_id, company_id, url, events, secret) VALUES ($1,$2,$3,$4,$5) RETURNING id, url, events, is_active, created_at`,
+    [req.session.userId, req.session.companyId || null, url.slice(0,500), safeEvents, secret]
+  );
+  res.status(201).json({ ...rows[0], secret });
+});
+
+app.delete('/api/webhooks/:id', requireUserSession, async (req, res) => {
+  const { rowCount } = await pool.query(
+    `DELETE FROM webhooks WHERE id = $1 AND (user_id = $2 OR company_id = $3)`,
+    [req.params.id, req.session.userId, req.session.companyId || null]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Webhook not found' });
+  res.json({ message: 'Webhook deleted' });
+});
+
+// ─── ICE server config ────────────────────────────────────────────────────────
+app.get('/api/config/ice-servers', (_req, res) => {
+  const servers = [{ urls: 'stun:stun.l.google.com:19302' }];
+  if (process.env.TURN_URLS) {
+    servers.push({
+      urls:       process.env.TURN_URLS.split(',').map(u => u.trim()),
+      username:   process.env.TURN_USERNAME   || '',
+      credential: process.env.TURN_CREDENTIAL || '',
+    });
+  }
+  res.json({ iceServers: servers });
+});
+
 // ─── HTML Routes ──────────────────────────────────────────────────────────────
 app.get('/',         (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/docs',     (_req, res) => res.sendFile(path.join(__dirname, 'public', 'docs.html')));
 app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
+app.get('/reset',    (_req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
 app.get('/dashboard',(_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 app.get('/billing',  requireUserSession, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'billing.html')));
 app.get('/join/:meetingId', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'meeting.html')));
@@ -1034,6 +1353,9 @@ io.on('connection', (socket) => {
     };
 
     meeting.participants.set(participantId, participant);
+    if (meeting.participants.size > (meeting.peakParticipants || 0)) {
+      meeting.peakParticipants = meeting.participants.size;
+    }
     socket.join(meetingId);
     currentMeetingId     = meetingId;
     currentParticipantId = participantId;
@@ -1059,6 +1381,57 @@ io.on('connection', (socket) => {
       isMuted: participant.isMuted, isVideoOff: participant.isVideoOff,
       isHandRaised: false, isAdmin: participant.isAdmin,
     });
+
+    // Fire participant.joined webhook (fire-and-forget)
+    if (meeting.logId) {
+      pool.query(`SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]).then(({ rows }) => {
+        if (rows[0]) {
+          deliverWebhook(meeting.logId, rows[0].user_id, rows[0].company_id, 'participant.joined', {
+            meetingId, participantId, name: participant.name,
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  });
+
+  // ─── Waiting room ───────────────────────────────────────────────────────────
+  socket.on('waiting-room:join', ({ meetingId: mid, name }) => {
+    const meeting = meetings.get(mid);
+    if (!meeting) return socket.emit('error', { message: 'Meeting not found' });
+    if (!meeting.settings.waitingRoom) {
+      // No waiting room — just signal that they should join normally
+      return socket.emit('waiting-room:admitted');
+    }
+    const safeName = ((name || 'Anonymous') + '').trim().slice(0, 60) || 'Anonymous';
+    meeting.waitingRoom.set(socket.id, { socketId: socket.id, name: safeName });
+    socket.join(`waiting:${mid}`);
+    // Notify host(s) that someone is waiting
+    socket.to(mid).emit('waiting-room:participant-waiting', { socketId: socket.id, name: safeName, count: meeting.waitingRoom.size });
+    socket.emit('waiting-room:waiting', { message: 'Waiting for the host to admit you…' });
+  });
+
+  socket.on('waiting-room:admit', ({ meetingId: mid, socketId: targetSocketId }) => {
+    const meeting = meetings.get(mid);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin) return; // only meeting admin can admit
+    const waiter = meeting.waitingRoom.get(targetSocketId);
+    if (!waiter) return;
+    meeting.waitingRoom.delete(targetSocketId);
+    io.to(targetSocketId).emit('waiting-room:admitted');
+    socket.to(mid).emit('waiting-room:participant-waiting', { socketId: targetSocketId, name: waiter.name, count: meeting.waitingRoom.size, removed: true });
+  });
+
+  socket.on('waiting-room:deny', ({ meetingId: mid, socketId: targetSocketId }) => {
+    const meeting = meetings.get(mid);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin) return;
+    const waiter = meeting.waitingRoom.get(targetSocketId);
+    if (!waiter) return;
+    meeting.waitingRoom.delete(targetSocketId);
+    io.to(targetSocketId).emit('waiting-room:denied', { message: 'The host did not admit you to this meeting.' });
+    socket.to(mid).emit('waiting-room:participant-waiting', { socketId: targetSocketId, name: waiter.name, count: meeting.waitingRoom.size, removed: true });
   });
 
   socket.on('signal:offer', ({ to, offer }) => {
@@ -1119,6 +1492,12 @@ io.on('connection', (socket) => {
     io.to(currentMeetingId).emit('react', { participantId: currentParticipantId, emoji });
   });
 
+  socket.on('recording:broadcast-started', ({ hostName }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    socket.to(currentMeetingId).emit('recording:started', { hostName: (hostName || '').slice(0, 60) });
+  });
+
   socket.on('chat:message', ({ text }) => {
     if (!text || typeof text !== 'string') return;
     const trimmed = text.trim().slice(0, 500);
@@ -1141,10 +1520,22 @@ io.on('connection', (socket) => {
     socket.to(currentMeetingId).emit('participant:left', {
       participantId: currentParticipantId, name: p ? p.name : 'Unknown',
     });
+    // Fire participant.left webhook
+    if (meeting.logId) {
+      const { rows: lRows } = await pool.query(`SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]).catch(() => ({ rows: [] }));
+      if (lRows[0]) {
+        deliverWebhook(meeting.logId, lRows[0].user_id, lRows[0].company_id, 'participant.left', {
+          meetingId: meeting.id, participantId: currentParticipantId, name: p ? p.name : 'Unknown',
+        }).catch(() => {});
+      }
+    }
     if (meeting.participants.size === 0) {
       setTimeout(() => {
         const m = meetings.get(currentMeetingId);
-        if (m && m.participants.size === 0) meetings.delete(currentMeetingId);
+        if (m && m.participants.size === 0) {
+          meetings.delete(currentMeetingId);
+          chargeMeeting(m).catch(() => {});
+        }
       }, 60000);
     }
   });

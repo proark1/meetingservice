@@ -95,6 +95,55 @@ async function initDB() {
       );
     `);
 
+    // ─── Password reset tokens ────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token      VARCHAR(64) UNIQUE NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used       BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens(token);
+    `);
+
+    // ─── Meeting persistence log ──────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meetings_log (
+        id                SERIAL PRIMARY KEY,
+        meeting_id        VARCHAR(50) UNIQUE NOT NULL,
+        title             VARCHAR(100),
+        created_by_key    VARCHAR(255),
+        user_id           INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        company_id        INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+        started_at        TIMESTAMPTZ DEFAULT NOW(),
+        ended_at          TIMESTAMPTZ,
+        peak_participants INTEGER DEFAULT 0,
+        duration_minutes  DECIMAL(10,2),
+        cost_usd          DECIMAL(10,4) DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_mlog_user    ON meetings_log(user_id);
+      CREATE INDEX IF NOT EXISTS idx_mlog_company ON meetings_log(company_id);
+      CREATE INDEX IF NOT EXISTS idx_mlog_started ON meetings_log(started_at DESC);
+    `);
+
+    // ─── Webhooks ─────────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+        url        VARCHAR(500) NOT NULL,
+        events     TEXT[] NOT NULL,
+        secret     VARCHAR(64) NOT NULL,
+        is_active  BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_webhooks_user    ON webhooks(user_id);
+      CREATE INDEX IF NOT EXISTS idx_webhooks_company ON webhooks(company_id);
+    `);
+
     // ─── Platform config & monitor state tables ───────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS platform_config (
@@ -183,9 +232,11 @@ async function initDB() {
       ['blur_enabled',               'true'],
       ['registration_enabled',       'true'],
       ['max_participants_default',   '50'],
-      ['meeting_auto_delete_minutes','60'],
-      ['stripe_enabled',             'true'],
-      ['crypto_enabled',             'true'],
+      ['meeting_auto_delete_minutes',          '60'],
+      ['stripe_enabled',                       'true'],
+      ['crypto_enabled',                       'true'],
+      ['meeting_cost_per_participant_minute',   '0.01'],
+      ['low_balance_threshold_usd',            '2.00'],
     ];
     for (const [key, value] of defaults) {
       await client.query(

@@ -9,6 +9,34 @@
 </head>
 <body>
 
+<!-- ─── Waiting room overlay ───────────────────────────────────────────────── -->
+<div class="lobby-overlay" id="waitingRoomOverlay" style="display:none;">
+  <div class="lobby-card" style="text-align:center;max-width:380px;">
+    <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#4361ee,#7c3aed);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+    </div>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:8px;">Waiting to be admitted</h2>
+    <p style="font-size:14px;color:#64748b;margin-bottom:0;">Please wait — the host will admit you shortly.</p>
+    <div style="margin-top:20px;display:flex;justify-content:center;gap:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#4361ee;animation:dot1 1.4s infinite;"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:#4361ee;animation:dot2 1.4s infinite;"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:#4361ee;animation:dot3 1.4s infinite;"></span>
+    </div>
+    <style>
+      @keyframes dot1{0%,80%,100%{opacity:.2}40%{opacity:1}}
+      @keyframes dot2{0%,20%,100%{opacity:.2}60%{opacity:1}}
+      @keyframes dot3{0%,40%,100%{opacity:.2}80%{opacity:1}}
+    </style>
+    <button onclick="window.location.href='/'" style="margin-top:24px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Leave</button>
+  </div>
+</div>
+
+<!-- ─── Recording consent banner ───────────────────────────────────────────── -->
+<div id="recordingConsentBanner" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(15,23,42,0.92);color:white;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;display:none;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);">
+  <span style="font-size:16px;">⚠️</span>
+  <span id="recordingConsentText">This meeting is being recorded.</span>
+</div>
+
 <!-- ─── Lobby ─────────────────────────────────────────────────────────────── -->
 <div class="lobby-overlay" id="lobby">
   <div class="lobby-card">
@@ -271,20 +299,14 @@ let timerInterval    = null;
 const peers        = {};
 const participants = {};
 
-const ICE_SERVERS = [
+// ICE servers loaded from server (may include private TURN)
+let ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  {
-    urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443'],
-    username: 'openrelayproject',
-    credential: 'openrelayproject',
-  },
-  {
-    urls: 'turns:openrelay.metered.ca:443',
-    username: 'openrelayproject',
-    credential: 'openrelayproject',
-  },
 ];
+fetch('/api/config/ice-servers').then(r => r.json()).then(cfg => {
+  if (cfg.iceServers) ICE_SERVERS = cfg.iceServers;
+}).catch(() => {});
 
 const AVATAR_COLORS = ['#4361ee','#7209b7','#f72585','#4cc9f0','#fb8500','#06d6a0'];
 
@@ -544,6 +566,44 @@ socket.on('admin:unmute', () => {
 socket.on('admin:kick', ({ reason }) => {
   showToast(reason || 'You were removed from the meeting', 'error');
   setTimeout(() => window.location.href = '/', 2000);
+});
+
+// ─── Waiting room events ──────────────────────────────────────────────────────
+socket.on('waiting-room:waiting', () => {
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('waitingRoomOverlay').style.display = 'flex';
+});
+
+socket.on('waiting-room:admitted', () => {
+  document.getElementById('waitingRoomOverlay').style.display = 'none';
+  // Proceed with normal join flow — the server will send 'joined' after admission
+});
+
+socket.on('waiting-room:denied', ({ message }) => {
+  document.getElementById('waitingRoomOverlay').style.display = 'none';
+  showLobbyError(message || 'You were not admitted to this meeting.');
+  document.getElementById('lobby').style.display = 'flex';
+  $('#lobbyJoinBtn').disabled = false;
+  $('#lobbyJoinBtn').textContent = 'Join Meeting';
+});
+
+socket.on('waiting-room:participant-waiting', ({ socketId, name, count, removed }) => {
+  if (!isAdmin) return;
+  if (!removed) {
+    showToast(`${name} is waiting to join`);
+    // Show admit/deny controls in participants panel
+    renderWaitingParticipants(socketId, name);
+  }
+});
+
+// ─── Recording consent banner ─────────────────────────────────────────────────
+socket.on('recording:started', ({ hostName }) => {
+  if (isRecording) return; // own recording, don't show banner to self
+  const banner = document.getElementById('recordingConsentBanner');
+  document.getElementById('recordingConsentText').textContent =
+    `This meeting is being recorded${hostName ? ' by ' + hostName : ''}.`;
+  banner.style.display = 'flex';
+  setTimeout(() => { banner.style.display = 'none'; }, 8000);
 });
 
 // Reactions
@@ -1427,6 +1487,98 @@ async function adminMuteAll() {
     });
   } catch(err) { console.error('Mute all failed:', err); }
 }
+
+// ─── Waiting room — render admit/deny UI in side panel ────────────────────────
+const waitingQueue = {};
+function renderWaitingParticipants(socketId, name) {
+  waitingQueue[socketId] = name;
+  const list = $('#participantsList');
+  // Remove existing waiting section if present
+  list.querySelector('.waiting-section')?.remove();
+  const section = document.createElement('div');
+  section.className = 'waiting-section';
+  section.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px;margin-bottom:10px;';
+  section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:0.08em;padding:6px 0 8px;">Waiting (${Object.keys(waitingQueue).length})</div>`;
+  for (const [sid, nm] of Object.entries(waitingQueue)) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;gap:8px;';
+    row.innerHTML = `<span style="font-size:13px;font-weight:500;flex:1;">${escapeHtml(nm)}</span>
+      <button onclick="admitWaiting('${sid}')" style="background:#4361ee;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
+      <button onclick="denyWaiting('${sid}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
+    section.appendChild(row);
+  }
+  list.prepend(section);
+  // Open people panel if not already open
+  if ($('#sidePanel').classList.contains('hidden')) toggleSidePanel('participants');
+}
+
+function admitWaiting(socketId) {
+  socket.emit('waiting-room:admit', { meetingId, socketId });
+  delete waitingQueue[socketId];
+  document.querySelector(`.waiting-section`)?.remove();
+  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+}
+
+function denyWaiting(socketId) {
+  socket.emit('waiting-room:deny', { meetingId, socketId });
+  delete waitingQueue[socketId];
+  document.querySelector(`.waiting-section`)?.remove();
+  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+}
+
+// ─── Broadcast recording start to other participants ─────────────────────────
+const _startRecording = startRecording;
+async function startRecording() {
+  await _startRecording();
+  const myName = participants[myParticipantId]?.name || '';
+  socket.emit('recording:broadcast-started', { hostName: myName });
+}
+
+// ─── Connection quality indicator ─────────────────────────────────────────────
+const qualityState = {}; // pid -> 'good' | 'fair' | 'poor'
+
+async function checkConnectionQuality() {
+  for (const [pid, { pc }] of Object.entries(peers)) {
+    try {
+      const stats = await pc.getStats();
+      let packetsLost = 0, totalPackets = 0;
+      stats.forEach(report => {
+        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+          packetsLost  += report.packetsLost    || 0;
+          totalPackets += (report.packetsReceived || 0) + (report.packetsLost || 0);
+        }
+      });
+      const lossRate = totalPackets > 0 ? packetsLost / totalPackets : 0;
+      const quality  = lossRate < 0.02 ? 'good' : lossRate < 0.08 ? 'fair' : 'poor';
+      if (qualityState[pid] !== quality) {
+        qualityState[pid] = quality;
+        updateQualityBadge(pid, quality);
+        if (quality === 'poor' && pid !== myParticipantId) {
+          showToast(`Connection with ${participants[pid]?.name || 'a participant'} is poor`, 'error');
+        }
+      }
+    } catch(e) {}
+  }
+}
+
+function updateQualityBadge(pid, quality) {
+  const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  if (!tile) return;
+  let badge = tile.querySelector('.quality-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.className = 'quality-badge';
+    badge.style.cssText = 'position:absolute;bottom:32px;right:8px;font-size:10px;padding:2px 5px;border-radius:4px;background:rgba(0,0,0,0.5);color:white;font-weight:700;z-index:3;cursor:default;';
+    tile.style.position = 'relative';
+    tile.appendChild(badge);
+  }
+  const icons = { good: '🟢', fair: '🟡', poor: '🔴' };
+  const labels = { good: 'Good', fair: 'Fair', poor: 'Poor' };
+  badge.textContent = icons[quality];
+  badge.title = `Connection: ${labels[quality]}`;
+}
+
+setInterval(checkConnectionQuality, 5000);
 
 // ─── Init control icons ───────────────────────────────────────────────────────
 updateControlButtons();

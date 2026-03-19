@@ -325,7 +325,10 @@
       <input type="password" class="form-input" id="li-pass" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
-    <p style="margin-top:20px;font-size:13px;color:var(--text-muted);text-align:center;">
+    <p style="margin-top:16px;font-size:13px;color:var(--text-muted);text-align:center;">
+      <a href="/reset" style="color:var(--primary);font-weight:600;">Forgot password?</a>
+    </p>
+    <p style="margin-top:8px;font-size:13px;color:var(--text-muted);text-align:center;">
       No account? <a href="/register" style="color:var(--primary);font-weight:600;">Create one free →</a>
     </p>
   </div>
@@ -356,6 +359,14 @@
       <div class="nav-item" data-section="apikeys" onclick="goTo('apikeys')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         API Keys
+      </div>
+      <div class="nav-item" data-section="history" onclick="goTo('history')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Meeting History
+      </div>
+      <div class="nav-item" data-section="webhooks" onclick="goTo('webhooks')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Webhooks
       </div>
       <div class="nav-item" data-section="company" onclick="goTo('company')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -668,6 +679,20 @@ curl https://meetingservice.app/api/meetings \
           </div>
         </div>
 
+          <!-- Members sub-section -->
+          <div class="card section-gap" id="membersCard" style="display:none;">
+            <div class="card-header">
+              <h2>Team Members <span style="font-weight:500;font-size:13px;color:var(--text-muted);" id="memberCount"></span></h2>
+              <button class="btn btn-ghost btn-sm" onclick="loadMembers()">Refresh</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Email</th><th>Role</th><th>Member Since</th><th id="memberActionTh"></th></tr></thead>
+                <tbody id="members-tbody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
         <!-- No company -->
         <div id="noCompany" style="display:none;">
           <div class="two-col">
@@ -759,6 +784,69 @@ curl https://meetingservice.app/api/meetings \
         </div>
       </div>
 
+      <!-- ─── Meeting History ─── -->
+      <div class="section" id="sec-history">
+        <div class="card">
+          <div class="card-header">
+            <h2>Meeting History</h2>
+            <button class="btn btn-ghost btn-sm" onclick="loadHistory()">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Title</th><th>Meeting ID</th><th>Started</th><th>Duration</th><th>Participants</th><th>Cost</th></tr></thead>
+              <tbody id="history-tbody">
+                <tr><td colspan="6" class="empty-state">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  No meetings yet
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Webhooks ─── -->
+      <div class="section" id="sec-webhooks">
+        <div class="card section-gap">
+          <div class="card-header">
+            <h2>Webhooks</h2>
+            <button class="btn btn-ghost btn-sm" onclick="loadWebhooks()">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>URL</th><th>Events</th><th>Status</th><th>Created</th><th></th></tr></thead>
+              <tbody id="webhooks-tbody">
+                <tr><td colspan="5" class="empty-state">No webhooks yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Add Webhook</h2></div>
+          <div class="card-body">
+            <div class="field-group">
+              <div class="field">
+                <label>Endpoint URL</label>
+                <input type="url" id="wh-url" placeholder="https://your-app.com/webhook">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">Events to send</label>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;margin:0;cursor:pointer;"><input type="checkbox" id="whe-started" value="meeting.started"> meeting.started</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;margin:0;cursor:pointer;"><input type="checkbox" id="whe-ended" value="meeting.ended"> meeting.ended</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;margin:0;cursor:pointer;"><input type="checkbox" id="whe-joined" value="participant.joined"> participant.joined</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;margin:0;cursor:pointer;"><input type="checkbox" id="whe-left" value="participant.left"> participant.left</label>
+                </div>
+              </div>
+            </div>
+            <div class="flex-end mt-16">
+              <button class="btn btn-blue" onclick="createWebhook()">Add webhook →</button>
+            </div>
+            <p class="text-sm text-muted mt-12">Each delivery includes an <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">X-Signature: sha256=HMAC</code> header for verification.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- ─── Settings ─── -->
       <div class="section" id="sec-settings">
         <div class="two-col">
@@ -846,7 +934,7 @@ function fmtUsd(v) { return '$' + parseFloat(v || 0).toFixed(2); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
-const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', company: 'Company', billing: 'Billing', settings: 'Settings' };
+const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', history: 'Meeting History', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
 
 function goTo(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -859,9 +947,11 @@ function goTo(name) {
   // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
   // Load section data
-  if (name === 'apikeys') loadKeys();
-  if (name === 'billing') loadBillingHistory();
-  if (name === 'company') loadCompanySection();
+  if (name === 'apikeys')  loadKeys();
+  if (name === 'billing')  loadBillingHistory();
+  if (name === 'company')  loadCompanySection();
+  if (name === 'history')  loadHistory();
+  if (name === 'webhooks') loadWebhooks();
 }
 
 function toggleSidebar() {
@@ -1032,6 +1122,8 @@ function loadCompanySection() {
     document.getElementById('co-invite').textContent = currentUser.invite_code || '—';
     const credits = currentUser.company_credits || 0;
     document.getElementById('co-balance').textContent = fmtUsd(credits);
+    document.getElementById('membersCard').style.display = '';
+    loadMembers();
   } else {
     document.getElementById('hasCompany').style.display = 'none';
     document.getElementById('noCompany').style.display = '';
@@ -1122,7 +1214,7 @@ async function changePassword() {
   if (!current || !newPw) { toast('Please fill all fields', 'error'); return; }
   if (newPw !== confirm) { toast('Passwords do not match', 'error'); return; }
   if (newPw.length < 8) { toast('Password must be at least 8 characters', 'error'); return; }
-  const res = await fetch('/api/auth/password', {
+  const res = await fetch('/api/auth/change-password', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ currentPassword: current, newPassword: newPw }),
   });
@@ -1132,6 +1224,103 @@ async function changePassword() {
   document.getElementById('pw-current').value = '';
   document.getElementById('pw-new').value = '';
   document.getElementById('pw-confirm').value = '';
+}
+
+// ─── Meeting History ──────────────────────────────────────────────────────────
+async function loadHistory() {
+  const res = await fetch('/api/meetings/history');
+  if (!res.ok) return;
+  const { meetings } = await res.json();
+  const tbody = document.getElementById('history-tbody');
+  if (!meetings || !meetings.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      No meetings yet
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = meetings.map(m => {
+    const dur = m.duration_minutes != null ? `${parseFloat(m.duration_minutes).toFixed(1)}m` : (m.ended_at ? '' : 'Live');
+    const durBadge = !m.ended_at ? `<span class="badge badge-green">Live</span>` : dur;
+    return `<tr>
+      <td style="font-weight:600;">${esc(m.title || 'Untitled')}</td>
+      <td><span class="key-mono">${esc(m.meeting_id)}</span></td>
+      <td class="text-muted">${fmtFull(m.started_at)}</td>
+      <td>${durBadge}</td>
+      <td>${m.peak_participants || '—'}</td>
+      <td style="color:var(--text-muted);">${m.cost_usd > 0 ? fmtUsd(m.cost_usd) : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Company Members ──────────────────────────────────────────────────────────
+async function loadMembers() {
+  const res = await fetch('/api/company/members');
+  if (!res.ok) return;
+  const { members, isOwner } = await res.json();
+  document.getElementById('memberCount').textContent = `(${members.length})`;
+  if (isOwner) document.getElementById('memberActionTh').textContent = '';
+  const tbody = document.getElementById('members-tbody');
+  tbody.innerHTML = members.map(m => `<tr>
+    <td style="font-weight:500;">${esc(m.email)}</td>
+    <td><span class="badge badge-blue">${esc(m.account_type)}</span></td>
+    <td class="text-muted">${fmt(m.created_at)}</td>
+    <td>${isOwner && m.id !== (currentUser?.id) ? `<button class="btn btn-danger btn-sm" onclick="removeMember(${m.id},'${esc(m.email)}')">Remove</button>` : ''}</td>
+  </tr>`).join('');
+}
+
+async function removeMember(id, email) {
+  if (!confirm(`Remove ${email} from your company?`)) return;
+  const res = await fetch(`/api/company/members/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error, 'error'); return; }
+  toast('Member removed');
+  loadMembers();
+}
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+async function loadWebhooks() {
+  const res = await fetch('/api/webhooks');
+  if (!res.ok) return;
+  const { webhooks } = await res.json();
+  const tbody = document.getElementById('webhooks-tbody');
+  if (!webhooks || !webhooks.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No webhooks yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = webhooks.map(w => `<tr>
+    <td style="font-family:monospace;font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.url)}</td>
+    <td style="font-size:12px;">${(w.events || []).join(', ')}</td>
+    <td><span class="badge ${w.is_active ? 'badge-green' : 'badge-red'}">${w.is_active ? 'Active' : 'Inactive'}</span></td>
+    <td class="text-muted">${fmt(w.created_at)}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteWebhook(${w.id})">Delete</button></td>
+  </tr>`).join('');
+}
+
+async function createWebhook() {
+  const url = document.getElementById('wh-url').value.trim();
+  if (!url) { toast('Please enter a URL', 'error'); return; }
+  const events = ['started','ended','joined','left']
+    .filter(e => document.getElementById(`whe-${e}`)?.checked)
+    .map(e => e === 'started' ? 'meeting.started' : e === 'ended' ? 'meeting.ended' : e === 'joined' ? 'participant.joined' : 'participant.left');
+  if (!events.length) { toast('Select at least one event', 'error'); return; }
+  const res = await fetch('/api/webhooks', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, events }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Failed to create webhook', 'error'); return; }
+  if (data.secret) toast(`Webhook created! Secret: ${data.secret.slice(0,12)}… (save this)`);
+  else toast('Webhook created!');
+  document.getElementById('wh-url').value = '';
+  loadWebhooks();
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Delete this webhook?')) return;
+  await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
+  toast('Webhook deleted');
+  loadWebhooks();
 }
 
 // ─── Code copy ────────────────────────────────────────────────────────────────
