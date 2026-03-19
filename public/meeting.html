@@ -6,6 +6,7 @@
   <title>Meeting</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -272,6 +273,10 @@ let blurStream      = null;
 let blurCanvas      = null;
 let blurCtx         = null;
 let blurAnimFrame   = null;
+let blurSegmenter   = null;
+let blurTempCanvas  = null;
+let blurTempCtx     = null;
+let blurSrcVideo    = null;
 let pinnedParticipant = null;
 
 // Recording
@@ -893,6 +898,8 @@ async function startRecording() {
     isRecording = true; updateControlButtons();
     $('#recordingIndicator').classList.remove('hidden');
     showToast('Recording started');
+    const myName = participants[myParticipantId]?.name || '';
+    socket.emit('recording:broadcast-started', { hostName: myName });
   } catch(err) {
     console.error('Recording error:', err);
     showToast('Recording failed: ' + (err.message || err), 'error');
@@ -924,25 +931,60 @@ function removeRecAudioSource(pid) {
   }
 }
 
-// ─── Background blur ──────────────────────────────────────────────────────────
+// ─── Background blur (MediaPipe SelfieSegmentation) ───────────────────────────
 function startBlur() {
   const track = localStream.getVideoTracks()[0];
   const settings = track.getSettings();
   const w = settings.width || 640, h = settings.height || 480;
+
   blurCanvas = document.createElement('canvas');
   blurCanvas.width = w; blurCanvas.height = h;
   blurCtx = blurCanvas.getContext('2d');
-  const tmp = document.createElement('video');
-  tmp.srcObject = new MediaStream([track]); tmp.play();
-  function draw() {
-    if (!isBlurOn) return;
-    blurCtx.filter = 'blur(10px)'; blurCtx.drawImage(tmp, 0, 0, w, h);
-    blurCtx.filter = 'none'; blurCtx.save();
-    blurCtx.beginPath(); blurCtx.ellipse(w/2, h/2.2, w*0.28, h*0.45, 0, 0, Math.PI*2);
-    blurCtx.clip(); blurCtx.drawImage(tmp, 0, 0, w, h); blurCtx.restore();
-    blurAnimFrame = requestAnimationFrame(draw);
+
+  blurTempCanvas = document.createElement('canvas');
+  blurTempCanvas.width = w; blurTempCanvas.height = h;
+  blurTempCtx = blurTempCanvas.getContext('2d');
+
+  blurSrcVideo = document.createElement('video');
+  blurSrcVideo.srcObject = new MediaStream([track]);
+  blurSrcVideo.play();
+
+  if (typeof SelfieSegmentation !== 'undefined') {
+    blurSegmenter = new SelfieSegmentation({ locateFile: f =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/${f}` });
+    blurSegmenter.setOptions({ modelSelection: 1, selfieMode: false });
+    blurSegmenter.onResults(results => {
+      if (!isBlurOn) return;
+      // 1. Draw blurred background
+      blurCtx.filter = 'blur(14px)';
+      blurCtx.drawImage(results.image, 0, 0, w, h);
+      blurCtx.filter = 'none';
+      // 2. Sharp person on temp canvas using mask
+      blurTempCtx.clearRect(0, 0, w, h);
+      blurTempCtx.drawImage(results.image, 0, 0, w, h);
+      blurTempCtx.globalCompositeOperation = 'destination-in';
+      blurTempCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+      blurTempCtx.globalCompositeOperation = 'source-over';
+      // 3. Composite sharp person onto blurred background
+      blurCtx.drawImage(blurTempCanvas, 0, 0, w, h);
+    });
+
+    async function sendFrame() {
+      if (!isBlurOn) return;
+      if (blurSrcVideo.readyState >= 2) await blurSegmenter.send({ image: blurSrcVideo });
+      blurAnimFrame = requestAnimationFrame(sendFrame);
+    }
+    sendFrame();
+  } else {
+    // Fallback: simple CSS blur without ML
+    function draw() {
+      if (!isBlurOn) return;
+      blurCtx.filter = 'blur(14px)'; blurCtx.drawImage(blurSrcVideo, 0, 0, w, h); blurCtx.filter = 'none';
+      blurAnimFrame = requestAnimationFrame(draw);
+    }
+    draw();
   }
-  draw();
+
   blurStream = blurCanvas.captureStream(24);
   const blurTrack = blurStream.getVideoTracks()[0];
   for (const pid of Object.keys(peers)) {
@@ -954,6 +996,9 @@ function startBlur() {
 
 function stopBlur() {
   if (blurAnimFrame) { cancelAnimationFrame(blurAnimFrame); blurAnimFrame = null; }
+  if (blurSegmenter) { blurSegmenter.close(); blurSegmenter = null; }
+  if (blurSrcVideo) { blurSrcVideo.srcObject = null; blurSrcVideo = null; }
+  blurTempCanvas = null; blurTempCtx = null;
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
     for (const pid of Object.keys(peers)) {
@@ -1528,14 +1573,6 @@ function denyWaiting(socketId) {
   delete waitingQueue[socketId];
   document.querySelector(`.waiting-section`)?.remove();
   if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
-}
-
-// ─── Broadcast recording start to other participants ─────────────────────────
-const _startRecording = startRecording;
-async function startRecording() {
-  await _startRecording();
-  const myName = participants[myParticipantId]?.name || '';
-  socket.emit('recording:broadcast-started', { hostName: myName });
 }
 
 // ─── Connection quality indicator ─────────────────────────────────────────────
