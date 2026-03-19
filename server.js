@@ -76,23 +76,23 @@ const app    = express();
 const server = http.createServer(app);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+// If ALLOWED_ORIGINS is set, enforce the whitelist.
+// If not set, allow all origins (works for self-hosted / Railway with no extra config).
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:3000'];  // safe dev default — set ALLOWED_ORIGINS in production
+  : null;
 
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, credentials: true },
+  cors: { origin: allowedOrigins || true, credentials: true },
   pingTimeout:  60000,
   pingInterval: 25000,
 });
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      cb(null, true);
-    } else {
-      cb(new Error('CORS: origin not allowed'));
-    }
+    if (!origin) return cb(null, true); // same-origin or non-browser requests
+    if (!allowedOrigins || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,
 }));
