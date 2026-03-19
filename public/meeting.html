@@ -83,6 +83,18 @@
       <span class="meeting-timer" id="meetingTimer">0:00</span>
     </div>
     <div class="top-bar-right">
+      <!-- Layout switcher -->
+      <div class="layout-btns" id="layoutBtns">
+        <button class="layout-btn active" id="layoutAuto" title="Auto layout" onclick="setLayout('auto')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="layout-btn" id="layoutSpeaker" title="Speaker view" onclick="setLayout('speaker')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="14" height="14" rx="1"/><rect x="18" y="3" width="4" height="4" rx="1"/><rect x="18" y="9" width="4" height="4" rx="1"/><rect x="18" y="15" width="4" height="4" rx="1"/></svg>
+        </button>
+        <button class="layout-btn" id="layoutGallery" title="Gallery view" onclick="setLayout('gallery')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+        </button>
+      </div>
       <div class="recording-indicator hidden" id="recordingIndicator">
         <span class="rec-dot"></span>REC
       </div>
@@ -109,6 +121,19 @@
     <!-- Video grid (becomes filmstrip in spotlight mode) -->
     <div class="video-grid grid-1" id="videoGrid"></div>
 
+    <!-- Empty state (shown when alone) -->
+    <div class="empty-state hidden" id="emptyState">
+      <div class="empty-state-inner">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);margin-bottom:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <p style="font-size:16px;font-weight:600;margin-bottom:6px;">Waiting for others…</p>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Share the link below to invite participants</p>
+        <button class="btn-copy" id="emptyInviteBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy invite link
+        </button>
+      </div>
+    </div>
+
     <!-- Side panel -->
     <div class="side-panel hidden" id="sidePanel">
       <div class="side-panel-header">
@@ -125,6 +150,12 @@
         <div class="participants-list" id="participantsList"></div>
       </div>
       <div id="chatTab" style="display:none;flex:1;flex-direction:column;">
+        <div class="chat-toolbar">
+          <button class="chat-tool-btn" id="downloadTranscriptBtn" title="Download chat transcript">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Transcript
+          </button>
+        </div>
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
@@ -138,6 +169,30 @@
 
   <!-- Device selector dropdown -->
   <div class="device-selector hidden" id="deviceSelector"></div>
+
+  <!-- Background effects panel -->
+  <div class="bg-panel hidden" id="bgPanel">
+    <h4>Background</h4>
+    <div class="bg-swatches">
+      <button class="bg-swatch bg-swatch-none selected" data-mode="none" title="No background">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span>None</span>
+      </button>
+      <button class="bg-swatch bg-swatch-blur" data-mode="blur" title="Blur background">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
+        <span>Blur</span>
+      </button>
+      <button class="bg-swatch" data-mode="black" title="Black background" style="background:#000;"></button>
+      <button class="bg-swatch" data-mode="gradient1" title="Dark gradient" style="background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);"></button>
+      <button class="bg-swatch" data-mode="gradient2" title="Ocean gradient" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);"></button>
+      <button class="bg-swatch" data-mode="gradient3" title="Forest gradient" style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);"></button>
+    </div>
+    <button class="bg-upload-btn" id="bgUploadBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Custom image…
+    </button>
+    <input type="file" id="bgUploadInput" accept="image/*" style="display:none;">
+  </div>
 
   <!-- Controls bar -->
   <div class="controls-bar">
@@ -199,12 +254,26 @@
         </span>
         <span class="ctrl-label" id="recordLabel">Record</span>
       </button>
-      <!-- Background blur -->
-      <button class="ctrl-btn" id="blurBtn" title="Background effects">
+      <!-- Captions -->
+      <button class="ctrl-btn" id="captionsBtn" title="Live captions (C)">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><path d="M17 2H7a1 1 0 0 0-1 1v1h12V3a1 1 0 0 0-1-1z"/><line x1="7" y1="13" x2="13" y2="13"/><line x1="7" y1="17" x2="11" y2="17"/></svg>
+        </span>
+        <span class="ctrl-label">Captions</span>
+      </button>
+      <!-- Background effects -->
+      <button class="ctrl-btn" id="blurBtn" title="Background effects (B)">
         <span class="ctrl-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </span>
-        <span class="ctrl-label">Effects</span>
+        <span class="ctrl-label" id="bgLabel">Effects</span>
+      </button>
+      <!-- Lock meeting (admin only) -->
+      <button class="ctrl-btn" id="lockBtn" title="Lock meeting (L)" style="display:none;">
+        <span class="ctrl-icon" id="lockIcon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <span class="ctrl-label" id="lockLabel">Lock</span>
       </button>
       <!-- Devices -->
       <button class="ctrl-btn" id="deviceBtn" title="Audio & video settings">
@@ -242,6 +311,30 @@
       </button>
     </div>
   </div><!-- end controls-bar -->
+  <!-- Keyboard shortcuts modal -->
+  <div class="shortcuts-modal hidden" id="shortcutsModal">
+    <div class="shortcuts-card">
+      <div class="shortcuts-header">
+        <span>Keyboard shortcuts</span>
+        <button onclick="toggleShortcutsModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <table class="shortcuts-table">
+        <tr><td><kbd>M</kbd></td><td>Mute / unmute</td></tr>
+        <tr><td><kbd>V</kbd></td><td>Camera on / off</td></tr>
+        <tr><td><kbd>S</kbd></td><td>Start / stop screen share</td></tr>
+        <tr><td><kbd>H</kbd></td><td>Raise / lower hand</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Start / stop recording</td></tr>
+        <tr><td><kbd>C</kbd></td><td>Toggle live captions</td></tr>
+        <tr><td><kbd>B</kbd></td><td>Background effects</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Lock / unlock meeting (host)</td></tr>
+        <tr><td><kbd>?</kbd></td><td>Show / hide this panel</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Close panels</td></tr>
+      </table>
+    </div>
+  </div>
+
 </div><!-- end meeting-container -->
 
 <script>
@@ -292,6 +385,30 @@ let recCanvasEl     = null;
 // Speaking detection
 let speakAudioCtx   = null;
 const speakAnalysers = {};
+const lastSpoke      = {}; // pid → timestamp of last detected speech
+
+// Live captions
+let captionsOn   = false;
+let speechRecog  = null;
+const captionTimers = {}; // pid → clearTimeout handle
+
+// Layout
+let layoutMode   = localStorage.getItem('layoutMode') || 'auto';
+let speakerInterval = null;
+
+// Lock
+let isLocked     = false;
+
+// Virtual background
+let bgMode       = 'none'; // 'none' | 'blur' | 'black' | 'gradient1' | 'gradient2' | 'gradient3' | 'image'
+let bgCustomImage = null;
+
+// Sounds
+let soundsEnabled = localStorage.getItem('soundsEnabled') !== 'false';
+let hasJoined = false; // prevent sounds on initial participant list load
+
+// Chat log
+let chatLog = []; // { msgId, pid, name, text, ts }
 
 // Chat
 let unreadChatCount = 0;
@@ -405,6 +522,7 @@ setInterval(() => {
     analyser.getByteFrequencyData(data);
     const avg = data.reduce((a,b) => a + b, 0) / data.length;
     const speaking = avg > 10 && participants[pid] && !participants[pid].isMuted;
+    if (speaking) lastSpoke[pid] = Date.now();
     const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
     if (tile) tile.classList.toggle('is-speaking', speaking);
     if (pid === pinnedParticipant) {
@@ -480,9 +598,11 @@ function joinMeeting() {
 
 // Apply server feature flags
 fetch('/api/config').then(r => r.json()).then(cfg => {
-  if (!cfg.screenShareEnabled) $('#screenBtn').style.display = 'none';
-  if (!cfg.recordingEnabled)   $('#recordBtn').style.display = 'none';
-  if (!cfg.blurEnabled)        $('#blurBtn').style.display   = 'none';
+  if (!cfg.screenShareEnabled) $('#screenBtn').style.display   = 'none';
+  if (!cfg.recordingEnabled)   $('#recordBtn').style.display   = 'none';
+  if (!cfg.blurEnabled)        $('#blurBtn').style.display     = 'none';
+  if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window))
+    $('#captionsBtn').style.display = 'none';
 }).catch(() => {});
 
 initPreview().then(() => { if (_urlName) joinMeeting(); });
@@ -525,9 +645,12 @@ socket.on('joined', (data) => {
   // Start speaking detection for local mic
   if (localStream) addSpeakAnalyser(myParticipantId, localStream);
 
+  if (isAdmin) $('#lockBtn').style.display = '';
+  if (data.settings?.locked) isLocked = data.settings.locked;
   renderVideoGrid();
   renderParticipantsList();
   startTimer();
+  setTimeout(() => { hasJoined = true; }, 500);
 });
 
 socket.on('participant:joined', (p) => {
@@ -536,6 +659,7 @@ socket.on('participant:joined', (p) => {
   renderVideoGrid();
   renderParticipantsList();
   showToast(`${p.name} joined`);
+  if (soundsEnabled && hasJoined) playSound('join');
 });
 
 socket.on('participant:left', ({ participantId, name }) => {
@@ -544,9 +668,11 @@ socket.on('participant:left', ({ participantId, name }) => {
   if (isRecording) removeRecAudioSource(participantId);
   removeSpeakAnalyser(participantId);
   if (pinnedParticipant === participantId) pinnedParticipant = null;
+  delete lastSpoke[participantId];
   renderVideoGrid();
   renderParticipantsList();
   showToast(`${name} left`);
+  if (soundsEnabled && hasJoined) playSound('leave');
 });
 
 socket.on('participant:updated', (update) => {
@@ -581,7 +707,13 @@ socket.on('meeting:all-muted', () => {
   }
 });
 
-socket.on('meeting:settings-updated', () => showToast('Meeting settings updated'));
+socket.on('meeting:settings-updated', (settings) => {
+  showToast('Meeting settings updated');
+  if (settings && typeof settings.locked === 'boolean') {
+    isLocked = settings.locked;
+    updateControlButtons();
+  }
+});
 
 socket.on('admin:mute', () => {
   isMuted = true;
@@ -814,13 +946,51 @@ document.querySelectorAll('.reaction-btn').forEach(btn => {
   });
 });
 
-// Blur
-$('#blurBtn').addEventListener('click', () => {
-  if (!localStream?.getVideoTracks().length) return;
-  isBlurOn = !isBlurOn;
-  updateControlButtons();
-  if (isBlurOn) startBlur(); else stopBlur();
+// Background effects panel
+$('#blurBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const panel = $('#bgPanel');
+  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
+  // Position near the button
+  panel.classList.remove('hidden');
 });
+
+document.querySelectorAll('.bg-swatch').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.bg-swatch').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const mode = btn.dataset.mode;
+    setBgMode(mode);
+    $('#bgPanel').classList.add('hidden');
+  });
+});
+
+$('#bgUploadBtn').addEventListener('click', () => $('#bgUploadInput').click());
+$('#bgUploadInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    bgCustomImage = new Image();
+    bgCustomImage.onload = () => {
+      document.querySelectorAll('.bg-swatch').forEach(b => b.classList.remove('selected'));
+      setBgMode('image');
+      showToast('Custom background set');
+    };
+    bgCustomImage.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  $('#bgPanel').classList.add('hidden');
+});
+
+// Add 'Captions' button handler
+$('#captionsBtn').addEventListener('click', toggleCaptions);
+
+// Add 'Lock' button handler
+$('#lockBtn').addEventListener('click', toggleLock);
+
+// Expose lock button when admin
+socket.on('joined', () => {}); // handled above; lock btn shown in joined handler
 
 // Copy link
 $('#copyLinkBtn').addEventListener('click', async () => {
@@ -984,17 +1154,40 @@ function startBlur() {
     blurSegmenter.setOptions({ modelSelection: 1, selfieMode: false });
     blurSegmenter.onResults(results => {
       if (!isBlurOn) return;
-      // 1. Draw blurred background
-      blurCtx.filter = 'blur(14px)';
-      blurCtx.drawImage(results.image, 0, 0, w, h);
-      blurCtx.filter = 'none';
-      // 2. Sharp person on temp canvas using mask
+      // 1. Draw background layer based on bgMode
+      if (bgMode === 'blur') {
+        blurCtx.filter = 'blur(14px)';
+        blurCtx.drawImage(results.image, 0, 0, w, h);
+        blurCtx.filter = 'none';
+      } else if (bgMode === 'black') {
+        blurCtx.fillStyle = '#000'; blurCtx.fillRect(0, 0, w, h);
+      } else if (bgMode === 'gradient1') {
+        const g = blurCtx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, '#0f0c29'); g.addColorStop(0.5, '#302b63'); g.addColorStop(1, '#24243e');
+        blurCtx.fillStyle = g; blurCtx.fillRect(0, 0, w, h);
+      } else if (bgMode === 'gradient2') {
+        const g = blurCtx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, '#0f2027'); g.addColorStop(0.5, '#203a43'); g.addColorStop(1, '#2c5364');
+        blurCtx.fillStyle = g; blurCtx.fillRect(0, 0, w, h);
+      } else if (bgMode === 'gradient3') {
+        const g = blurCtx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, '#1a1a2e'); g.addColorStop(0.5, '#16213e'); g.addColorStop(1, '#0f3460');
+        blurCtx.fillStyle = g; blurCtx.fillRect(0, 0, w, h);
+      } else if (bgMode === 'image' && bgCustomImage) {
+        // Cover-fit: scale image to fill canvas
+        const scale = Math.max(w / bgCustomImage.width, h / bgCustomImage.height);
+        const sw = bgCustomImage.width * scale, sh = bgCustomImage.height * scale;
+        blurCtx.drawImage(bgCustomImage, (w - sw) / 2, (h - sh) / 2, sw, sh);
+      } else {
+        blurCtx.fillStyle = '#1a1a2e'; blurCtx.fillRect(0, 0, w, h);
+      }
+      // 2. Sharp person on temp canvas using segmentation mask
       blurTempCtx.clearRect(0, 0, w, h);
       blurTempCtx.drawImage(results.image, 0, 0, w, h);
       blurTempCtx.globalCompositeOperation = 'destination-in';
       blurTempCtx.drawImage(results.segmentationMask, 0, 0, w, h);
       blurTempCtx.globalCompositeOperation = 'source-over';
-      // 3. Composite sharp person onto blurred background
+      // 3. Composite sharp person onto background
       blurCtx.drawImage(blurTempCanvas, 0, 0, w, h);
     });
 
@@ -1005,10 +1198,14 @@ function startBlur() {
     }
     sendFrame();
   } else {
-    // Fallback: simple CSS blur without ML
+    // Fallback: simple CSS blur without ML (blur mode only)
     function draw() {
       if (!isBlurOn) return;
-      blurCtx.filter = 'blur(14px)'; blurCtx.drawImage(blurSrcVideo, 0, 0, w, h); blurCtx.filter = 'none';
+      if (bgMode === 'blur') {
+        blurCtx.filter = 'blur(14px)'; blurCtx.drawImage(blurSrcVideo, 0, 0, w, h); blurCtx.filter = 'none';
+      } else {
+        blurCtx.fillStyle = '#1a1a2e'; blurCtx.fillRect(0, 0, w, h);
+      }
       blurAnimFrame = requestAnimationFrame(draw);
     }
     draw();
@@ -1040,6 +1237,151 @@ function stopBlur() {
   syncParticipantTile(myParticipantId);
 }
 
+// ─── Virtual background mode setter ──────────────────────────────────────────
+function setBgMode(mode) {
+  const wasActive = bgMode !== 'none';
+  bgMode = mode;
+  if (mode === 'none') {
+    if (wasActive) stopBlur();
+    isBlurOn = false;
+  } else {
+    if (wasActive) stopBlur(); // stop old pipeline
+    isBlurOn = true;
+    startBlur();
+  }
+  updateControlButtons();
+}
+
+// ─── Sounds ──────────────────────────────────────────────────────────────────
+function playSound(type) {
+  try {
+    const ctx = new AudioContext();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    const freqs = type === 'join' ? [[523, 0, 0.08], [659, 0.09, 0.18]] : [[659, 0, 0.07], [523, 0.08, 0.16]];
+    freqs.forEach(([freq, start, end]) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.12, ctx.currentTime + start);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + end);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + end);
+    });
+    setTimeout(() => ctx.close(), 500);
+  } catch(e) {}
+}
+
+// ─── Live captions ────────────────────────────────────────────────────────────
+function toggleCaptions() {
+  if (captionsOn) {
+    captionsOn = false;
+    if (speechRecog) { speechRecog.stop(); speechRecog = null; }
+    updateControlButtons();
+    showToast('Captions off');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Captions not supported in this browser', 'error'); return; }
+  speechRecog = new SR();
+  speechRecog.continuous = true;
+  speechRecog.interimResults = true;
+  speechRecog.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t; else interim += t;
+    }
+    const text = (final || interim).trim();
+    if (!text) return;
+    socket.emit('captions:update', { pid: myParticipantId, text, final: !!final });
+    // Show on own tile
+    const tile = myParticipantId === pinnedParticipant
+      ? $('#spotlightMain')
+      : document.querySelector(`.video-tile[data-pid="${myParticipantId}"]`);
+    if (tile) {
+      let bar = tile.querySelector('.caption-bar');
+      if (!bar) { bar = document.createElement('div'); bar.className = 'caption-bar'; tile.appendChild(bar); }
+      bar.textContent = text;
+      bar.classList.toggle('caption-interim', !final);
+      clearTimeout(captionTimers[myParticipantId]);
+      captionTimers[myParticipantId] = setTimeout(() => bar?.remove(), 3000);
+    }
+  };
+  speechRecog.onerror = (e) => { if (e.error !== 'no-speech') showToast('Captions error: ' + e.error, 'error'); };
+  speechRecog.onend = () => { if (captionsOn) speechRecog.start(); }; // auto-restart
+  speechRecog.start();
+  captionsOn = true;
+  updateControlButtons();
+  showToast('Captions on');
+}
+
+// ─── Meeting lock ─────────────────────────────────────────────────────────────
+async function toggleLock() {
+  const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
+  if (!adminToken) return;
+  try {
+    const action = isLocked ? 'unlock' : 'lock';
+    await fetch(`/api/meetings/${meetingId}/${action}`, {
+      method: 'POST', headers: { 'x-admin-token': adminToken },
+    });
+    isLocked = !isLocked;
+    updateControlButtons();
+    showToast(isLocked ? 'Meeting locked — no new participants' : 'Meeting unlocked');
+  } catch(err) { showToast('Lock failed', 'error'); }
+}
+
+// ─── Layout switcher ──────────────────────────────────────────────────────────
+function setLayout(mode) {
+  layoutMode = mode;
+  localStorage.setItem('layoutMode', mode);
+  if (mode === 'speaker') {
+    if (!speakerInterval) speakerInterval = setInterval(autoSpotlightActiveSpeaker, 3000);
+    autoSpotlightActiveSpeaker();
+  } else {
+    if (speakerInterval) { clearInterval(speakerInterval); speakerInterval = null; }
+    if (mode === 'gallery' && pinnedParticipant) { pinnedParticipant = null; }
+  }
+  renderVideoGrid();
+  updateControlButtons();
+}
+
+function autoSpotlightActiveSpeaker() {
+  if (layoutMode !== 'speaker') return;
+  const now = Date.now();
+  let bestPid = null, bestTime = 0;
+  for (const pid of Object.keys(participants)) {
+    const t = lastSpoke[pid] || 0;
+    if (t > bestTime && now - t < 5000) { bestTime = t; bestPid = pid; }
+  }
+  if (bestPid && bestPid !== pinnedParticipant) {
+    pinnedParticipant = bestPid;
+    renderVideoGrid();
+  }
+}
+
+// ─── Shortcuts modal ──────────────────────────────────────────────────────────
+function toggleShortcutsModal() {
+  $('#shortcutsModal').classList.toggle('hidden');
+}
+
+// ─── Chat transcript ──────────────────────────────────────────────────────────
+function downloadTranscript() {
+  if (!chatLog.length) { showToast('No messages yet'); return; }
+  const lines = chatLog.map(m => {
+    const time = new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `[${time}] ${m.name}: ${m.text}`;
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chat-${meetingId}-${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
 // ─── Device selection ─────────────────────────────────────────────────────────
 $('#deviceBtn').addEventListener('click', async () => {
   const sel = $('#deviceSelector');
@@ -1067,6 +1409,17 @@ $('#deviceBtn').addEventListener('click', async () => {
   addDeviceGroup('Camera',     cameras,  curVid, switchCamera);
   addDeviceGroup('Microphone', mics,     curAud, switchMic);
   addDeviceGroup('Speaker',    speakers, '',     switchSpeaker);
+  // Sounds toggle
+  const sh = document.createElement('h4'); sh.textContent = 'Preferences'; sel.appendChild(sh);
+  const soundRow = document.createElement('div');
+  soundRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;';
+  soundRow.innerHTML = `<span style="font-size:13px;">Meeting sounds</span>
+    <input type="checkbox" id="soundsToggle" style="cursor:pointer;width:16px;height:16px;" ${soundsEnabled ? 'checked' : ''}>`;
+  soundRow.querySelector('#soundsToggle').addEventListener('change', (e) => {
+    soundsEnabled = e.target.checked;
+    localStorage.setItem('soundsEnabled', soundsEnabled);
+  });
+  sel.appendChild(soundRow);
   // Video quality section
   const qh = document.createElement('h4');
   qh.textContent = 'Video Quality';
@@ -1163,7 +1516,13 @@ document.addEventListener('click', (e) => {
     sel.classList.add('hidden');
   if (!$('#reactionsTray').classList.contains('hidden') && !e.target.closest('#reactBtn') && !e.target.closest('#reactionsTray'))
     $('#reactionsTray').classList.add('hidden');
+  const bgPanel = $('#bgPanel');
+  if (!bgPanel.classList.contains('hidden') && !bgPanel.contains(e.target) && e.target.id !== 'blurBtn' && !e.target.closest('#blurBtn'))
+    bgPanel.classList.add('hidden');
 });
+
+$('#downloadTranscriptBtn').addEventListener('click', downloadTranscript);
+$('#emptyInviteBtn').addEventListener('click', () => $('#copyLinkBtn').click());
 
 // ─── Side panel ───────────────────────────────────────────────────────────────
 $('#peopleBtn').addEventListener('click', () => toggleSidePanel('participants'));
@@ -1219,20 +1578,116 @@ function sendChat() {
   $('#chatInput').value = '';
 }
 
-socket.on('chat:message', ({ from, name, text, timestamp }) => {
+socket.on('chat:message', ({ from, name, text, timestamp, msgId }) => {
   const container = $('#chatMessages');
   const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const isOwn = from === myParticipantId;
-  container.innerHTML += `
-    <div class="chat-msg${isOwn ? ' chat-msg-own' : ''}">
-      <div class="chat-author">${escapeHtml(name)}${isOwn ? ' (You)' : ''}</div>
-      <div class="chat-text">${escapeHtml(text)}</div>
-      <div class="chat-time">${time}</div>
-    </div>`;
+  const id = msgId || (Date.now() + Math.random()).toString(36);
+  chatLog.push({ msgId: id, pid: from, name, text, ts: timestamp });
+  const div = document.createElement('div');
+  div.className = `chat-msg${isOwn ? ' chat-msg-own' : ''}`;
+  div.dataset.msgId = id;
+  div.innerHTML = `
+    <div class="chat-author">${escapeHtml(name)}${isOwn ? ' <span style="color:var(--text-muted);font-weight:400">(You)</span>' : ''}</div>
+    <div class="chat-text">${escapeHtml(text)}</div>
+    <div class="chat-msg-footer">
+      <span class="chat-time">${time}</span>
+      <button class="chat-react-trigger" title="React">+</button>
+    </div>
+    <div class="chat-reactions"></div>`;
+  div.querySelector('.chat-react-trigger').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openChatReactPicker(id, div.querySelector('.chat-react-trigger'));
+  });
+  container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   const chatOpen = !$('#sidePanel').classList.contains('hidden') &&
     document.querySelector('.side-panel-tabs button.active')?.dataset.tab === 'chat';
   if (!chatOpen) { unreadChatCount++; updateChatBadge(); }
+});
+
+socket.on('chat:react', ({ pid, msgId, emoji }) => {
+  const msgEl = document.querySelector(`.chat-msg[data-msg-id="${msgId}"]`);
+  if (!msgEl) return;
+  const reactionsEl = msgEl.querySelector('.chat-reactions');
+  let chip = reactionsEl.querySelector(`[data-emoji="${CSS.escape(emoji)}"]`);
+  if (!chip) {
+    chip = document.createElement('span');
+    chip.className = 'reaction-chip';
+    chip.dataset.emoji = emoji;
+    chip.dataset.count = '0';
+    chip.addEventListener('click', () => {
+      socket.emit('chat:react', { msgId, emoji });
+      updateReactionChip(chip, true);
+    });
+    reactionsEl.appendChild(chip);
+  }
+  updateReactionChip(chip, false);
+});
+
+function updateReactionChip(chip, isSelf) {
+  const count = parseInt(chip.dataset.count || '0') + (isSelf ? 0 : 1);
+  chip.dataset.count = isSelf ? chip.dataset.count : count;
+  chip.textContent = `${chip.dataset.emoji} ${isSelf ? parseInt(chip.dataset.count)+1 : count}`;
+  if (isSelf) chip.dataset.count = parseInt(chip.dataset.count) + 1;
+  chip.textContent = `${chip.dataset.emoji} ${chip.dataset.count}`;
+  chip.classList.toggle('reacted', isSelf);
+}
+
+function openChatReactPicker(msgId, anchor) {
+  document.querySelector('.chat-react-picker')?.remove();
+  const picker = document.createElement('div');
+  picker.className = 'chat-react-picker';
+  ['👍','❤️','😂','😮','🎉'].forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.textContent = emoji;
+    btn.addEventListener('click', () => {
+      socket.emit('chat:react', { msgId, emoji });
+      const msgEl = document.querySelector(`.chat-msg[data-msg-id="${msgId}"]`);
+      if (msgEl) {
+        let chip = msgEl.querySelector(`.chat-reactions [data-emoji="${CSS.escape(emoji)}"]`);
+        if (!chip) {
+          chip = document.createElement('span');
+          chip.className = 'reaction-chip reacted';
+          chip.dataset.emoji = emoji;
+          chip.dataset.count = '1';
+          chip.textContent = `${emoji} 1`;
+          chip.addEventListener('click', () => {
+            socket.emit('chat:react', { msgId, emoji });
+            chip.dataset.count = parseInt(chip.dataset.count) + 1;
+            chip.textContent = `${emoji} ${chip.dataset.count}`;
+          });
+          msgEl.querySelector('.chat-reactions').appendChild(chip);
+        } else {
+          chip.dataset.count = parseInt(chip.dataset.count) + 1;
+          chip.textContent = `${emoji} ${chip.dataset.count}`;
+          chip.classList.add('reacted');
+        }
+      }
+      picker.remove();
+    });
+    picker.appendChild(btn);
+  });
+  anchor.parentElement.appendChild(picker);
+  picker.style.position = 'absolute';
+  setTimeout(() => document.addEventListener('click', () => picker.remove(), { once: true }), 0);
+}
+
+socket.on('captions:update', ({ pid, text, final }) => {
+  const tile = pid === pinnedParticipant
+    ? $('#spotlightMain')
+    : document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  if (!tile) return;
+  let bar = tile.querySelector('.caption-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'caption-bar';
+    tile.appendChild(bar);
+  }
+  bar.textContent = text;
+  bar.classList.toggle('caption-interim', !final);
+  clearTimeout(captionTimers[pid]);
+  captionTimers[pid] = setTimeout(() => { bar?.remove(); }, 3000);
 });
 
 // ─── Leave ────────────────────────────────────────────────────────────────────
@@ -1248,6 +1703,11 @@ $('#leaveBtn').addEventListener('click', () => {
 
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    $('#shortcutsModal').classList.add('hidden');
+    $('#bgPanel').classList.add('hidden');
+    return;
+  }
   if (!myParticipantId) return;
   if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
   if (e.key === 'm' || e.key === 'M') $('#micBtn').click();
@@ -1255,6 +1715,10 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 's' || e.key === 'S') $('#screenBtn').click();
   else if (e.key === 'h' || e.key === 'H') $('#handBtn').click();
   else if (e.key === 'r' || e.key === 'R') $('#recordBtn').click();
+  else if (e.key === 'c' || e.key === 'C') $('#captionsBtn').click();
+  else if (e.key === 'b' || e.key === 'B') $('#blurBtn').click();
+  else if (e.key === 'l' || e.key === 'L') { if (isAdmin) $('#lockBtn').click(); }
+  else if (e.key === '?') toggleShortcutsModal();
 });
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
@@ -1285,7 +1749,32 @@ function updateControlButtons() {
   const recLabel = $('#recordLabel');
   if (recLabel) recLabel.textContent = isRecording ? 'Stop rec' : 'Record';
 
-  $('#blurBtn').className   = `ctrl-btn${isBlurOn        ? ' state-active'  : ''}`;
+  $('#blurBtn').className    = `ctrl-btn${bgMode !== 'none' ? ' state-active'  : ''}`;
+  const bgLbl = $('#bgLabel');
+  if (bgLbl) bgLbl.textContent = bgMode !== 'none' ? 'Effects on' : 'Effects';
+
+  $('#captionsBtn').className = `ctrl-btn${captionsOn ? ' state-active' : ''}`;
+
+  const lockBtn = $('#lockBtn');
+  if (lockBtn) {
+    lockBtn.className = `ctrl-btn${isLocked ? ' state-danger' : ''}`;
+    const lockIcon = $('#lockIcon');
+    if (lockIcon) lockIcon.innerHTML = isLocked
+      ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
+      : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+    const lockLbl = $('#lockLabel');
+    if (lockLbl) lockLbl.textContent = isLocked ? 'Unlock' : 'Lock';
+  }
+
+  // Update layout buttons
+  ['auto','speaker','gallery'].forEach(m => {
+    const btn = $(`#layout${m.charAt(0).toUpperCase()+m.slice(1)}`);
+    if (btn) btn.classList.toggle('active', layoutMode === m);
+  });
+
+  // Empty state
+  const onlyMe = Object.keys(participants).length <= 1;
+  $('#emptyState')?.classList.toggle('hidden', !onlyMe || !myParticipantId);
 }
 
 // Full grid re-render (diff-based to prevent flicker)
@@ -1293,6 +1782,30 @@ function renderVideoGrid() {
   const grid   = $('#videoGrid');
   const allIds = Object.keys(participants);
   const count  = allIds.length;
+
+  // Gallery mode: force equal grid, no spotlight
+  if (layoutMode === 'gallery') {
+    pinnedParticipant = null;
+    $('#videoArea').classList.remove('spotlight-active');
+    clearSpotlightMain();
+    $('#spotlightMain').classList.add('hidden');
+    grid.className = 'video-grid';
+    if      (count <= 1) grid.classList.add('grid-1');
+    else if (count === 2) grid.classList.add('grid-2');
+    else if (count <= 4) grid.classList.add('grid-4');
+    else if (count <= 6) grid.classList.add('grid-6');
+    else                 grid.classList.add('grid-many');
+    for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
+      if (!participants[tile.dataset.pid]) tile.remove();
+    }
+    for (const pid of allIds) {
+      let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
+      if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
+      else syncVideoTile(tile, pid);
+    }
+    $('#participantCount').textContent = count;
+    updateControlButtons(); return;
+  }
 
   if (pinnedParticipant && participants[pinnedParticipant]) {
     // Spotlight mode
@@ -1410,6 +1923,7 @@ function updateSpotlightMain() {
 function createVideoTile(pid) {
   const tile = document.createElement('div');
   tile.dataset.pid = pid;
+  tile.classList.add('tile-entering');
 
   const media = document.createElement('div');
   media.className = 'tile-media';

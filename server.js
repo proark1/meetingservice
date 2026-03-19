@@ -1964,7 +1964,22 @@ io.on('connection', (socket) => {
     const p = meeting.participants.get(currentParticipantId);
     if (!p) return;
     io.to(currentMeetingId).emit('chat:message', {
-      from: currentParticipantId, name: p.name, text: trimmed, timestamp: Date.now(),
+      from: currentParticipantId, name: p.name, text: trimmed,
+      timestamp: Date.now(), msgId: crypto.randomUUID(),
+    });
+  });
+
+  socket.on('chat:react', ({ msgId, emoji }) => {
+    if (!currentMeetingId || !msgId || typeof emoji !== 'string') return;
+    const safeEmoji = emoji.trim().slice(0, 4);
+    if (!safeEmoji) return;
+    socket.to(currentMeetingId).emit('chat:react', { pid: currentParticipantId, msgId, emoji: safeEmoji });
+  });
+
+  socket.on('captions:update', ({ pid, text, final }) => {
+    if (!currentMeetingId || typeof text !== 'string') return;
+    socket.to(currentMeetingId).emit('captions:update', {
+      pid, text: text.slice(0, 300), final: !!final,
     });
   });
 
