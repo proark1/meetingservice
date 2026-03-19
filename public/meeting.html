@@ -382,6 +382,8 @@ let blurAnimFrame   = null;
 let blurSegmenter   = null;
 let blurTempCanvas  = null;
 let blurTempCtx     = null;
+let blurMaskCanvas  = null; // processed (sharpened) segmentation mask
+let blurMaskCtx     = null;
 let blurSrcVideo    = null;
 let pinnedParticipant = null;
 
@@ -1181,19 +1183,39 @@ function startBlur() {
   blurTempCanvas.width = w; blurTempCanvas.height = h;
   blurTempCtx = blurTempCanvas.getContext('2d');
 
+  // Dedicated canvas for the sharpened mask (blur+contrast trick)
+  blurMaskCanvas = document.createElement('canvas');
+  blurMaskCanvas.width = w; blurMaskCanvas.height = h;
+  blurMaskCtx = blurMaskCanvas.getContext('2d');
+
   blurSrcVideo = document.createElement('video');
   blurSrcVideo.srcObject = new MediaStream([track]);
   blurSrcVideo.play();
 
+  // Scale blur radius to frame resolution so edges feel consistent at any quality
+  const maskBlur = Math.max(1.5, Math.min(3, w / 350)).toFixed(1);
+
   if (typeof SelfieSegmentation !== 'undefined') {
     blurSegmenter = new SelfieSegmentation({ locateFile: f =>
       `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/${f}` });
-    blurSegmenter.setOptions({ modelSelection: 1, selfieMode: false });
+    // modelSelection 0 = general/selfie model — sharper edges for close-range faces
+    blurSegmenter.setOptions({ modelSelection: 0, selfieMode: false });
     blurSegmenter.onResults(results => {
       if (!isBlurOn) return;
-      // 1. Draw background layer based on bgMode
+
+      // ── Step 1: Sharpen the raw segmentation mask ──────────────────────────
+      // The raw mask has soft alpha gradients at edges (~10-15px wide).
+      // blur(Npx) fills noise/holes; contrast(30) then forces a hard step at
+      // alpha=128, leaving only ~1-2px of natural anti-aliasing → clean cutout.
+      blurMaskCtx.clearRect(0, 0, w, h);
+      blurMaskCtx.filter = `blur(${maskBlur}px) contrast(30)`;
+      blurMaskCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+      blurMaskCtx.filter = 'none';
+
+      // ── Step 2: Draw background ────────────────────────────────────────────
       if (bgMode === 'blur') {
-        blurCtx.filter = 'blur(14px)';
+        // Stronger blur (20px) for a convincing depth-of-field defocus
+        blurCtx.filter = 'blur(20px)';
         blurCtx.drawImage(results.image, 0, 0, w, h);
         blurCtx.filter = 'none';
       } else if (bgMode === 'black') {
@@ -1211,20 +1233,21 @@ function startBlur() {
         g.addColorStop(0, '#1a1a2e'); g.addColorStop(0.5, '#16213e'); g.addColorStop(1, '#0f3460');
         blurCtx.fillStyle = g; blurCtx.fillRect(0, 0, w, h);
       } else if (bgMode === 'image' && bgCustomImage) {
-        // Cover-fit: scale image to fill canvas
         const scale = Math.max(w / bgCustomImage.width, h / bgCustomImage.height);
         const sw = bgCustomImage.width * scale, sh = bgCustomImage.height * scale;
         blurCtx.drawImage(bgCustomImage, (w - sw) / 2, (h - sh) / 2, sw, sh);
       } else {
         blurCtx.fillStyle = '#1a1a2e'; blurCtx.fillRect(0, 0, w, h);
       }
-      // 2. Sharp person on temp canvas using segmentation mask
+
+      // ── Step 3: Cut sharp person using the processed mask ─────────────────
       blurTempCtx.clearRect(0, 0, w, h);
       blurTempCtx.drawImage(results.image, 0, 0, w, h);
       blurTempCtx.globalCompositeOperation = 'destination-in';
-      blurTempCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+      blurTempCtx.drawImage(blurMaskCanvas, 0, 0, w, h); // ← sharpened mask
       blurTempCtx.globalCompositeOperation = 'source-over';
-      // 3. Composite sharp person onto background
+
+      // ── Step 4: Composite sharp person on top of background ───────────────
       blurCtx.drawImage(blurTempCanvas, 0, 0, w, h);
     });
 
@@ -1239,7 +1262,7 @@ function startBlur() {
     function draw() {
       if (!isBlurOn) return;
       if (bgMode === 'blur') {
-        blurCtx.filter = 'blur(14px)'; blurCtx.drawImage(blurSrcVideo, 0, 0, w, h); blurCtx.filter = 'none';
+        blurCtx.filter = 'blur(20px)'; blurCtx.drawImage(blurSrcVideo, 0, 0, w, h); blurCtx.filter = 'none';
       } else {
         blurCtx.fillStyle = '#1a1a2e'; blurCtx.fillRect(0, 0, w, h);
       }
@@ -1263,6 +1286,7 @@ function stopBlur() {
   if (blurSegmenter) { blurSegmenter.close(); blurSegmenter = null; }
   if (blurSrcVideo) { blurSrcVideo.srcObject = null; blurSrcVideo = null; }
   blurTempCanvas = null; blurTempCtx = null;
+  blurMaskCanvas = null; blurMaskCtx = null;
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
     Promise.allSettled(Object.keys(peers).map(pid => {
