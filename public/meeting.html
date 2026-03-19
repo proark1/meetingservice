@@ -315,6 +315,33 @@ fetch('/api/config/ice-servers').then(r => r.json()).then(cfg => {
 
 const AVATAR_COLORS = ['#4361ee','#7209b7','#f72585','#4cc9f0','#fb8500','#06d6a0'];
 
+// Video quality tiers
+const VIDEO_CONSTRAINTS = {
+  normal: { width: { ideal: 1280 }, height: { ideal: 720  }, frameRate: { ideal: 30 } },
+  hd:     { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+  '2k':   { width: { ideal: 2560 }, height: { ideal: 1440 }, frameRate: { ideal: 30 } },
+  '4k':   { width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 30 } },
+};
+const VIDEO_BITRATE = {
+  normal: 1_500_000,
+  hd:     4_000_000,
+  '2k':   8_000_000,
+  '4k':  18_000_000,
+};
+const VIDEO_REC_DIMS = {
+  normal: [1280, 720],
+  hd:     [1920, 1080],
+  '2k':   [2560, 1440],
+  '4k':   [3840, 2160],
+};
+const QUALITY_LABELS = {
+  normal: '720p — Normal',
+  hd:     '1080p — HD',
+  '2k':   '1440p — 2K',
+  '4k':   '2160p — 4K',
+};
+let videoQuality = localStorage.getItem('videoQuality') || 'normal';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
 
@@ -397,7 +424,7 @@ $('#lobbyCode').textContent = meetingId;
 
 async function initPreview() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS[videoQuality], audio: true });
     $('#lobbyVideo').srcObject = localStream;
     $('#lobbyAvatar').style.display = 'none';
   } catch(err) {
@@ -657,6 +684,7 @@ function createPeerConnection(participantId, initiator) {
   pc.oniceconnectionstatechange = () => {
     if (pc.iceConnectionState === 'failed') pc.restartIce();
     if (pc.iceConnectionState === 'disconnected') showToast('Peer connection unstable…', 'error');
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') applyVideoQuality(pc);
   };
 
   if (initiator) {
@@ -828,18 +856,19 @@ async function startRecording() {
     for (const pid of Object.keys(peers)) addRecAudioSource(pid);
 
     recCanvasEl = document.createElement('canvas');
-    recCanvasEl.width = 1280; recCanvasEl.height = 720;
+    const [recW, recH] = VIDEO_REC_DIMS[videoQuality];
+    recCanvasEl.width = recW; recCanvasEl.height = recH;
     const ctx = recCanvasEl.getContext('2d');
 
     function drawFrame() {
       ctx.fillStyle = '#0f0f0f';
-      ctx.fillRect(0, 0, 1280, 720);
+      ctx.fillRect(0, 0, recW, recH);
       const tiles = [...document.querySelectorAll('#videoGrid .video-tile')];
       const n = tiles.length;
       if (n > 0) {
         const cols = n === 1 ? 1 : n <= 4 ? 2 : 3;
         const rows = Math.ceil(n / cols);
-        const w = 1280 / cols, h = 720 / rows;
+        const w = recW / cols, h = recH / rows;
         tiles.forEach((tile, i) => {
           const x = (i % cols) * w, y = Math.floor(i / cols) * h;
           const vid = tile.querySelector('video');
@@ -1038,12 +1067,23 @@ $('#deviceBtn').addEventListener('click', async () => {
   addDeviceGroup('Camera',     cameras,  curVid, switchCamera);
   addDeviceGroup('Microphone', mics,     curAud, switchMic);
   addDeviceGroup('Speaker',    speakers, '',     switchSpeaker);
+  // Video quality section
+  const qh = document.createElement('h4');
+  qh.textContent = 'Video Quality';
+  sel.appendChild(qh);
+  Object.entries(QUALITY_LABELS).forEach(([q, label]) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    if (q === videoQuality) btn.className = 'selected';
+    btn.addEventListener('click', () => switchVideoQuality(q));
+    sel.appendChild(btn);
+  });
   sel.classList.remove('hidden');
 });
 
 async function switchCamera(deviceId) {
   try {
-    const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+    const newStream = await navigator.mediaDevices.getUserMedia({ video: { ...VIDEO_CONSTRAINTS[videoQuality], deviceId: { exact: deviceId } } });
     const newTrack  = newStream.getVideoTracks()[0];
     const oldTrack  = localStream?.getVideoTracks()[0];
     if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
@@ -1077,6 +1117,43 @@ function switchSpeaker(deviceId) {
   document.querySelectorAll('.video-tile video, #spotlightMain video').forEach(v => {
     if (v.setSinkId) v.setSinkId(deviceId);
   });
+  $('#deviceSelector').classList.add('hidden');
+}
+
+async function applyVideoQuality(pc) {
+  const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+  if (!sender) return;
+  try {
+    const params = sender.getParameters();
+    if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+    params.encodings[0].maxBitrate = VIDEO_BITRATE[videoQuality];
+    await sender.setParameters(params);
+  } catch(e) { console.warn('setParameters:', e); }
+}
+
+async function switchVideoQuality(quality) {
+  videoQuality = quality;
+  localStorage.setItem('videoQuality', quality);
+  try {
+    const curDeviceId = localStream?.getVideoTracks()[0]?.getSettings().deviceId;
+    const constraints = { ...VIDEO_CONSTRAINTS[quality] };
+    if (curDeviceId) constraints.deviceId = { ideal: curDeviceId };
+    const newStream = await navigator.mediaDevices.getUserMedia({ video: constraints });
+    const newTrack  = newStream.getVideoTracks()[0];
+    const oldTrack  = localStream?.getVideoTracks()[0];
+    if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
+    if (localStream) localStream.addTrack(newTrack);
+    for (const pid of Object.keys(peers)) {
+      const sender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) { await sender.replaceTrack(newTrack); applyVideoQuality(peers[pid].pc); }
+    }
+    if (isBlurOn) { stopBlur(); startBlur(); }
+    syncParticipantTile(myParticipantId);
+    showToast(`Quality: ${QUALITY_LABELS[quality]}`);
+  } catch(err) {
+    console.error('Quality switch error:', err);
+    showToast('Camera does not support this resolution', 'error');
+  }
   $('#deviceSelector').classList.add('hidden');
 }
 
