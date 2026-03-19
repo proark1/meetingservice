@@ -994,17 +994,23 @@ async function doLogin() {
   const pass  = document.getElementById('li-pass').value;
   const errEl = document.getElementById('loginError');
   const btn   = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = 'Signing in…';
-  const res  = await fetch('/api/auth/login', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: pass }),
-  });
-  const data = await res.json();
-  btn.disabled = false; btn.textContent = 'Sign In';
-  if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
   errEl.style.display = 'none';
-  if (data.isAdmin) { window.location.href = '/admin/dashboard'; return; }
-  await initApp();
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const res  = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Sign in failed. Please try again.'; errEl.style.display = 'block'; return; }
+    if (data.isAdmin) { window.location.href = '/admin/dashboard'; return; }
+    await initApp();
+  } catch (err) {
+    errEl.textContent = 'Could not reach the server. Check your connection and try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
 }
 
 async function doLogout() {

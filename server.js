@@ -426,8 +426,13 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     req.session.email     = user.email;
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = user.company_id || null;
-    res.json({ message: 'Logged in', isAdmin: user.is_admin });
-    trackEvent(user.id, user.company_id || null, 'user.login', {});
+    // Explicitly save the session before responding so the client's next
+    // request (/api/auth/me) finds the session already in the store.
+    req.session.save(err => {
+      if (err) { console.error('Session save error:', err); return res.status(500).json({ error: 'Login failed' }); }
+      res.json({ message: 'Logged in', isAdmin: user.is_admin });
+      trackEvent(user.id, user.company_id || null, 'user.login', {});
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
