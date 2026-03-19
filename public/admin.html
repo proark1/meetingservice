@@ -257,6 +257,12 @@
       </button>
     </nav>
     <div class="sidebar-footer">
+      <a href="/dashboard" class="nav-item" style="margin-bottom:2px;">
+        <span class="icon">🖥️</span><span class="label">User Dashboard</span>
+      </a>
+      <a href="/" class="nav-item" style="margin-bottom:8px;">
+        <span class="icon">🏠</span><span class="label">Home</span>
+      </a>
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="logout()">Sign Out</button>
     </div>
   </aside>
@@ -836,7 +842,7 @@ function copyText(text) {
 
 async function logout() {
   await fetch('/admin/logout', { method: 'POST' });
-  window.location.href = '/admin';
+  window.location.href = '/';
 }
 
 // ─── Billing ──────────────────────────────────────────────────────────────────
