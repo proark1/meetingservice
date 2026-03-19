@@ -228,6 +228,7 @@ io.on('connection', (socket) => {
       isMuted: meeting.settings.muteOnJoin,
       isVideoOff: meeting.settings.videoOffOnJoin,
       isScreenSharing: false,
+      isHandRaised: false,
       isAdmin: isAdmin && adminToken === meeting.adminToken,
       joinedAt: Date.now(),
     };
@@ -240,7 +241,7 @@ io.on('connection', (socket) => {
     // Send existing participants to the newcomer
     const existing = [...meeting.participants.values()]
       .filter(p => p.id !== participantId)
-      .map(p => ({ participantId: p.id, name: p.name, isMuted: p.isMuted, isVideoOff: p.isVideoOff, isScreenSharing: p.isScreenSharing, isAdmin: p.isAdmin }));
+      .map(p => ({ participantId: p.id, name: p.name, isMuted: p.isMuted, isVideoOff: p.isVideoOff, isScreenSharing: p.isScreenSharing, isHandRaised: p.isHandRaised || false, isAdmin: p.isAdmin }));
 
     socket.emit('joined', {
       participantId,
@@ -258,6 +259,7 @@ io.on('connection', (socket) => {
       name: participant.name,
       isMuted: participant.isMuted,
       isVideoOff: participant.isVideoOff,
+      isHandRaised: false,
       isAdmin: participant.isAdmin,
     });
   });
@@ -312,6 +314,16 @@ io.on('connection', (socket) => {
     if (p) {
       p.isScreenSharing = isScreenSharing;
       socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isScreenSharing });
+    }
+  });
+
+  socket.on('raise-hand', ({ isHandRaised }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (p) {
+      p.isHandRaised = isHandRaised;
+      io.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isHandRaised });
     }
   });
 

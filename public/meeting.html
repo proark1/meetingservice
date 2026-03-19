@@ -8,7 +8,8 @@
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<!-- ─── Lobby ────────────────────────────────────────────────────────── -->
+
+<!-- ─── Lobby ─────────────────────────────────────────────────────────────── -->
 <div class="lobby-overlay" id="lobby">
   <div class="lobby-card">
     <h2 id="lobbyTitle">Getting ready...</h2>
@@ -18,23 +19,29 @@
       <div class="avatar" id="lobbyAvatar"><span id="lobbyInitial">?</span></div>
     </div>
     <div class="lobby-controls">
-      <button class="btn-icon inactive" id="lobbyMicBtn" title="Toggle microphone">&#x1F3A4;</button>
-      <button class="btn-icon inactive" id="lobbyCamBtn" title="Toggle camera">&#x1F4F7;</button>
+      <button class="btn-icon inactive" id="lobbyMicBtn" title="Toggle microphone">🎤</button>
+      <button class="btn-icon inactive" id="lobbyCamBtn" title="Toggle camera">📷</button>
     </div>
     <input type="text" id="lobbyName" placeholder="Enter your name">
+    <p class="lobby-error hidden" id="lobbyError"></p>
     <button class="btn btn-primary" id="lobbyJoinBtn">Join Meeting</button>
   </div>
 </div>
 
-<!-- ─── Meeting room ─────────────────────────────────────────────────── -->
+<!-- ─── Meeting room ──────────────────────────────────────────────────────── -->
 <div class="meeting-container" id="meetingRoom" style="display:none;">
+
   <!-- Top bar -->
   <div class="top-bar">
-    <div>
+    <div class="top-bar-left">
       <span class="meeting-title" id="meetingTitle"></span>
       <span class="meeting-id" id="meetingIdDisplay"></span>
+      <button class="btn-copy" id="copyLinkBtn">Copy Link</button>
     </div>
     <div class="top-bar-right">
+      <div class="recording-indicator hidden" id="recordingIndicator">
+        <span class="rec-dot"></span>REC
+      </div>
       <span class="participant-count" id="participantCount">0</span>
     </div>
   </div>
@@ -66,71 +73,124 @@
     </div>
   </div>
 
-  <!-- Device selector -->
+  <!-- Device selector dropdown -->
   <div class="device-selector hidden" id="deviceSelector"></div>
 
   <!-- Controls -->
   <div class="controls-bar">
     <div class="controls-center">
-      <button class="btn-icon inactive" id="micBtn" title="Toggle microphone">&#x1F3A4;</button>
-      <button class="btn-icon inactive" id="camBtn" title="Toggle camera">&#x1F4F7;</button>
-      <button class="btn-icon inactive" id="screenBtn" title="Share screen">&#x1F5A5;</button>
-      <button class="btn-icon inactive" id="blurBtn" title="Background blur">&#x1F300;</button>
-      <button class="btn-icon inactive" id="deviceBtn" title="Settings">&#x2699;</button>
-      <button class="btn-icon inactive" id="peopleBtn" title="Participants">&#x1F465;</button>
-      <button class="btn-icon inactive" id="chatBtn" title="Chat">&#x1F4AC;</button>
+      <button class="btn-icon inactive" id="micBtn"    title="Mute/Unmute (M)">🎤</button>
+      <button class="btn-icon inactive" id="camBtn"    title="Camera on/off (V)">📷</button>
+      <button class="btn-icon inactive" id="screenBtn" title="Share screen (S)">🖥</button>
+      <button class="btn-icon inactive" id="handBtn"   title="Raise hand (H)">✋</button>
+      <button class="btn-icon inactive" id="recordBtn" title="Record meeting (R)">⏺</button>
+      <button class="btn-icon inactive" id="blurBtn"   title="Background blur">🌀</button>
+      <button class="btn-icon inactive" id="deviceBtn" title="Devices">⚙</button>
+      <button class="btn-icon inactive" id="peopleBtn" title="Participants">👥</button>
+      <div style="position:relative;display:inline-flex;">
+        <button class="btn-icon inactive" id="chatBtn" title="Chat">💬</button>
+        <span class="chat-badge hidden" id="chatBadge">0</span>
+      </div>
       <button class="btn-leave" id="leaveBtn">Leave</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─── State ──────────────────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────────────────────────
 const meetingId = window.location.pathname.split('/').pop();
 const socket = io();
-let localStream = null;
-let screenStream = null;
-let myParticipantId = null;
-let isAdmin = false;
-let isMuted = false;
-let isVideoOff = false;
-let isScreenSharing = false;
-let isBlurOn = false;
-let blurStream = null;
-let blurCanvas = null;
-let blurCtx = null;
-let blurAnimFrame = null;
-const peers = {};          // participantId -> { pc, streams, ... }
-const participants = {};    // participantId -> info
+
+let localStream      = null;
+let screenStream     = null;
+let myParticipantId  = null;
+let isAdmin          = false;
+let isMuted          = false;
+let isVideoOff       = false;
+let isScreenSharing  = false;
+let isHandRaised     = false;
+let isBlurOn         = false;
+let blurStream       = null;
+let blurCanvas       = null;
+let blurCtx          = null;
+let blurAnimFrame    = null;
+
+// Recording
+let mediaRecorder    = null;
+let recordingChunks  = [];
+let isRecording      = false;
+let recAudioCtx      = null;
+let recAudioDest     = null;
+let recAudioSources  = {};   // pid -> AudioNode
+let recFrameId       = null;
+let recCanvasEl      = null;
+
+// Chat
+let unreadChatCount  = 0;
+
+const peers        = {};  // participantId -> { pc, remoteStream, screenAudioSender }
+const participants = {};  // participantId -> info
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
-// ─── Lobby logic ────────────────────────────────────────────────────────
-const $ = (sel) => document.querySelector(sel);
-const lobbyNameInput = $('#lobbyName');
-const lobbyVideo = $('#lobbyVideo');
-const lobbyAvatar = $('#lobbyAvatar');
+const AVATAR_COLORS = ['#4361ee','#7209b7','#f72585','#4cc9f0','#fb8500','#06d6a0'];
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const $ = (sel) => document.querySelector(sel);
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function getAvatarColor(pid) {
+  let h = 0;
+  for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+function showToast(msg, type = '') {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' toast-' + type : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('toast-fadeout');
+    setTimeout(() => t.remove(), 310);
+  }, 3200);
+}
+
+function showLobbyError(msg) {
+  const el = $('#lobbyError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function hideLobbyError() { $('#lobbyError').classList.add('hidden'); }
+
+// ─── Lobby ───────────────────────────────────────────────────────────────────
+const lobbyNameInput = $('#lobbyName');
 lobbyNameInput.value = sessionStorage.getItem('userName') || '';
 $('#lobbyCode').textContent = meetingId;
 
 async function initPreview() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    lobbyVideo.srcObject = localStream;
-    lobbyAvatar.style.display = 'none';
+    $('#lobbyVideo').srcObject = localStream;
+    $('#lobbyAvatar').style.display = 'none';
   } catch {
-    lobbyAvatar.style.display = 'flex';
+    $('#lobbyAvatar').style.display = 'flex';
   }
   updateLobbyInitial();
 }
 
 function updateLobbyInitial() {
   const name = lobbyNameInput.value.trim();
-  $('#lobbyInitial').textContent = name ? name[0] : '?';
+  $('#lobbyInitial').textContent = name ? name[0].toUpperCase() : '?';
 }
 lobbyNameInput.addEventListener('input', updateLobbyInitial);
 
@@ -145,8 +205,8 @@ $('#lobbyCamBtn').addEventListener('click', () => {
   $('#lobbyCamBtn').className = `btn-icon ${isVideoOff ? 'active' : 'inactive'}`;
   if (localStream) {
     localStream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
-    lobbyAvatar.style.display = isVideoOff ? 'flex' : 'none';
-    lobbyVideo.style.display = isVideoOff ? 'none' : 'block';
+    $('#lobbyAvatar').style.display = isVideoOff ? 'flex' : 'none';
+    $('#lobbyVideo').style.display  = isVideoOff ? 'none' : 'block';
   }
 });
 
@@ -155,30 +215,28 @@ lobbyNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinM
 
 function joinMeeting() {
   const name = lobbyNameInput.value.trim();
-  if (!name) return alert('Please enter your name');
+  if (!name) { showLobbyError('Please enter your name'); return; }
+  hideLobbyError();
   sessionStorage.setItem('userName', name);
-
   const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
-  socket.emit('join-meeting', {
-    meetingId,
-    name,
-    isAdmin: !!adminToken,
-    adminToken: adminToken || null,
-  });
+  socket.emit('join-meeting', { meetingId, name, isAdmin: !!adminToken, adminToken: adminToken || null });
+  $('#lobbyJoinBtn').disabled = true;
+  $('#lobbyJoinBtn').textContent = 'Joining…';
 }
 
 initPreview();
 
-// ─── Socket events ──────────────────────────────────────────────────────
+// ─── Socket events ────────────────────────────────────────────────────────────
 socket.on('error', ({ message }) => {
-  alert(message);
+  showLobbyError(message);
+  $('#lobbyJoinBtn').disabled = false;
+  $('#lobbyJoinBtn').textContent = 'Join Meeting';
 });
 
 socket.on('joined', (data) => {
   myParticipantId = data.participantId;
   isAdmin = data.isAdmin;
 
-  // Apply lobby settings
   if (data.muteOnJoin && !isMuted) {
     isMuted = true;
     if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
@@ -188,17 +246,17 @@ socket.on('joined', (data) => {
     if (localStream) localStream.getVideoTracks().forEach(t => t.enabled = false);
   }
 
-  // Transition to meeting room
   $('#lobby').style.display = 'none';
   $('#meetingRoom').style.display = 'flex';
   $('#meetingTitle').textContent = data.title;
   $('#meetingIdDisplay').textContent = meetingId;
   document.title = data.title + ' - Meeting';
 
-  // Add self
-  participants[myParticipantId] = { name: sessionStorage.getItem('userName'), isMuted, isVideoOff, isScreenSharing: false, isAdmin };
+  participants[myParticipantId] = {
+    name: sessionStorage.getItem('userName'),
+    isMuted, isVideoOff, isScreenSharing: false, isHandRaised: false, isAdmin,
+  };
 
-  // Add existing participants and connect
   for (const p of data.participants) {
     participants[p.participantId] = p;
     createPeerConnection(p.participantId, true);
@@ -211,6 +269,7 @@ socket.on('joined', (data) => {
 socket.on('participant:joined', (p) => {
   participants[p.participantId] = p;
   createPeerConnection(p.participantId, false);
+  if (isRecording) addRecAudioSource(p.participantId);
   renderVideoGrid();
   renderParticipantsList();
   showToast(`${p.name} joined`);
@@ -218,10 +277,8 @@ socket.on('participant:joined', (p) => {
 
 socket.on('participant:left', ({ participantId, name }) => {
   delete participants[participantId];
-  if (peers[participantId]) {
-    peers[participantId].pc.close();
-    delete peers[participantId];
-  }
+  if (peers[participantId]) { peers[participantId].pc.close(); delete peers[participantId]; }
+  if (isRecording) removeRecAudioSource(participantId);
   renderVideoGrid();
   renderParticipantsList();
   showToast(`${name} left`);
@@ -230,81 +287,69 @@ socket.on('participant:left', ({ participantId, name }) => {
 socket.on('participant:updated', (update) => {
   if (participants[update.participantId]) {
     Object.assign(participants[update.participantId], update);
-    renderVideoGrid();
+    syncParticipantTile(update.participantId);
     renderParticipantsList();
   }
 });
 
 socket.on('meeting:ended', ({ reason }) => {
-  alert(reason || 'Meeting has ended');
-  window.location.href = '/';
+  showToast(reason || 'Meeting has ended', 'error');
+  setTimeout(() => window.location.href = '/', 2000);
 });
 
 socket.on('meeting:all-muted', () => {
   if (!isAdmin) {
     isMuted = true;
     if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
-    participants[myParticipantId].isMuted = true;
+    if (participants[myParticipantId]) participants[myParticipantId].isMuted = true;
     updateControlButtons();
-    renderVideoGrid();
+    syncParticipantTile(myParticipantId);
   }
 });
 
-socket.on('meeting:settings-updated', (settings) => {
-  showToast('Meeting settings updated');
-});
+socket.on('meeting:settings-updated', () => showToast('Meeting settings updated'));
 
-// Admin actions on this user
 socket.on('admin:mute', () => {
   isMuted = true;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
-  participants[myParticipantId].isMuted = true;
+  if (participants[myParticipantId]) participants[myParticipantId].isMuted = true;
   updateControlButtons();
-  renderVideoGrid();
-  showToast('You were muted by the admin');
+  syncParticipantTile(myParticipantId);
+  showToast('You were muted by the host');
 });
 
 socket.on('admin:unmute', () => {
   isMuted = false;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = true);
-  participants[myParticipantId].isMuted = false;
+  if (participants[myParticipantId]) participants[myParticipantId].isMuted = false;
   updateControlButtons();
-  renderVideoGrid();
-  showToast('You were unmuted by the admin');
+  syncParticipantTile(myParticipantId);
+  showToast('You were unmuted by the host');
 });
 
 socket.on('admin:kick', ({ reason }) => {
-  alert(reason || 'You were removed from the meeting');
-  window.location.href = '/';
+  showToast(reason || 'You were removed from the meeting', 'error');
+  setTimeout(() => window.location.href = '/', 2000);
 });
 
-// ─── WebRTC ─────────────────────────────────────────────────────────────
+// ─── WebRTC ───────────────────────────────────────────────────────────────────
 function createPeerConnection(participantId, initiator) {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  peers[participantId] = { pc, remoteStream: new MediaStream() };
+  peers[participantId] = { pc, remoteStream: new MediaStream(), screenAudioSender: null };
 
-  // Add local tracks
-  if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-  }
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
   pc.onicecandidate = (e) => {
-    if (e.candidate) {
-      socket.emit('signal:ice-candidate', { to: participantId, candidate: e.candidate });
-    }
+    if (e.candidate) socket.emit('signal:ice-candidate', { to: participantId, candidate: e.candidate });
   };
 
   pc.ontrack = (e) => {
-    e.streams[0].getTracks().forEach(track => {
-      peers[participantId].remoteStream.addTrack(track);
-    });
-    renderVideoGrid();
+    e.streams[0].getTracks().forEach(t => peers[participantId].remoteStream.addTrack(t));
+    syncParticipantTile(participantId);
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === 'failed') {
-      pc.restartIce();
-    }
+    if (pc.iceConnectionState === 'failed') pc.restartIce();
   };
 
   if (initiator) {
@@ -313,231 +358,357 @@ function createPeerConnection(participantId, initiator) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('signal:offer', { to: participantId, offer: pc.localDescription });
-      } catch (err) {
-        console.error('Offer error:', err);
-      }
+      } catch (err) { console.error('Offer error:', err); }
     };
   }
-
   return pc;
 }
 
 socket.on('signal:offer', async ({ from, offer }) => {
-  let peer = peers[from];
-  if (!peer) {
-    createPeerConnection(from, false);
-    peer = peers[from];
-  }
+  if (!peers[from]) createPeerConnection(from, false);
   try {
-    await peer.pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peer.pc.createAnswer();
-    await peer.pc.setLocalDescription(answer);
-    socket.emit('signal:answer', { to: from, answer: peer.pc.localDescription });
-  } catch (err) {
-    console.error('Answer error:', err);
-  }
+    await peers[from].pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peers[from].pc.createAnswer();
+    await peers[from].pc.setLocalDescription(answer);
+    socket.emit('signal:answer', { to: from, answer: peers[from].pc.localDescription });
+  } catch (err) { console.error('Answer error:', err); }
 });
 
 socket.on('signal:answer', async ({ from, answer }) => {
-  const peer = peers[from];
-  if (peer) {
-    try {
-      await peer.pc.setRemoteDescription(new RTCSessionDescription(answer));
-    } catch (err) {
-      console.error('Set answer error:', err);
-    }
+  if (peers[from]) {
+    try { await peers[from].pc.setRemoteDescription(new RTCSessionDescription(answer)); }
+    catch (err) { console.error('Set answer error:', err); }
   }
 });
 
 socket.on('signal:ice-candidate', async ({ from, candidate }) => {
-  const peer = peers[from];
-  if (peer) {
-    try {
-      await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (err) {
-      console.error('ICE error:', err);
-    }
+  if (peers[from]) {
+    try { await peers[from].pc.addIceCandidate(new RTCIceCandidate(candidate)); }
+    catch (err) { console.error('ICE error:', err); }
   }
 });
 
-// ─── Controls ───────────────────────────────────────────────────────────
+// ─── Controls ────────────────────────────────────────────────────────────────
 $('#micBtn').addEventListener('click', () => {
   isMuted = !isMuted;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
-  participants[myParticipantId].isMuted = isMuted;
+  if (participants[myParticipantId]) participants[myParticipantId].isMuted = isMuted;
   socket.emit('media:toggle-audio', { isMuted });
   updateControlButtons();
-  renderVideoGrid();
+  syncParticipantTile(myParticipantId);
 });
 
 $('#camBtn').addEventListener('click', () => {
   isVideoOff = !isVideoOff;
   if (localStream) localStream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
-  participants[myParticipantId].isVideoOff = isVideoOff;
+  if (participants[myParticipantId]) participants[myParticipantId].isVideoOff = isVideoOff;
   socket.emit('media:toggle-video', { isVideoOff });
   updateControlButtons();
-  renderVideoGrid();
+  syncParticipantTile(myParticipantId);
 });
 
 $('#screenBtn').addEventListener('click', async () => {
-  if (isScreenSharing) {
-    stopScreenShare();
-  } else {
-    try {
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      const screenTrack = screenStream.getVideoTracks()[0];
+  if (isScreenSharing) { stopScreenShare(); return; }
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    const screenVideoTrack = screenStream.getVideoTracks()[0];
+    const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
 
-      // Replace video track in all peer connections
-      for (const pid of Object.keys(peers)) {
-        const sender = peers[pid].pc.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) await sender.replaceTrack(screenTrack);
+    for (const pid of Object.keys(peers)) {
+      const videoSender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender) await videoSender.replaceTrack(screenVideoTrack);
+      if (screenAudioTrack) {
+        const audioSender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
+        if (audioSender) {
+          await audioSender.replaceTrack(screenAudioTrack);
+          peers[pid].screenAudioSender = audioSender;
+        }
       }
-
-      screenTrack.onended = () => stopScreenShare();
-      isScreenSharing = true;
-      participants[myParticipantId].isScreenSharing = true;
-      socket.emit('media:screen-share', { isScreenSharing: true });
-      updateControlButtons();
-      renderVideoGrid();
-    } catch (err) {
-      console.log('Screen share cancelled');
     }
+
+    screenVideoTrack.onended = () => stopScreenShare();
+    isScreenSharing = true;
+    if (participants[myParticipantId]) participants[myParticipantId].isScreenSharing = true;
+    socket.emit('media:screen-share', { isScreenSharing: true });
+    updateControlButtons();
+    syncParticipantTile(myParticipantId);
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') showToast('Screen share failed', 'error');
   }
 });
 
-function stopScreenShare() {
-  if (screenStream) {
-    screenStream.getTracks().forEach(t => t.stop());
-    screenStream = null;
-  }
-  // Restore camera track
+async function stopScreenShare() {
+  if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
+    const micTrack = localStream.getAudioTracks()[0];
     for (const pid of Object.keys(peers)) {
-      const sender = peers[pid].pc.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender && camTrack) sender.replaceTrack(camTrack);
+      if (camTrack) {
+        const vs = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+        if (vs) await vs.replaceTrack(camTrack);
+      }
+      if (micTrack) {
+        const as = peers[pid].screenAudioSender || peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
+        if (as) await as.replaceTrack(micTrack);
+      }
+      peers[pid].screenAudioSender = null;
     }
   }
   isScreenSharing = false;
-  participants[myParticipantId].isScreenSharing = false;
+  if (participants[myParticipantId]) participants[myParticipantId].isScreenSharing = false;
   socket.emit('media:screen-share', { isScreenSharing: false });
   updateControlButtons();
-  renderVideoGrid();
+  syncParticipantTile(myParticipantId);
+}
+
+// Raise hand
+$('#handBtn').addEventListener('click', () => {
+  isHandRaised = !isHandRaised;
+  if (participants[myParticipantId]) participants[myParticipantId].isHandRaised = isHandRaised;
+  socket.emit('raise-hand', { isHandRaised });
+  updateControlButtons();
+  syncParticipantTile(myParticipantId);
+  renderParticipantsList();
+  if (isHandRaised) showToast('Hand raised — host can see this');
+});
+
+// Recording
+$('#recordBtn').addEventListener('click', () => {
+  if (isRecording) stopRecording();
+  else startRecording();
+});
+
+async function startRecording() {
+  try {
+    recAudioCtx  = new AudioContext();
+    recAudioDest = recAudioCtx.createMediaStreamDestination();
+    recAudioSources = {};
+
+    if (localStream?.getAudioTracks().length > 0) {
+      const src = recAudioCtx.createMediaStreamSource(localStream);
+      src.connect(recAudioDest);
+      recAudioSources['local'] = src;
+    }
+    for (const pid of Object.keys(peers)) addRecAudioSource(pid);
+
+    recCanvasEl = document.createElement('canvas');
+    recCanvasEl.width  = 1280;
+    recCanvasEl.height = 720;
+    const ctx = recCanvasEl.getContext('2d');
+
+    function drawFrame() {
+      ctx.fillStyle = '#0f0f0f';
+      ctx.fillRect(0, 0, 1280, 720);
+
+      const tiles = [...document.querySelectorAll('#videoGrid .video-tile')];
+      const n = tiles.length;
+      if (n > 0) {
+        const cols = n === 1 ? 1 : n <= 4 ? 2 : 3;
+        const rows = Math.ceil(n / cols);
+        const w = 1280 / cols;
+        const h = 720  / rows;
+        tiles.forEach((tile, i) => {
+          const x   = (i % cols) * w;
+          const y   = Math.floor(i / cols) * h;
+          const vid = tile.querySelector('video');
+          const pid = tile.dataset.pid;
+          const p   = pid ? participants[pid] : null;
+          if (vid && vid.readyState >= 2) {
+            ctx.drawImage(vid, x, y, w, h);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x, y, w, h);
+            if (p) {
+              ctx.fillStyle = getAvatarColor(pid);
+              ctx.beginPath();
+              ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.18, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#fff';
+              ctx.font = `bold ${Math.min(w, h) * 0.14}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText((p.name || '?')[0].toUpperCase(), x + w / 2, y + h / 2);
+            }
+          }
+          if (p) {
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(x + 4, y + h - 26, Math.min((p.name?.length || 0) * 8 + 20, w - 8), 22);
+            ctx.fillStyle = '#fff';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.name || '', x + 10, y + h - 15);
+          }
+        });
+      }
+      recFrameId = requestAnimationFrame(drawFrame);
+    }
+    drawFrame();
+
+    const videoStream = recCanvasEl.captureStream(30);
+    const combined = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...recAudioDest.stream.getAudioTracks(),
+    ]);
+
+    const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
+      .find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+    mediaRecorder   = new MediaRecorder(combined, mimeType ? { mimeType } : {});
+    recordingChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordingChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      if (recFrameId) { cancelAnimationFrame(recFrameId); recFrameId = null; }
+      if (recAudioCtx) { recAudioCtx.close(); recAudioCtx = null; }
+      recAudioDest = null; recAudioSources = {}; recCanvasEl = null;
+      const blob = new Blob(recordingChunks, { type: 'video/webm' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `meeting-${meetingId}-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      isRecording = false;
+      updateControlButtons();
+      $('#recordingIndicator').classList.add('hidden');
+      showToast('Recording saved — check your downloads');
+    };
+
+    mediaRecorder.start(1000);
+    isRecording = true;
+    updateControlButtons();
+    $('#recordingIndicator').classList.remove('hidden');
+    showToast('Recording started');
+  } catch (err) {
+    console.error('Recording error:', err);
+    showToast('Recording failed: ' + (err.message || err), 'error');
+    if (recAudioCtx) { recAudioCtx.close(); recAudioCtx = null; }
+    if (recFrameId)  { cancelAnimationFrame(recFrameId); recFrameId = null; }
+    isRecording = false;
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+}
+
+function addRecAudioSource(pid) {
+  if (!recAudioCtx || !recAudioDest || recAudioSources[pid]) return;
+  const rs = peers[pid]?.remoteStream;
+  if (rs?.getAudioTracks().length > 0) {
+    try {
+      const src = recAudioCtx.createMediaStreamSource(rs);
+      src.connect(recAudioDest);
+      recAudioSources[pid] = src;
+    } catch (e) { console.warn('addRecAudioSource failed for', pid, e); }
+  }
+}
+
+function removeRecAudioSource(pid) {
+  if (recAudioSources[pid]) {
+    try { recAudioSources[pid].disconnect(); } catch (e) {}
+    delete recAudioSources[pid];
+  }
 }
 
 // Background blur
-$('#blurBtn').addEventListener('click', async () => {
-  if (!localStream || localStream.getVideoTracks().length === 0) return;
+$('#blurBtn').addEventListener('click', () => {
+  if (!localStream?.getVideoTracks().length) return;
   isBlurOn = !isBlurOn;
   updateControlButtons();
-
-  if (isBlurOn) {
-    startBlur();
-  } else {
-    stopBlur();
-  }
+  if (isBlurOn) startBlur(); else stopBlur();
 });
 
 function startBlur() {
-  const videoTrack = localStream.getVideoTracks()[0];
-  const settings = videoTrack.getSettings();
-  const w = settings.width || 640;
+  const track    = localStream.getVideoTracks()[0];
+  const settings = track.getSettings();
+  const w = settings.width  || 640;
   const h = settings.height || 480;
 
   blurCanvas = document.createElement('canvas');
-  blurCanvas.width = w;
-  blurCanvas.height = h;
+  blurCanvas.width = w; blurCanvas.height = h;
   blurCtx = blurCanvas.getContext('2d');
 
-  const tempVideo = document.createElement('video');
-  tempVideo.srcObject = new MediaStream([videoTrack]);
-  tempVideo.play();
+  const tmp = document.createElement('video');
+  tmp.srcObject = new MediaStream([track]);
+  tmp.play();
 
-  function drawBlurred() {
+  function draw() {
     if (!isBlurOn) return;
     blurCtx.filter = 'blur(10px)';
-    blurCtx.drawImage(tempVideo, 0, 0, w, h);
+    blurCtx.drawImage(tmp, 0, 0, w, h);
     blurCtx.filter = 'none';
-
-    // Draw a centered ellipse for the "person" area (simple approach)
-    // We use a clear ellipse in the center where we draw the unblurred image
     blurCtx.save();
     blurCtx.beginPath();
     blurCtx.ellipse(w / 2, h / 2.2, w * 0.28, h * 0.45, 0, 0, Math.PI * 2);
     blurCtx.clip();
-    blurCtx.drawImage(tempVideo, 0, 0, w, h);
+    blurCtx.drawImage(tmp, 0, 0, w, h);
     blurCtx.restore();
-
-    blurAnimFrame = requestAnimationFrame(drawBlurred);
+    blurAnimFrame = requestAnimationFrame(draw);
   }
+  draw();
 
-  drawBlurred();
   blurStream = blurCanvas.captureStream(24);
   const blurTrack = blurStream.getVideoTracks()[0];
-
-  // Replace in peer connections
   for (const pid of Object.keys(peers)) {
-    const sender = peers[pid].pc.getSenders().find(s => s.track && s.track.kind === 'video');
-    if (sender) sender.replaceTrack(blurTrack);
+    const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+    if (s) s.replaceTrack(blurTrack);
   }
-
-  renderVideoGrid();
+  syncParticipantTile(myParticipantId);
 }
 
 function stopBlur() {
-  if (blurAnimFrame) cancelAnimationFrame(blurAnimFrame);
-  blurAnimFrame = null;
-
-  // Restore original video track
+  if (blurAnimFrame) { cancelAnimationFrame(blurAnimFrame); blurAnimFrame = null; }
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
     for (const pid of Object.keys(peers)) {
-      const sender = peers[pid].pc.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender && camTrack) sender.replaceTrack(camTrack);
+      const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+      if (s && camTrack) s.replaceTrack(camTrack);
     }
   }
-
-  if (blurStream) {
-    blurStream.getTracks().forEach(t => t.stop());
-    blurStream = null;
-  }
-  blurCanvas = null;
-  blurCtx = null;
-  renderVideoGrid();
+  if (blurStream) { blurStream.getTracks().forEach(t => t.stop()); blurStream = null; }
+  blurCanvas = null; blurCtx = null;
+  syncParticipantTile(myParticipantId);
 }
+
+// Copy link
+$('#copyLinkBtn').addEventListener('click', async () => {
+  const url = `${location.origin}/join/${meetingId}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Meeting link copied!');
+    const btn = $('#copyLinkBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Link', 2000);
+  } catch { showToast(`Link: ${url}`); }
+});
 
 // Device selection
 $('#deviceBtn').addEventListener('click', async () => {
   const sel = $('#deviceSelector');
-  if (!sel.classList.contains('hidden')) {
-    sel.classList.add('hidden');
-    return;
-  }
+  if (!sel.classList.contains('hidden')) { sel.classList.add('hidden'); return; }
 
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const cameras = devices.filter(d => d.kind === 'videoinput');
-  const mics = devices.filter(d => d.kind === 'audioinput');
+  const devices  = await navigator.mediaDevices.enumerateDevices();
+  const cameras  = devices.filter(d => d.kind === 'videoinput');
+  const mics     = devices.filter(d => d.kind === 'audioinput');
   const speakers = devices.filter(d => d.kind === 'audiooutput');
-
-  const currentVideoTrack = localStream ? localStream.getVideoTracks()[0] : null;
-  const currentAudioTrack = localStream ? localStream.getAudioTracks()[0] : null;
-  const currentVideoId = currentVideoTrack ? currentVideoTrack.getSettings().deviceId : '';
-  const currentAudioId = currentAudioTrack ? currentAudioTrack.getSettings().deviceId : '';
+  const curVid   = localStream?.getVideoTracks()[0]?.getSettings().deviceId || '';
+  const curAud   = localStream?.getAudioTracks()[0]?.getSettings().deviceId || '';
 
   sel.innerHTML = '';
-
   if (cameras.length) {
     sel.innerHTML += '<h4>Camera</h4>';
     cameras.forEach(d => {
-      const selected = d.deviceId === currentVideoId ? 'selected' : '';
-      sel.innerHTML += `<button class="${selected}" onclick="switchCamera('${d.deviceId}')">${d.label || 'Camera ' + d.deviceId.slice(0,4)}</button>`;
+      sel.innerHTML += `<button class="${d.deviceId === curVid ? 'selected' : ''}" onclick="switchCamera('${d.deviceId}')">${d.label || 'Camera ' + d.deviceId.slice(0,4)}</button>`;
     });
   }
   if (mics.length) {
     sel.innerHTML += '<h4>Microphone</h4>';
     mics.forEach(d => {
-      const selected = d.deviceId === currentAudioId ? 'selected' : '';
-      sel.innerHTML += `<button class="${selected}" onclick="switchMic('${d.deviceId}')">${d.label || 'Mic ' + d.deviceId.slice(0,4)}</button>`;
+      sel.innerHTML += `<button class="${d.deviceId === curAud ? 'selected' : ''}" onclick="switchMic('${d.deviceId}')">${d.label || 'Mic ' + d.deviceId.slice(0,4)}</button>`;
     });
   }
   if (speakers.length) {
@@ -546,60 +717,60 @@ $('#deviceBtn').addEventListener('click', async () => {
       sel.innerHTML += `<button onclick="switchSpeaker('${d.deviceId}')">${d.label || 'Speaker ' + d.deviceId.slice(0,4)}</button>`;
     });
   }
-
   sel.classList.remove('hidden');
 });
 
 async function switchCamera(deviceId) {
   try {
     const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
-    const newTrack = newStream.getVideoTracks()[0];
-    const oldTrack = localStream.getVideoTracks()[0];
-    localStream.removeTrack(oldTrack);
-    oldTrack.stop();
-    localStream.addTrack(newTrack);
-
+    const newTrack  = newStream.getVideoTracks()[0];
+    const oldTrack  = localStream?.getVideoTracks()[0];
+    if (oldTrack)    { localStream.removeTrack(oldTrack); oldTrack.stop(); }
+    if (localStream) localStream.addTrack(newTrack);
     for (const pid of Object.keys(peers)) {
-      const sender = peers[pid].pc.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender) await sender.replaceTrack(newTrack);
+      const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+      if (s) await s.replaceTrack(newTrack);
     }
-    renderVideoGrid();
+    syncParticipantTile(myParticipantId);
     $('#deviceSelector').classList.add('hidden');
-  } catch (err) {
-    console.error('Switch camera error:', err);
-  }
+  } catch (err) { console.error('Switch camera error:', err); }
 }
 
 async function switchMic(deviceId) {
   try {
     const newStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
-    const newTrack = newStream.getAudioTracks()[0];
-    const oldTrack = localStream.getAudioTracks()[0];
-    localStream.removeTrack(oldTrack);
-    oldTrack.stop();
-    localStream.addTrack(newTrack);
+    const newTrack  = newStream.getAudioTracks()[0];
+    const oldTrack  = localStream?.getAudioTracks()[0];
+    if (oldTrack)    { localStream.removeTrack(oldTrack); oldTrack.stop(); }
+    if (localStream) localStream.addTrack(newTrack);
     if (isMuted) newTrack.enabled = false;
-
     for (const pid of Object.keys(peers)) {
-      const sender = peers[pid].pc.getSenders().find(s => s.track && s.track.kind === 'audio');
-      if (sender) await sender.replaceTrack(newTrack);
+      const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
+      if (s) await s.replaceTrack(newTrack);
     }
     $('#deviceSelector').classList.add('hidden');
-  } catch (err) {
-    console.error('Switch mic error:', err);
-  }
+  } catch (err) { console.error('Switch mic error:', err); }
 }
 
 function switchSpeaker(deviceId) {
-  document.querySelectorAll('.video-tile video').forEach(v => {
-    if (v.setSinkId) v.setSinkId(deviceId);
-  });
+  document.querySelectorAll('.video-tile video').forEach(v => { if (v.setSinkId) v.setSinkId(deviceId); });
   $('#deviceSelector').classList.add('hidden');
 }
 
+document.addEventListener('click', (e) => {
+  const sel = $('#deviceSelector');
+  if (!sel.classList.contains('hidden') && !sel.contains(e.target) && e.target.id !== 'deviceBtn') {
+    sel.classList.add('hidden');
+  }
+});
+
 // Side panel
 $('#peopleBtn').addEventListener('click', () => toggleSidePanel('participants'));
-$('#chatBtn').addEventListener('click', () => toggleSidePanel('chat'));
+$('#chatBtn').addEventListener('click', () => {
+  toggleSidePanel('chat');
+  unreadChatCount = 0;
+  updateChatBadge();
+});
 $('#closeSidePanel').addEventListener('click', () => $('#sidePanel').classList.add('hidden'));
 
 document.querySelectorAll('.side-panel-tabs button').forEach(btn => {
@@ -608,22 +779,30 @@ document.querySelectorAll('.side-panel-tabs button').forEach(btn => {
     btn.classList.add('active');
     const tab = btn.dataset.tab;
     $('#participantsTab').style.display = tab === 'participants' ? 'block' : 'none';
-    $('#chatTab').style.display = tab === 'chat' ? 'flex' : 'none';
-    $('#sidePanelTitle').textContent = tab === 'participants' ? 'Participants' : 'Chat';
+    $('#chatTab').style.display         = tab === 'chat'         ? 'flex'  : 'none';
+    $('#sidePanelTitle').textContent    = tab === 'participants' ? 'Participants' : 'Chat';
+    if (tab === 'chat') { unreadChatCount = 0; updateChatBadge(); }
   });
 });
 
 function toggleSidePanel(tab) {
   const panel = $('#sidePanel');
   if (!panel.classList.contains('hidden')) {
-    const activeTab = document.querySelector('.side-panel-tabs button.active').dataset.tab;
-    if (activeTab === tab) {
-      panel.classList.add('hidden');
-      return;
-    }
+    const active = document.querySelector('.side-panel-tabs button.active')?.dataset.tab;
+    if (active === tab) { panel.classList.add('hidden'); return; }
   }
   panel.classList.remove('hidden');
   document.querySelector(`.side-panel-tabs button[data-tab="${tab}"]`).click();
+}
+
+function updateChatBadge() {
+  const badge = $('#chatBadge');
+  if (unreadChatCount > 0) {
+    badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
 }
 
 // Chat
@@ -639,120 +818,192 @@ function sendChat() {
 
 socket.on('chat:message', ({ from, name, text, timestamp }) => {
   const container = $('#chatMessages');
-  const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time      = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const isOwn     = from === myParticipantId;
   container.innerHTML += `
-    <div class="chat-msg">
-      <div class="chat-author">${escapeHtml(name)}${from === myParticipantId ? ' (You)' : ''}</div>
+    <div class="chat-msg${isOwn ? ' chat-msg-own' : ''}">
+      <div class="chat-author">${escapeHtml(name)}${isOwn ? ' (You)' : ''}</div>
       <div class="chat-text">${escapeHtml(text)}</div>
       <div class="chat-time">${time}</div>
     </div>`;
   container.scrollTop = container.scrollHeight;
+
+  const chatOpen = !$('#sidePanel').classList.contains('hidden') &&
+    document.querySelector('.side-panel-tabs button.active')?.dataset.tab === 'chat';
+  if (!chatOpen) { unreadChatCount++; updateChatBadge(); }
 });
 
 // Leave
 $('#leaveBtn').addEventListener('click', () => {
-  if (confirm('Leave this meeting?')) {
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
-    if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-    socket.disconnect();
-    window.location.href = '/';
-  }
+  if (!confirm('Leave this meeting?')) return;
+  if (isRecording) stopRecording();
+  if (localStream)  localStream.getTracks().forEach(t => t.stop());
+  if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+  socket.disconnect();
+  window.location.href = '/';
 });
 
-// Click outside device selector to close
-document.addEventListener('click', (e) => {
-  const sel = $('#deviceSelector');
-  if (!sel.classList.contains('hidden') && !sel.contains(e.target) && e.target.id !== 'deviceBtn') {
-    sel.classList.add('hidden');
-  }
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (!myParticipantId) return;
+  if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'm' || e.key === 'M') $('#micBtn').click();
+  else if (e.key === 'v' || e.key === 'V') $('#camBtn').click();
+  else if (e.key === 's' || e.key === 'S') $('#screenBtn').click();
+  else if (e.key === 'h' || e.key === 'H') $('#handBtn').click();
+  else if (e.key === 'r' || e.key === 'R') $('#recordBtn').click();
 });
 
-// ─── Rendering ──────────────────────────────────────────────────────────
+// ─── Rendering ────────────────────────────────────────────────────────────────
 function updateControlButtons() {
-  $('#micBtn').className = `btn-icon ${isMuted ? 'active' : 'inactive'}`;
-  $('#camBtn').className = `btn-icon ${isVideoOff ? 'active' : 'inactive'}`;
-  $('#screenBtn').className = `btn-icon ${isScreenSharing ? 'active' : 'inactive'}`;
-  $('#blurBtn').className = `btn-icon ${isBlurOn ? 'active' : 'inactive'}`;
+  $('#micBtn').className    = `btn-icon ${isMuted         ? 'active' : 'inactive'}`;
+  $('#camBtn').className    = `btn-icon ${isVideoOff      ? 'active' : 'inactive'}`;
+  $('#screenBtn').className = `btn-icon ${isScreenSharing ? 'btn-on' : 'inactive'}`;
+  $('#handBtn').className   = `btn-icon ${isHandRaised    ? 'btn-on' : 'inactive'}`;
+  $('#recordBtn').className = `btn-icon ${isRecording     ? 'active' : 'inactive'}`;
+  $('#blurBtn').className   = `btn-icon ${isBlurOn        ? 'btn-on' : 'inactive'}`;
 }
 
+// Full grid re-render: diff-based — preserves existing video elements to prevent flicker
 function renderVideoGrid() {
-  const grid = $('#videoGrid');
+  const grid   = $('#videoGrid');
   const allIds = Object.keys(participants);
-  const count = allIds.length;
+  const count  = allIds.length;
 
-  // Set grid class
   grid.className = 'video-grid';
-  if (count <= 1) grid.classList.add('grid-1');
+  if      (count <= 1) grid.classList.add('grid-1');
   else if (count === 2) grid.classList.add('grid-2');
   else if (count <= 4) grid.classList.add('grid-4');
   else if (count <= 6) grid.classList.add('grid-6');
-  else grid.classList.add('grid-many');
+  else                 grid.classList.add('grid-many');
 
-  // Build tiles
-  grid.innerHTML = '';
+  // Remove tiles for participants that left
+  for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
+    if (!participants[tile.dataset.pid]) tile.remove();
+  }
+  // Add or update tiles
   for (const pid of allIds) {
-    const p = participants[pid];
-    const isLocal = pid === myParticipantId;
-    const tile = document.createElement('div');
-    tile.className = `video-tile${isLocal ? ' is-local' : ''}`;
-
-    if (isLocal && !p.isVideoOff) {
-      const video = document.createElement('video');
-      video.autoplay = true;
-      video.muted = true;
-      video.playsInline = true;
-      if (isBlurOn && blurStream) {
-        video.srcObject = blurStream;
-      } else if (isScreenSharing && screenStream) {
-        video.srcObject = screenStream;
-        tile.classList.remove('is-local'); // don't mirror screen share
-      } else {
-        video.srcObject = localStream;
-      }
-      tile.appendChild(video);
-    } else if (!isLocal && peers[pid] && !p.isVideoOff) {
-      const video = document.createElement('video');
-      video.autoplay = true;
-      video.playsInline = true;
-      video.srcObject = peers[pid].remoteStream;
-      tile.appendChild(video);
-    } else {
-      const avatar = document.createElement('div');
-      avatar.className = 'avatar';
-      avatar.textContent = (p.name || '?')[0].toUpperCase();
-      tile.appendChild(avatar);
-    }
-
-    // Screen share badge
-    if (p.isScreenSharing) {
-      const badge = document.createElement('div');
-      badge.className = 'screen-share-badge';
-      badge.textContent = 'Screen';
-      tile.appendChild(badge);
-    }
-
-    // Label
-    const label = document.createElement('div');
-    label.className = 'tile-label';
-    label.innerHTML = `${escapeHtml(p.name || 'Unknown')}${isLocal ? ' (You)' : ''}${p.isMuted ? ' <span class="muted-icon">&#x1F507;</span>' : ''}`;
-    tile.appendChild(label);
-
-    // Admin controls on tiles
-    if (isAdmin && !isLocal) {
-      const actions = document.createElement('div');
-      actions.className = 'admin-actions';
-      actions.innerHTML = `
-        <button title="${p.isMuted ? 'Unmute' : 'Mute'}" onclick="adminToggleMute('${pid}', ${p.isMuted})">${p.isMuted ? '&#x1F507;' : '&#x1F3A4;'}</button>
-        <button title="Remove" onclick="adminKick('${pid}')">&#x274C;</button>
-      `;
-      tile.appendChild(actions);
-    }
-
-    grid.appendChild(tile);
+    let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
+    if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
+    else       { syncVideoTile(tile, pid); }
   }
 
   $('#participantCount').textContent = count;
   updateControlButtons();
+}
+
+// Sync just one tile without rebuilding the whole grid
+function syncParticipantTile(pid) {
+  const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  if (tile) {
+    syncVideoTile(tile, pid);
+    $('#participantCount').textContent = Object.keys(participants).length;
+    updateControlButtons();
+  } else {
+    renderVideoGrid();
+  }
+}
+
+function createVideoTile(pid) {
+  const tile = document.createElement('div');
+  tile.dataset.pid = pid;
+
+  const media = document.createElement('div');
+  media.className = 'tile-media';
+  tile.appendChild(media);
+
+  const screenBadge = document.createElement('div');
+  screenBadge.className = 'screen-share-badge';
+  screenBadge.textContent = 'Screen';
+  tile.appendChild(screenBadge);
+
+  const handBadge = document.createElement('div');
+  handBadge.className = 'hand-badge hidden';
+  handBadge.textContent = '✋';
+  tile.appendChild(handBadge);
+
+  const label = document.createElement('div');
+  label.className = 'tile-label';
+  tile.appendChild(label);
+
+  const adminActions = document.createElement('div');
+  adminActions.className = 'admin-actions';
+  tile.appendChild(adminActions);
+
+  syncVideoTile(tile, pid);
+  return tile;
+}
+
+function syncVideoTile(tile, pid) {
+  const p      = participants[pid];
+  if (!p) return;
+  const isLocal = pid === myParticipantId;
+
+  // Mirror only when local + showing camera (not screen share)
+  tile.className = 'video-tile';
+  if (isLocal && !p.isScreenSharing) tile.classList.add('is-local');
+
+  // Determine video source
+  const showVideo = isLocal ? (!p.isVideoOff || p.isScreenSharing) : (!p.isVideoOff && !!peers[pid]);
+  let expectedSrc = null;
+  if (showVideo) {
+    expectedSrc = isLocal
+      ? ((isBlurOn && blurStream) ? blurStream : (isScreenSharing && screenStream) ? screenStream : localStream)
+      : (peers[pid]?.remoteStream || null);
+  }
+
+  const media  = tile.querySelector('.tile-media');
+  let video    = media.querySelector('video');
+  let avatar   = media.querySelector('.avatar');
+
+  if (showVideo && expectedSrc) {
+    if (!video) {
+      if (avatar) { avatar.remove(); avatar = null; }
+      video = document.createElement('video');
+      video.autoplay    = true;
+      video.playsInline = true;
+      if (isLocal) video.muted = true;
+      media.appendChild(video);
+    }
+    if (video.srcObject !== expectedSrc) video.srcObject = expectedSrc;
+  } else {
+    if (video) { video.srcObject = null; video.remove(); video = null; }
+    if (!avatar) {
+      avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      media.appendChild(avatar);
+    }
+    avatar.textContent   = (p.name || '?')[0].toUpperCase();
+    avatar.style.background = getAvatarColor(pid);
+  }
+
+  // Badges
+  const screenBadge = tile.querySelector('.screen-share-badge');
+  if (screenBadge) screenBadge.style.display = p.isScreenSharing ? 'block' : 'none';
+
+  const handBadge = tile.querySelector('.hand-badge');
+  if (handBadge) handBadge.classList.toggle('hidden', !p.isHandRaised);
+
+  // Name label
+  const label = tile.querySelector('.tile-label');
+  if (label) {
+    label.innerHTML = `${escapeHtml(p.name || 'Unknown')}`
+      + (isLocal ? ' <span class="you-tag">(You)</span>' : '')
+      + (p.isMuted ? ' <span class="muted-icon">🔇</span>' : '');
+  }
+
+  // Admin actions
+  const adminActions = tile.querySelector('.admin-actions');
+  if (adminActions) {
+    if (isAdmin && !isLocal) {
+      adminActions.innerHTML = `
+        <button title="${p.isMuted ? 'Unmute' : 'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">${p.isMuted ? '🔇' : '🎤'}</button>
+        <button title="Remove" onclick="adminKick('${pid}')">✕</button>`;
+      adminActions.style.display = 'flex';
+    } else {
+      adminActions.style.display = 'none';
+    }
+  }
 }
 
 function renderParticipantsList() {
@@ -764,28 +1015,28 @@ function renderParticipantsList() {
     item.className = 'participant-item';
     item.innerHTML = `
       <div class="participant-info">
-        <div class="participant-avatar">${(p.name || '?')[0].toUpperCase()}</div>
+        <div class="participant-avatar" style="background:${getAvatarColor(pid)}">${(p.name||'?')[0].toUpperCase()}</div>
         <div class="participant-name">
           ${escapeHtml(p.name || 'Unknown')}
-          ${p.isAdmin ? '<span class="admin-badge">Host</span>' : ''}
-          ${isLocal ? '<span class="you-badge">You</span>' : ''}
+          ${p.isAdmin  ? '<span class="admin-badge">Host</span>' : ''}
+          ${isLocal    ? '<span class="you-badge">You</span>' : ''}
+          ${p.isHandRaised ? '<span class="hand-indicator">✋</span>' : ''}
+          ${p.isMuted  ? '<span style="color:var(--text-muted);font-size:13px">🔇</span>' : ''}
         </div>
       </div>
       ${isAdmin && !isLocal ? `
       <div class="participant-actions">
-        <button title="${p.isMuted ? 'Unmute' : 'Mute'}" onclick="adminToggleMute('${pid}', ${p.isMuted})">${p.isMuted ? '&#x1F507;' : '&#x1F3A4;'}</button>
-        <button title="Remove" onclick="adminKick('${pid}')">&#x274C;</button>
-      </div>` : ''}
-    `;
+        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">${p.isMuted?'🔇':'🎤'}</button>
+        <button title="Remove" onclick="adminKick('${pid}')">✕</button>
+      </div>` : ''}`;
     list.appendChild(item);
   }
 }
 
-// Admin actions from UI
+// Admin helpers
 async function adminToggleMute(pid, currentlyMuted) {
   const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
-  const action = currentlyMuted ? 'unmute' : 'mute';
-  await fetch(`/api/meetings/${meetingId}/participants/${pid}/${action}`, {
+  await fetch(`/api/meetings/${meetingId}/participants/${pid}/${currentlyMuted ? 'unmute' : 'mute'}`, {
     method: 'POST',
     headers: { 'x-api-key': 'mk_default_test_key', 'x-admin-token': adminToken },
   });
@@ -799,21 +1050,6 @@ async function adminKick(pid) {
     headers: { 'Content-Type': 'application/json', 'x-api-key': 'mk_default_test_key', 'x-admin-token': adminToken },
     body: JSON.stringify({ reason: 'Removed by host' }),
   });
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function showToast(msg) {
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
 }
 </script>
 </body>

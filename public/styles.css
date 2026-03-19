@@ -426,3 +426,105 @@ input, select { font-family: inherit; }
   .lobby-card { padding: 20px 16px; }
   .lobby-preview { aspect-ratio: 4 / 3; }
 }
+
+/* ─── New features ──────────────────────────────────────────────────────── */
+
+/* Positive-active state (screen share on, blur on, hand raised) */
+.btn-icon.btn-on { background: var(--success); color: #000; }
+
+/* Top-bar layout */
+.top-bar-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.top-bar-left .meeting-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Copy link button */
+.btn-copy {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-copy:hover { border-color: var(--primary); color: var(--primary); }
+
+/* Recording indicator */
+.recording-indicator {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(239, 35, 60, 0.12);
+  border: 1px solid var(--danger);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px; font-weight: 700;
+  color: var(--danger);
+}
+.recording-indicator.hidden { display: none; }
+.rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: recPulse 1.5s ease-in-out infinite;
+}
+@keyframes recPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* Tile media container */
+.tile-media {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.tile-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-tile.is-local .tile-media video { transform: scaleX(-1); }
+
+/* Hand raise badge on tile */
+.hand-badge {
+  position: absolute; top: 8px; right: 48px;
+  font-size: 16px;
+  background: rgba(0,0,0,0.65);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2;
+}
+.hand-badge.hidden { display: none; }
+
+/* Chat unread badge */
+.chat-badge {
+  position: absolute; top: -5px; right: -5px;
+  background: var(--danger);
+  color: white; font-size: 10px; font-weight: 700;
+  min-width: 18px; height: 18px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+.chat-badge.hidden { display: none; }
+
+/* Hand indicator in participants list */
+.hand-indicator { font-size: 13px; margin-left: 4px; }
+
+/* "You" label in tile */
+.you-tag { color: var(--text-muted); font-size: 11px; }
+
+/* Lobby inline error */
+.lobby-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.lobby-error.hidden { display: none; }
+
+/* Toast improvements */
+.toast-fadeout { animation: toastOut 0.3s ease forwards; }
+.toast-error { border-color: var(--danger); color: #ff6b7a; }
+@keyframes toastOut {
+  to { transform: translateX(110%); opacity: 0; }
+}
