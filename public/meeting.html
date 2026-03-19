@@ -369,7 +369,14 @@ async function initPreview() {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     $('#lobbyVideo').srcObject = localStream;
     $('#lobbyAvatar').style.display = 'none';
-  } catch {
+  } catch(err) {
+    console.warn('Camera/mic access:', err.name, err.message);
+    const msg = err.name === 'NotAllowedError'
+      ? 'Camera/microphone access denied — check browser permissions'
+      : err.name === 'NotFoundError'
+      ? 'No camera or microphone found — you can still join audio-only'
+      : 'Could not access camera/microphone';
+    showLobbyError(msg);
     $('#lobbyAvatar').style.display = 'flex';
   }
   updateLobbyInitial();
@@ -580,6 +587,7 @@ function createPeerConnection(participantId, initiator) {
 
   pc.oniceconnectionstatechange = () => {
     if (pc.iceConnectionState === 'failed') pc.restartIce();
+    if (pc.iceConnectionState === 'disconnected') showToast('Peer connection unstable…', 'error');
   };
 
   if (initiator) {
@@ -905,24 +913,22 @@ $('#deviceBtn').addEventListener('click', async () => {
   const curVid   = localStream?.getVideoTracks()[0]?.getSettings().deviceId || '';
   const curAud   = localStream?.getAudioTracks()[0]?.getSettings().deviceId || '';
   sel.innerHTML = '';
-  if (cameras.length) {
-    sel.innerHTML += '<h4>Camera</h4>';
-    cameras.forEach(d => {
-      sel.innerHTML += `<button class="${d.deviceId===curVid?'selected':''}" onclick="switchCamera('${d.deviceId}')">${d.label||'Camera '+d.deviceId.slice(0,4)}</button>`;
+  function addDeviceGroup(title, items, curId, action) {
+    if (!items.length) return;
+    const h = document.createElement('h4');
+    h.textContent = title;
+    sel.appendChild(h);
+    items.forEach((d, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = d.label || `${title} ${i + 1}`;
+      if (d.deviceId === curId) btn.className = 'selected';
+      btn.addEventListener('click', () => action(d.deviceId));
+      sel.appendChild(btn);
     });
   }
-  if (mics.length) {
-    sel.innerHTML += '<h4>Microphone</h4>';
-    mics.forEach(d => {
-      sel.innerHTML += `<button class="${d.deviceId===curAud?'selected':''}" onclick="switchMic('${d.deviceId}')">${d.label||'Mic '+d.deviceId.slice(0,4)}</button>`;
-    });
-  }
-  if (speakers.length) {
-    sel.innerHTML += '<h4>Speaker</h4>';
-    speakers.forEach(d => {
-      sel.innerHTML += `<button onclick="switchSpeaker('${d.deviceId}')">${d.label||'Speaker '+d.deviceId.slice(0,4)}</button>`;
-    });
-  }
+  addDeviceGroup('Camera',     cameras,  curVid, switchCamera);
+  addDeviceGroup('Microphone', mics,     curAud, switchMic);
+  addDeviceGroup('Speaker',    speakers, '',     switchSpeaker);
   sel.classList.remove('hidden');
 });
 
@@ -1378,31 +1384,48 @@ function pinParticipant(pid) {
   renderVideoGrid();
 }
 
+// ─── Socket.IO connection resilience ─────────────────────────────────────────
+socket.on('disconnect', (reason) => {
+  if (reason === 'io server disconnect') {
+    showToast('Disconnected from server', 'error');
+  } else {
+    showToast('Connection lost — reconnecting…', 'error');
+  }
+});
+socket.on('reconnect', () => showToast('Reconnected', 'success'));
+socket.on('reconnect_failed', () => showToast('Could not reconnect — please refresh the page', 'error'));
+
 // ─── Admin helpers ────────────────────────────────────────────────────────────
 async function adminToggleMute(pid, currentlyMuted) {
   const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
-  await fetch(`/api/meetings/${meetingId}/participants/${pid}/${currentlyMuted ? 'unmute' : 'mute'}`, {
-    method: 'POST',
-    headers: { 'x-api-key': 'mk_default_test_key', 'x-admin-token': adminToken },
-  });
+  try {
+    await fetch(`/api/meetings/${meetingId}/participants/${pid}/${currentlyMuted ? 'unmute' : 'mute'}`, {
+      method: 'POST',
+      headers: { 'x-admin-token': adminToken },
+    });
+  } catch(err) { console.error('Mute toggle failed:', err); }
 }
 
 async function adminKick(pid) {
   if (!confirm('Remove this participant?')) return;
   const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
-  await fetch(`/api/meetings/${meetingId}/participants/${pid}/kick`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': 'mk_default_test_key', 'x-admin-token': adminToken },
-    body: JSON.stringify({ reason: 'Removed by host' }),
-  });
+  try {
+    await fetch(`/api/meetings/${meetingId}/participants/${pid}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ reason: 'Removed by host' }),
+    });
+  } catch(err) { console.error('Kick failed:', err); }
 }
 
 async function adminMuteAll() {
   const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
-  await fetch(`/api/meetings/${meetingId}/mute-all`, {
-    method: 'POST',
-    headers: { 'x-api-key': 'mk_default_test_key', 'x-admin-token': adminToken },
-  });
+  try {
+    await fetch(`/api/meetings/${meetingId}/mute-all`, {
+      method: 'POST',
+      headers: { 'x-admin-token': adminToken },
+    });
+  } catch(err) { console.error('Mute all failed:', err); }
 }
 
 // ─── Init control icons ───────────────────────────────────────────────────────

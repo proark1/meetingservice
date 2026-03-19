@@ -7,7 +7,24 @@ const path       = require('path');
 const bcrypt     = require('bcryptjs');
 const session    = require('express-session');
 const pgSession  = require('connect-pg-simple')(session);
+const helmet     = require('helmet');
+const rateLimit  = require('express-rate-limit');
+const compression = require('compression');
+const morgan     = require('morgan');
 const { pool, initDB, getSettings } = require('./db');
+
+// ─── Environment validation ───────────────────────────────────────────────────
+if (!process.env.DATABASE_PUBLIC_URL) {
+  console.error('FATAL: DATABASE_PUBLIC_URL is not set');
+  process.exit(1);
+}
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: SESSION_SECRET must be set in production');
+  process.exit(1);
+}
+if (!process.env.SESSION_SECRET) {
+  console.warn('WARNING: SESSION_SECRET not set — using insecure default. Set SESSION_SECRET env var.');
+}
 
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY) {
@@ -35,9 +52,56 @@ function generateInviteCode() {
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server, { cors: { origin: '*' } });
 
-app.use(cors());
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['*'];  // default permissive for dev — set ALLOWED_ORIGINS in production
+
+const io = new Server(server, {
+  cors: { origin: allowedOrigins.includes('*') ? '*' : allowedOrigins, credentials: true },
+  pingTimeout:  60000,
+  pingInterval: 25000,
+});
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      cb(null, true);
+    } else {
+      cb(new Error('CORS: origin not allowed'));
+    }
+  },
+  credentials: true,
+}));
+
+// ─── Security, compression, logging ──────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(compression());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// ─── Request timeout ──────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => res.status(503).json({ error: 'Request timeout' }));
+  next();
+});
+
+// ─── Rate limiters ────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts — please try again in 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Stripe webhook — must be raw body, before express.json()
 app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -57,6 +121,13 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
     const { userId, companyId, amountUsd } = session.metadata;
     const amt = parseFloat(amountUsd);
     try {
+      // Idempotency: skip if already completed
+      const { rows: existing } = await pool.query(
+        `SELECT status FROM stripe_topups WHERE session_id = $1`, [session.id]
+      );
+      if (existing[0]?.status === 'completed') {
+        return res.json({ received: true });
+      }
       if (companyId) {
         await pool.query(`UPDATE companies SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, companyId]);
       } else if (userId) {
@@ -75,6 +146,19 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Health check ─────────────────────────────────────────────────────────────
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString(), meetings: meetings.size });
+  } catch (err) {
+    res.status(503).json({ status: 'error', error: 'Database unavailable' });
+  }
+});
+
+// ─── General API rate limiter ──────────────────────────────────────────────────
+app.use('/api/', apiLimiter);
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 app.use(session({
@@ -111,7 +195,9 @@ function generateApiKey() {
 // Validates x-api-key against DB
 async function authApi(req, res, next) {
   const key = req.headers['x-api-key'];
-  if (!key) return res.status(401).json({ error: 'Invalid or missing API key' });
+  if (!key || typeof key !== 'string' || key.length > 100) {
+    return res.status(401).json({ error: 'Invalid or missing API key' });
+  }
   try {
     const { rows } = await pool.query(
       `SELECT id FROM api_keys WHERE key = $1 AND is_active = TRUE`, [key]
@@ -175,11 +261,16 @@ app.get('/api/config', async (_req, res) => {
 });
 
 // ─── User Auth ────────────────────────────────────────────────────────────────
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { email, password, accountType, companyName } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  if (password.length < 8)  return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  if (accountType === 'company' && !companyName) return res.status(400).json({ error: 'Company name required' });
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email) || email.length > 255) return res.status(400).json({ error: 'Invalid email format' });
+  if (password.length < 8)   return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (password.length > 128) return res.status(400).json({ error: 'Password too long' });
+  const safeAccountType = accountType === 'company' ? 'company' : 'personal';
+  if (safeAccountType === 'company' && !companyName) return res.status(400).json({ error: 'Company name required' });
+  if (companyName && companyName.length > 100) return res.status(400).json({ error: 'Company name too long (max 100 chars)' });
 
   try {
     const settings = await getSettings();
@@ -187,17 +278,18 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(403).json({ error: 'Registration is currently disabled' });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await pool.query(
       `INSERT INTO users (email, password_hash, account_type) VALUES ($1, $2, $3) RETURNING id, email, is_admin`,
-      [email.toLowerCase().trim(), hash, accountType === 'company' ? 'company' : 'personal']
+      [normalizedEmail, hash, safeAccountType]
     );
     const user = rows[0];
 
     let companyId = null;
     let inviteCode = null;
 
-    if (accountType === 'company') {
+    if (safeAccountType === 'company') {
       inviteCode = generateInviteCode();
       // Assign HD wallet index
       const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index), -1) + 1 AS next FROM companies`);
@@ -222,7 +314,7 @@ app.post('/api/auth/register', async (req, res) => {
     req.session.email     = user.email;
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = companyId;
-    res.json({ message: 'Account created', email: user.email, apiKey: key, inviteCode, accountType: accountType || 'personal' });
+    res.json({ message: 'Account created', email: user.email, apiKey: key, inviteCode, accountType: safeAccountType });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already registered' });
     console.error('Register error:', err);
@@ -230,14 +322,15 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  const { password } = req.body;
+  const email = (req.body.email || '').toLowerCase().trim().slice(0, 255);
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
   try {
     const { rows } = await pool.query(
       `SELECT id, email, password_hash, is_admin, is_active FROM users WHERE email = $1`,
-      [email.toLowerCase().trim()]
+      [email]
     );
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid email or password' });
 
@@ -261,7 +354,11 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy(() => res.json({ message: 'Logged out' }));
+  req.session.destroy(err => {
+    if (err) console.error('Session destroy error:', err);
+    res.clearCookie('connect.sid');
+    res.json({ message: 'Logged out' });
+  });
 });
 
 app.get('/api/auth/me', requireUserSession, async (req, res) => {
@@ -314,12 +411,13 @@ app.delete('/api/user/keys/:id', requireUserSession, async (req, res) => {
 });
 
 // ─── Admin Auth ───────────────────────────────────────────────────────────────
-app.post('/admin/login', async (req, res) => {
-  const { email, password } = req.body;
+app.post('/admin/login', authLimiter, async (req, res) => {
+  const { password } = req.body;
+  const email = (req.body.email || '').toLowerCase().trim().slice(0, 255);
   try {
     const { rows } = await pool.query(
       `SELECT id, email, password_hash, is_active FROM users WHERE email = $1 AND is_admin = TRUE`,
-      [email?.toLowerCase().trim()]
+      [email]
     );
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -340,7 +438,10 @@ app.post('/admin/login', async (req, res) => {
 });
 
 app.post('/admin/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/admin'));
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.redirect('/admin');
+  });
 });
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
@@ -776,7 +877,7 @@ app.post('/api/meetings', authApi, async (req, res) => {
   const meeting    = {
     id,
     adminToken,
-    title:    req.body.title || 'Untitled Meeting',
+    title:    ((req.body.title || 'Untitled Meeting') + '').slice(0, 100),
     createdAt: Date.now(),
     participants: new Map(),
     settings: {
@@ -919,10 +1020,11 @@ io.on('connection', (socket) => {
       return socket.emit('error', { message: 'Meeting is full' });
     }
 
-    const participantId = uuidv4().slice(0, 8);
+    const participantId = uuidv4();
+    const safeName = ((name || 'Anonymous') + '').trim().slice(0, 60) || 'Anonymous';
     const participant   = {
       id: participantId, socketId: socket.id,
-      name: name || 'Anonymous',
+      name: safeName,
       isMuted:       meeting.settings.muteOnJoin,
       isVideoOff:    meeting.settings.videoOffOnJoin,
       isScreenSharing: false,
@@ -1018,12 +1120,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat:message', ({ text }) => {
+    if (!text || typeof text !== 'string') return;
+    const trimmed = text.trim().slice(0, 500);
+    if (!trimmed) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
     if (!p) return;
     io.to(currentMeetingId).emit('chat:message', {
-      from: currentParticipantId, name: p.name, text, timestamp: Date.now(),
+      from: currentParticipantId, name: p.name, text: trimmed, timestamp: Date.now(),
     });
   });
 
@@ -1059,3 +1164,25 @@ initDB()
     console.error('Failed to initialise database:', err);
     process.exit(1);
   });
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+function gracefulShutdown(signal) {
+  console.log(`${signal} received — shutting down gracefully`);
+  server.close(async () => {
+    console.log('HTTP server closed');
+    try {
+      await pool.end();
+      console.log('Database pool closed');
+    } catch (err) {
+      console.error('Pool close error:', err);
+    }
+    process.exit(0);
+  });
+  // Force-exit after 10s if not done
+  setTimeout(() => {
+    console.error('Forced exit after shutdown timeout');
+    process.exit(1);
+  }, 10000).unref();
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));

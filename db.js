@@ -4,6 +4,9 @@ const bcrypt = require('bcryptjs');
 const pool = new Pool({
   connectionString: process.env.DATABASE_PUBLIC_URL,
   ssl: process.env.DATABASE_PUBLIC_URL ? { rejectUnauthorized: false } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 async function initDB() {
@@ -128,6 +131,50 @@ async function initDB() {
     await client.query(
       `INSERT INTO monitor_state (key, value) VALUES ('usdc_last_block', '0') ON CONFLICT (key) DO NOTHING`
     );
+
+    // ─── Safe schema migrations ───────────────────────────────────────────────
+    // Add FK from users.company_id → companies(id) if not already present
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE users ADD CONSTRAINT fk_users_company
+          FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL NOT VALID;
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
+    `);
+
+    // NOT NULL on financial amount columns
+    await client.query(`ALTER TABLE stripe_topups ALTER COLUMN amount_usd SET NOT NULL`).catch(() => {});
+    await client.query(`ALTER TABLE usdc_deposits  ALTER COLUMN amount_usd SET NOT NULL`).catch(() => {});
+
+    // CHECK constraints (all idempotent via exception handling)
+    for (const stmt of [
+      `ALTER TABLE stripe_topups       ADD CONSTRAINT chk_stripe_amount   CHECK (amount_usd > 0)`,
+      `ALTER TABLE usdc_deposits        ADD CONSTRAINT chk_usdc_amount     CHECK (amount_usd > 0)`,
+      `ALTER TABLE companies            ADD CONSTRAINT chk_credits_gte_zero CHECK (credits_usd >= 0)`,
+      `ALTER TABLE credit_transactions  ADD CONSTRAINT chk_tx_amount       CHECK (amount_usd <> 0)`,
+      `ALTER TABLE companies            ADD CONSTRAINT chk_plan            CHECK (plan IN ('free','starter','pro','business'))`,
+      `ALTER TABLE stripe_topups        ADD CONSTRAINT chk_stripe_status   CHECK (status IN ('pending','completed','failed'))`,
+      `ALTER TABLE usdc_deposits         ADD CONSTRAINT chk_usdc_status    CHECK (status IN ('pending','confirmed','failed'))`,
+    ]) {
+      await client.query(`DO $$ BEGIN ${stmt}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    }
+
+    // ─── Indexes ──────────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_api_keys_user_id      ON api_keys(user_id);
+      CREATE INDEX IF NOT EXISTS idx_api_keys_key          ON api_keys(key);
+      CREATE INDEX IF NOT EXISTS idx_users_email           ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_company         ON users(company_id);
+      CREATE INDEX IF NOT EXISTS idx_companies_owner       ON companies(owner_id);
+      CREATE INDEX IF NOT EXISTS idx_companies_invite      ON companies(invite_code);
+      CREATE INDEX IF NOT EXISTS idx_credit_tx_user_id     ON credit_transactions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_credit_tx_company_id  ON credit_transactions(company_id);
+      CREATE INDEX IF NOT EXISTS idx_credit_tx_created     ON credit_transactions(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_stripe_topups_user    ON stripe_topups(user_id);
+      CREATE INDEX IF NOT EXISTS idx_stripe_topups_company ON stripe_topups(company_id);
+      CREATE INDEX IF NOT EXISTS idx_usdc_deposits_user    ON usdc_deposits(user_id);
+      CREATE INDEX IF NOT EXISTS idx_usdc_deposits_company ON usdc_deposits(company_id);
+    `);
 
     // ─── Default settings ─────────────────────────────────────────────────────
     const defaults = [

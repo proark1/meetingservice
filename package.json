@@ -17,6 +17,10 @@
     "express-session": "^1.17.3",
     "connect-pg-simple": "^9.0.1",
     "stripe": "^14.21.0",
-    "ethers": "^6.11.0"
+    "ethers": "^6.11.0",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.4.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0"
   }
 }
