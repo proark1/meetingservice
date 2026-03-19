@@ -92,6 +92,43 @@ async function initDB() {
       );
     `);
 
+    // ─── Platform config & monitor state tables ───────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS platform_config (
+        key        VARCHAR(100) PRIMARY KEY,
+        value      TEXT,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS monitor_state (
+        key        VARCHAR(100) PRIMARY KEY,
+        value      TEXT,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS unmatched_usdc_transfers (
+        id              SERIAL PRIMARY KEY,
+        tx_hash         VARCHAR(200) UNIQUE NOT NULL,
+        from_address    VARCHAR(200) NOT NULL,
+        amount_usdc     DECIMAL(18,6) NOT NULL,
+        block_number    BIGINT,
+        resolved        BOOLEAN DEFAULT FALSE,
+        resolution_note TEXT,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // Seed platform_config defaults
+    for (const [key, value] of [['platform_wallet', ''], ['rpc_url', '']]) {
+      await client.query(
+        `INSERT INTO platform_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+        [key, value]
+      );
+    }
+    await client.query(
+      `INSERT INTO monitor_state (key, value) VALUES ('usdc_last_block', '0') ON CONFLICT (key) DO NOTHING`
+    );
+
     // ─── Default settings ─────────────────────────────────────────────────────
     const defaults = [
       ['recording_enabled',          'true'],

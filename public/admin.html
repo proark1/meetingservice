@@ -155,6 +155,36 @@
     .toast.error { border-color: var(--danger); color: #ff6b7a; }
     @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
+    /* Sub-tabs */
+    .sub-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .sub-tab {
+      padding: 8px 18px; font-size: 13px; font-weight: 500; color: var(--text-muted);
+      border: none; background: none; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s;
+    }
+    .sub-tab:hover { color: var(--text); }
+    .sub-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Config cards (Crypto section) */
+    .config-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 16px;
+    }
+    .config-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .config-card p  { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .config-row { display: flex; gap: 8px; align-items: center; }
+    .config-input {
+      flex: 1; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 13px;
+      font-family: monospace; outline: none;
+    }
+    .config-input:focus { border-color: var(--primary); }
+    .config-input.invalid { border-color: var(--danger); }
+
+    /* Extra badge colors */
+    .badge.purple { background: rgba(139,92,246,.12); color: #7c3aed; }
+    .badge.gray   { background: rgba(100,116,139,.12); color: #64748b; }
+
     @media (max-width: 768px) {
       .sidebar { width: 56px; }
       .sidebar-logo, .nav-item span.label, .sidebar-footer .btn { display: none; }
@@ -188,6 +218,15 @@
       <button class="nav-item" data-section="settings">
         <span class="icon">⚙</span><span class="label">Settings</span>
       </button>
+      <button class="nav-item" data-section="billing">
+        <span class="icon">💳</span><span class="label">Billing</span>
+      </button>
+      <button class="nav-item" data-section="companies">
+        <span class="icon">🏢</span><span class="label">Companies</span>
+      </button>
+      <button class="nav-item" data-section="crypto">
+        <span class="icon">🔗</span><span class="label">Crypto</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="logout()">Sign Out</button>
@@ -212,6 +251,14 @@
         <div class="stat-card">
           <div class="stat-label">Active API Keys</div>
           <div class="stat-value orange" id="stat-keys">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Companies</div>
+          <div class="stat-value blue" id="stat-companies">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Credits Issued</div>
+          <div class="stat-value green" id="stat-credits">—</div>
         </div>
       </div>
 
@@ -251,8 +298,8 @@
           <button class="btn btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
         </div>
         <table>
-          <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>API Keys</th><th>Joined</th><th></th></tr></thead>
-          <tbody id="users-body"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+          <thead><tr><th>Email</th><th>Type</th><th>Role</th><th>Status</th><th>Credits</th><th>Company</th><th>API Keys</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="users-body"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -332,10 +379,155 @@
           </div>
           <input type="number" class="number-input" id="s-autodelete" min="1" max="1440" value="60">
         </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Stripe Payments</h4>
+            <p>Allow users to top up via Stripe checkout</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s-stripe" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-card">
+          <div class="setting-info">
+            <h4>Crypto (USDC) Payments</h4>
+            <p>Allow users to deposit USDC for credits</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s-crypto" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="settings-save">
         <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+
+    <!-- Billing -->
+    <div class="section" id="section-billing">
+      <div class="page-title">Billing</div>
+
+      <div class="sub-tabs">
+        <button class="sub-tab active" data-billing-tab="transactions" onclick="switchBillingTab('transactions')">Transactions</button>
+        <button class="sub-tab" data-billing-tab="stripe" onclick="switchBillingTab('stripe')">Stripe Top-ups</button>
+        <button class="sub-tab" data-billing-tab="credit" onclick="switchBillingTab('credit')">Manual Credit</button>
+      </div>
+
+      <div id="billing-tab-transactions">
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>All Transactions</h3>
+            <button class="btn btn-ghost btn-sm" onclick="loadBillingTransactions()">Refresh</button>
+          </div>
+          <table>
+            <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Type</th><th>Description</th><th>Date</th></tr></thead>
+            <tbody id="billing-tx-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="billing-tab-stripe" style="display:none">
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Stripe Top-ups</h3>
+            <button class="btn btn-ghost btn-sm" onclick="loadBillingStripe()">Refresh</button>
+          </div>
+          <table>
+            <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Status</th><th>Session ID</th><th>Date</th></tr></thead>
+            <tbody id="billing-stripe-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="billing-tab-credit" style="display:none">
+        <div class="config-card">
+          <h4>Grant Credits</h4>
+          <p>Credits the company pool if user belongs to one, otherwise credits the individual user account.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:480px;">
+            <input class="config-input" id="credit-email" type="email" placeholder="User email address">
+            <input class="config-input" id="credit-amount" type="number" step="0.01" min="0.01" placeholder="Amount USD (e.g. 10.00)">
+            <input class="config-input" id="credit-note" type="text" placeholder="Note (optional)">
+            <button class="btn btn-primary" onclick="grantCredit()" style="align-self:flex-start;">Grant Credits</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Companies -->
+    <div class="section" id="section-companies">
+      <div class="page-title">Companies</div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>All Companies</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadCompanies()">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>Owner</th><th>Plan</th><th>Members</th><th>Credits</th><th>Wallet</th><th>Created</th><th></th></tr></thead>
+          <tbody id="companies-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Crypto -->
+    <div class="section" id="section-crypto">
+      <div class="page-title">Crypto / USDC</div>
+
+      <div class="config-card">
+        <h4>Platform Collection Wallet</h4>
+        <p>Single ETH address where all platform USDC deposits are collected. Must be a valid 0x address.</p>
+        <div class="config-row">
+          <input class="config-input" id="crypto-wallet-input" placeholder="0x…" maxlength="42">
+          <button class="btn btn-primary btn-sm" onclick="saveCryptoWallet()">Save</button>
+        </div>
+      </div>
+
+      <div class="config-card">
+        <h4>Ethereum JSON-RPC URL</h4>
+        <p>Endpoint used by the USDC deposit monitor (e.g. Infura, Alchemy, or your own node).</p>
+        <div class="config-row">
+          <input class="config-input" id="crypto-rpc-input" placeholder="https://mainnet.infura.io/v3/YOUR_KEY">
+          <button class="btn btn-primary btn-sm" onclick="saveCryptoRpc()">Save</button>
+        </div>
+      </div>
+
+      <div class="config-card">
+        <h4>USDC Monitor State</h4>
+        <p>Last scanned Ethereum block: <strong id="crypto-last-block">—</strong>. Reset the checkpoint to force a re-scan from a specific block.</p>
+        <div class="config-row">
+          <input class="config-input" id="crypto-rescan-block" type="number" min="0" placeholder="Block number to reset to…" style="max-width:240px;">
+          <button class="btn btn-ghost btn-sm" onclick="cryptoRescan()">Reset Checkpoint</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>USDC Deposits</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadCryptoDeposits()">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Wallet</th><th>TX Hash</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="crypto-deposits-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Unmatched USDC Transfers</h3>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px;cursor:pointer;">
+              <input type="checkbox" id="unmatched-hide-resolved" checked onchange="loadUnmatchedTransfers()">
+              Hide resolved
+            </label>
+            <button class="btn btn-ghost btn-sm" onclick="loadUnmatchedTransfers()">Refresh</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>From Address</th><th>Amount USDC</th><th>Block</th><th>TX Hash</th><th>Resolved</th><th>Note</th><th></th></tr></thead>
+          <tbody id="unmatched-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+        </table>
       </div>
     </div>
 
@@ -368,11 +560,14 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     btn.classList.add('active');
     const section = btn.dataset.section;
     document.getElementById('section-' + section).classList.add('active');
-    if (section === 'overview') loadOverview();
-    else if (section === 'meetings') loadMeetings();
-    else if (section === 'users')    loadUsers();
-    else if (section === 'apikeys')  loadKeys();
-    else if (section === 'settings') loadSettings();
+    if      (section === 'overview')  loadOverview();
+    else if (section === 'meetings')  loadMeetings();
+    else if (section === 'users')     loadUsers();
+    else if (section === 'apikeys')   loadKeys();
+    else if (section === 'settings')  loadSettings();
+    else if (section === 'billing')   loadBilling();
+    else if (section === 'companies') loadCompanies();
+    else if (section === 'crypto')    loadCrypto();
   });
 });
 
@@ -395,9 +590,12 @@ async function loadOverview() {
     fetch('/admin/api/stats').then(r => r.json()),
     fetch('/admin/api/meetings').then(r => r.json()),
   ]);
-  document.getElementById('stat-meetings').textContent = stats.activeMeetings;
-  document.getElementById('stat-users').textContent    = stats.totalUsers;
-  document.getElementById('stat-keys').textContent     = stats.activeApiKeys;
+  document.getElementById('stat-meetings').textContent  = stats.activeMeetings;
+  document.getElementById('stat-users').textContent     = stats.totalUsers;
+  document.getElementById('stat-keys').textContent      = stats.activeApiKeys;
+  document.getElementById('stat-companies').textContent = stats.totalCompanies ?? '—';
+  document.getElementById('stat-credits').textContent   = stats.totalCreditsIssued != null
+    ? '$' + parseFloat(stats.totalCreditsIssued).toFixed(2) : '—';
 
   const tbody = document.getElementById('overview-meetings-body');
   if (!mtgs.meetings.length) {
@@ -453,8 +651,13 @@ async function loadUsers() {
   tbody.innerHTML = users.map(u => `
     <tr>
       <td>${esc(u.email)}</td>
+      <td>${u.account_type === 'company'
+        ? '<span class="badge purple">Company</span>'
+        : '<span class="badge gray">Personal</span>'}</td>
       <td>${u.is_admin ? '<span class="badge blue">Admin</span>' : '<span class="badge orange">User</span>'}</td>
       <td>${u.is_active ? '<span class="badge green">Active</span>' : '<span class="badge red">Disabled</span>'}</td>
+      <td>$${parseFloat(u.credits_usd || 0).toFixed(2)}</td>
+      <td>${esc(u.company_name || '—')}</td>
       <td>${u.active_key_count}</td>
       <td>${fmt(u.created_at)}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -570,6 +773,8 @@ async function loadSettings() {
   document.getElementById('s-registration').checked   = s.registration_enabled   !== 'false';
   document.getElementById('s-maxparticipants').value  = s.max_participants_default || 50;
   document.getElementById('s-autodelete').value       = s.meeting_auto_delete_minutes || 60;
+  document.getElementById('s-stripe').checked         = s.stripe_enabled         !== 'false';
+  document.getElementById('s-crypto').checked         = s.crypto_enabled         !== 'false';
 }
 
 async function saveSettings() {
@@ -580,6 +785,8 @@ async function saveSettings() {
     registration_enabled:        document.getElementById('s-registration').checked ? 'true' : 'false',
     max_participants_default:    document.getElementById('s-maxparticipants').value,
     meeting_auto_delete_minutes: document.getElementById('s-autodelete').value,
+    stripe_enabled:              document.getElementById('s-stripe').checked        ? 'true' : 'false',
+    crypto_enabled:              document.getElementById('s-crypto').checked        ? 'true' : 'false',
   };
   const res = await fetch('/admin/api/settings', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -602,6 +809,213 @@ function copyText(text) {
 async function logout() {
   await fetch('/admin/logout', { method: 'POST' });
   window.location.href = '/admin';
+}
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+function loadBilling() { switchBillingTab('transactions'); }
+
+function switchBillingTab(tab) {
+  document.querySelectorAll('[data-billing-tab]').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-billing-tab="${tab}"]`).classList.add('active');
+  ['transactions','stripe','credit'].forEach(t => {
+    document.getElementById(`billing-tab-${t}`).style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'transactions') loadBillingTransactions();
+  if (tab === 'stripe')       loadBillingStripe();
+}
+
+async function loadBillingTransactions() {
+  const { transactions } = await fetch('/admin/api/billing/transactions').then(r => r.json());
+  const tbody = document.getElementById('billing-tx-body');
+  if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No transactions</td></tr>'; return; }
+  tbody.innerHTML = transactions.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td>${esc(t.user_email || '—')}</td>
+      <td>${esc(t.company_name || '—')}</td>
+      <td style="color:${parseFloat(t.amount_usd)>=0?'var(--success)':'var(--danger)'}">$${parseFloat(t.amount_usd).toFixed(4)}</td>
+      <td><span class="badge ${t.type==='admin_grant'?'blue':t.type==='stripe_topup'?'green':'orange'}">${esc(t.type)}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.description || '—')}</td>
+      <td>${fmt(t.created_at)}</td>
+    </tr>`).join('');
+}
+
+async function loadBillingStripe() {
+  const { topups } = await fetch('/admin/api/billing/stripe').then(r => r.json());
+  const tbody = document.getElementById('billing-stripe-body');
+  if (!topups.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No Stripe top-ups</td></tr>'; return; }
+  tbody.innerHTML = topups.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td>${esc(t.user_email || '—')}</td>
+      <td>${esc(t.company_name || '—')}</td>
+      <td>$${parseFloat(t.amount_usd).toFixed(2)}</td>
+      <td><span class="badge ${t.status==='completed'?'green':t.status==='pending'?'orange':'red'}">${t.status}</span></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-family:monospace;font-size:11px;">${esc(t.session_id)}</td>
+      <td>${fmt(t.created_at)}</td>
+    </tr>`).join('');
+}
+
+async function grantCredit() {
+  const email     = document.getElementById('credit-email').value.trim();
+  const amountUsd = parseFloat(document.getElementById('credit-amount').value);
+  const note      = document.getElementById('credit-note').value.trim();
+  if (!email)             return toast('Email required', 'error');
+  if (!amountUsd || amountUsd <= 0) return toast('Amount must be > 0', 'error');
+  const res  = await fetch('/admin/api/billing/credit', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, amountUsd, note }),
+  });
+  const data = await res.json();
+  toast(res.ok ? data.message : data.error, res.ok ? '' : 'error');
+  if (res.ok) {
+    document.getElementById('credit-email').value  = '';
+    document.getElementById('credit-amount').value = '';
+    document.getElementById('credit-note').value   = '';
+  }
+}
+
+// ─── Companies ────────────────────────────────────────────────────────────────
+async function loadCompanies() {
+  const { companies } = await fetch('/admin/api/companies').then(r => r.json());
+  const tbody = document.getElementById('companies-body');
+  if (!companies.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No companies</td></tr>'; return; }
+  tbody.innerHTML = companies.map(c => `
+    <tr>
+      <td><strong>${esc(c.name)}</strong></td>
+      <td>${esc(c.owner_email || '—')}</td>
+      <td>
+        <select onchange="updateCompanyPlan(${c.id}, this.value)"
+          style="font-size:12px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+          ${['free','starter','pro','business'].map(p =>
+            `<option value="${p}" ${c.plan===p?'selected':''}>${p}</option>`
+          ).join('')}
+        </select>
+      </td>
+      <td>${c.member_count}</td>
+      <td>$${parseFloat(c.credits_usd || 0).toFixed(2)}</td>
+      <td style="font-family:monospace;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${c.wallet_address ? c.wallet_address.slice(0,10)+'…' : '—'}</td>
+      <td>${fmt(c.created_at)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="dissolveCompany(${c.id}, '${esc(c.name).replace(/'/g,"\\'")}')">Dissolve</button></td>
+    </tr>`).join('');
+}
+
+async function updateCompanyPlan(id, plan) {
+  const res  = await fetch(`/admin/api/companies/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan }),
+  });
+  const data = await res.json();
+  toast(res.ok ? 'Plan updated to ' + plan : data.error, res.ok ? '' : 'error');
+}
+
+async function dissolveCompany(id, name) {
+  if (!confirm(`Dissolve company "${name}"?\n\nAll members will be detached and company data deleted. This cannot be undone.`)) return;
+  const res  = await fetch(`/admin/api/companies/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  toast(res.ok ? 'Company dissolved' : data.error, res.ok ? '' : 'error');
+  if (res.ok) loadCompanies();
+}
+
+// ─── Crypto ───────────────────────────────────────────────────────────────────
+async function loadCrypto() {
+  const data = await fetch('/admin/api/crypto/config').then(r => r.json());
+  document.getElementById('crypto-wallet-input').value  = data.platformWallet || '';
+  document.getElementById('crypto-rpc-input').value     = data.rpcUrl || '';
+  document.getElementById('crypto-last-block').textContent = data.lastBlock || '0';
+  loadCryptoDeposits();
+  loadUnmatchedTransfers();
+}
+
+async function saveCryptoWallet() {
+  const address = document.getElementById('crypto-wallet-input').value.trim();
+  const input   = document.getElementById('crypto-wallet-input');
+  if (!address.match(/^0x[0-9a-fA-F]{40}$/)) {
+    input.classList.add('invalid');
+    return toast('Invalid address — must be 0x followed by 40 hex characters', 'error');
+  }
+  input.classList.remove('invalid');
+  const res  = await fetch('/admin/api/crypto/wallet', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  });
+  const data = await res.json();
+  toast(res.ok ? 'Platform wallet saved' : data.error, res.ok ? '' : 'error');
+}
+
+async function saveCryptoRpc() {
+  const url = document.getElementById('crypto-rpc-input').value.trim();
+  if (!url) return toast('RPC URL required', 'error');
+  const res  = await fetch('/admin/api/crypto/rpc', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  const data = await res.json();
+  toast(res.ok ? 'RPC URL saved' : data.error, res.ok ? '' : 'error');
+}
+
+async function cryptoRescan() {
+  const fromBlock = parseInt(document.getElementById('crypto-rescan-block').value);
+  if (isNaN(fromBlock) || fromBlock < 0) return toast('Enter a valid non-negative block number', 'error');
+  if (!confirm(`Reset USDC monitor checkpoint to block ${fromBlock}?\n\nThe monitor will re-scan from this block on next run.`)) return;
+  const res  = await fetch('/admin/api/crypto/rescan', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fromBlock }),
+  });
+  const data = await res.json();
+  toast(res.ok ? data.message : data.error, res.ok ? '' : 'error');
+  if (res.ok) {
+    document.getElementById('crypto-last-block').textContent = fromBlock;
+    document.getElementById('crypto-rescan-block').value = '';
+  }
+}
+
+async function loadCryptoDeposits() {
+  const { deposits } = await fetch('/admin/api/crypto/deposits').then(r => r.json());
+  const tbody = document.getElementById('crypto-deposits-body');
+  if (!deposits.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No USDC deposits</td></tr>'; return; }
+  tbody.innerHTML = deposits.map(d => `
+    <tr>
+      <td>${d.id}</td>
+      <td>${esc(d.user_email || '—')}</td>
+      <td>${esc(d.company_name || '—')}</td>
+      <td>$${parseFloat(d.amount_usd || 0).toFixed(4)}</td>
+      <td style="font-family:monospace;font-size:11px;">${d.wallet_address ? d.wallet_address.slice(0,12)+'…' : '—'}</td>
+      <td style="font-family:monospace;font-size:11px;">${d.tx_hash ? d.tx_hash.slice(0,12)+'…' : '—'}</td>
+      <td><span class="badge ${d.status==='completed'?'green':d.status==='pending'?'orange':'red'}">${d.status}</span></td>
+      <td>${fmt(d.created_at)}</td>
+    </tr>`).join('');
+}
+
+async function loadUnmatchedTransfers() {
+  const hideResolved = document.getElementById('unmatched-hide-resolved').checked;
+  const url = '/admin/api/crypto/unmatched' + (hideResolved ? '?resolved=false' : '');
+  const { transfers } = await fetch(url).then(r => r.json());
+  const tbody = document.getElementById('unmatched-body');
+  if (!transfers.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No unmatched transfers</td></tr>'; return; }
+  tbody.innerHTML = transfers.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td style="font-family:monospace;font-size:11px;">${esc(t.from_address)}</td>
+      <td>${parseFloat(t.amount_usdc).toFixed(6)}</td>
+      <td>${t.block_number ?? '—'}</td>
+      <td style="font-family:monospace;font-size:11px;">${t.tx_hash ? t.tx_hash.slice(0,12)+'…' : '—'}</td>
+      <td>${t.resolved ? '<span class="badge green">Yes</span>' : '<span class="badge orange">No</span>'}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">${esc(t.resolution_note || '—')}</td>
+      <td>${!t.resolved ? `<button class="btn btn-ghost btn-sm" onclick="resolveTransfer(${t.id})">Resolve</button>` : ''}</td>
+    </tr>`).join('');
+}
+
+async function resolveTransfer(id) {
+  const note = prompt('Resolution note (optional):');
+  if (note === null) return; // cancelled
+  const res  = await fetch(`/admin/api/crypto/unmatched/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resolved: true, note: note.trim() }),
+  });
+  const data = await res.json();
+  toast(res.ok ? 'Marked as resolved' : data.error, res.ok ? '' : 'error');
+  if (res.ok) loadUnmatchedTransfers();
 }
 
 // Initial load

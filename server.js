@@ -345,14 +345,18 @@ app.post('/admin/logout', (req, res) => {
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
 app.get('/admin/api/stats', requireAdminSession, async (_req, res) => {
-  const [users, keys] = await Promise.all([
+  const [users, keys, companies, credits] = await Promise.all([
     pool.query(`SELECT COUNT(*) AS cnt FROM users WHERE is_active = TRUE`),
     pool.query(`SELECT COUNT(*) AS cnt FROM api_keys WHERE is_active = TRUE`),
+    pool.query(`SELECT COUNT(*) AS cnt FROM companies`),
+    pool.query(`SELECT COALESCE(SUM(amount_usd),0) AS total FROM credit_transactions WHERE amount_usd > 0`),
   ]);
   res.json({
-    activeMeetings:  meetings.size,
-    totalUsers:      parseInt(users.rows[0].cnt),
-    activeApiKeys:   parseInt(keys.rows[0].cnt),
+    activeMeetings:     meetings.size,
+    totalUsers:         parseInt(users.rows[0].cnt),
+    activeApiKeys:      parseInt(keys.rows[0].cnt),
+    totalCompanies:     parseInt(companies.rows[0].cnt),
+    totalCreditsIssued: parseFloat(credits.rows[0].total),
   });
 });
 
@@ -381,10 +385,13 @@ app.delete('/admin/api/meetings/:meetingId', requireAdminSession, (req, res) => 
 app.get('/admin/api/users', requireAdminSession, async (_req, res) => {
   const { rows } = await pool.query(`
     SELECT u.id, u.email, u.is_admin, u.is_active, u.created_at,
+           u.credits_usd, u.account_type,
+           c.name AS company_name,
            COUNT(k.id) FILTER (WHERE k.is_active) AS active_key_count
     FROM users u
     LEFT JOIN api_keys k ON k.user_id = u.id
-    GROUP BY u.id
+    LEFT JOIN companies c ON c.id = u.company_id
+    GROUP BY u.id, c.name
     ORDER BY u.created_at DESC
   `);
   res.json({ users: rows });
@@ -447,6 +454,7 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
   const allowed = [
     'recording_enabled','screen_share_enabled','blur_enabled',
     'registration_enabled','max_participants_default','meeting_auto_delete_minutes',
+    'stripe_enabled','crypto_enabled',
   ];
   const entries = Object.entries(req.body).filter(([k]) => allowed.includes(k));
   if (entries.length === 0) return res.status(400).json({ error: 'No valid settings provided' });
@@ -459,6 +467,186 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
     );
   }
   res.json({ message: 'Settings updated' });
+});
+
+// ─── Admin API — Billing ──────────────────────────────────────────────────────
+
+app.get('/admin/api/billing/transactions', requireAdminSession, async (_req, res) => {
+  const { rows } = await pool.query(`
+    SELECT ct.id, ct.amount_usd, ct.type, ct.reference_id, ct.description, ct.created_at,
+           u.email AS user_email, c.name AS company_name
+    FROM credit_transactions ct
+    LEFT JOIN users u ON u.id = ct.user_id
+    LEFT JOIN companies c ON c.id = ct.company_id
+    ORDER BY ct.created_at DESC
+    LIMIT 100
+  `);
+  res.json({ transactions: rows });
+});
+
+app.get('/admin/api/billing/stripe', requireAdminSession, async (_req, res) => {
+  const { rows } = await pool.query(`
+    SELECT st.id, st.amount_usd, st.session_id, st.status, st.created_at,
+           u.email AS user_email, c.name AS company_name
+    FROM stripe_topups st
+    LEFT JOIN users u ON u.id = st.user_id
+    LEFT JOIN companies c ON c.id = st.company_id
+    ORDER BY st.created_at DESC
+  `);
+  res.json({ topups: rows });
+});
+
+app.post('/admin/api/billing/credit', requireAdminSession, async (req, res) => {
+  const { email, amountUsd, note } = req.body;
+  if (!email || !amountUsd) return res.status(400).json({ error: 'email and amountUsd required' });
+  const amt = parseFloat(amountUsd);
+  if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: 'amountUsd must be a positive number' });
+
+  const { rows } = await pool.query(
+    `SELECT id, account_type, company_id FROM users WHERE email = $1`,
+    [email.toLowerCase().trim()]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'User not found' });
+  const user = rows[0];
+
+  if (user.company_id) {
+    await pool.query(`UPDATE companies SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, user.company_id]);
+    await pool.query(
+      `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, description) VALUES ($1,$2,$3,'admin_grant',$4)`,
+      [user.id, user.company_id, amt, note || `Admin credit grant to ${email}`]
+    );
+  } else {
+    await pool.query(`UPDATE users SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, user.id]);
+    await pool.query(
+      `INSERT INTO credit_transactions (user_id, amount_usd, type, description) VALUES ($1,$2,'admin_grant',$3)`,
+      [user.id, amt, note || `Admin credit grant to ${email}`]
+    );
+  }
+  res.json({ message: `Credited $${amt.toFixed(2)} to ${email}` });
+});
+
+// ─── Admin API — Companies ────────────────────────────────────────────────────
+
+app.get('/admin/api/companies', requireAdminSession, async (_req, res) => {
+  const { rows } = await pool.query(`
+    SELECT c.id, c.name, c.credits_usd, c.plan, c.invite_code, c.wallet_address, c.created_at,
+           u.email AS owner_email,
+           COUNT(m.id) AS member_count
+    FROM companies c
+    LEFT JOIN users u ON u.id = c.owner_id
+    LEFT JOIN users m ON m.company_id = c.id
+    GROUP BY c.id, u.email
+    ORDER BY c.created_at DESC
+  `);
+  res.json({ companies: rows });
+});
+
+app.patch('/admin/api/companies/:id', requireAdminSession, async (req, res) => {
+  const { plan } = req.body;
+  const validPlans = ['free', 'starter', 'pro', 'business'];
+  if (!plan || !validPlans.includes(plan)) {
+    return res.status(400).json({ error: 'plan must be one of: ' + validPlans.join(', ') });
+  }
+  const { rowCount } = await pool.query(
+    `UPDATE companies SET plan = $1 WHERE id = $2`, [plan, req.params.id]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Company not found' });
+  res.json({ message: 'Company plan updated' });
+});
+
+app.delete('/admin/api/companies/:id', requireAdminSession, async (req, res) => {
+  const companyId = parseInt(req.params.id);
+  if (isNaN(companyId)) return res.status(400).json({ error: 'Invalid company id' });
+  // Pre-nullify all FK references before deleting
+  await pool.query(`UPDATE usdc_deposits SET company_id = NULL WHERE company_id = $1`, [companyId]);
+  await pool.query(`UPDATE stripe_topups SET company_id = NULL WHERE company_id = $1`, [companyId]);
+  await pool.query(`UPDATE credit_transactions SET company_id = NULL WHERE company_id = $1`, [companyId]);
+  await pool.query(`UPDATE users SET company_id = NULL WHERE company_id = $1`, [companyId]);
+  await pool.query(`DELETE FROM companies WHERE id = $1`, [companyId]);
+  res.json({ message: 'Company dissolved' });
+});
+
+// ─── Admin API — Crypto ───────────────────────────────────────────────────────
+
+app.get('/admin/api/crypto/config', requireAdminSession, async (_req, res) => {
+  const [cfg, state] = await Promise.all([
+    pool.query(`SELECT key, value FROM platform_config`),
+    pool.query(`SELECT key, value FROM monitor_state`),
+  ]);
+  const config = Object.fromEntries(cfg.rows.map(r => [r.key, r.value]));
+  const mstate = Object.fromEntries(state.rows.map(r => [r.key, r.value]));
+  res.json({
+    platformWallet: config.platform_wallet || '',
+    rpcUrl:         config.rpc_url || '',
+    lastBlock:      mstate.usdc_last_block || '0',
+    monitorActive:  false,
+  });
+});
+
+app.put('/admin/api/crypto/wallet', requireAdminSession, async (req, res) => {
+  const { address } = req.body;
+  if (!address || !address.match(/^0x[0-9a-fA-F]{40}$/)) {
+    return res.status(400).json({ error: 'Invalid Ethereum address (must be 0x + 40 hex chars)' });
+  }
+  await pool.query(
+    `INSERT INTO platform_config (key, value, updated_at) VALUES ('platform_wallet', $1, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+    [address]
+  );
+  res.json({ message: 'Platform wallet updated', address });
+});
+
+app.put('/admin/api/crypto/rpc', requireAdminSession, async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try { new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL format' }); }
+  await pool.query(
+    `INSERT INTO platform_config (key, value, updated_at) VALUES ('rpc_url', $1, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+    [url]
+  );
+  res.json({ message: 'RPC URL updated' });
+});
+
+app.get('/admin/api/crypto/deposits', requireAdminSession, async (_req, res) => {
+  const { rows } = await pool.query(`
+    SELECT d.id, d.amount_usd, d.tx_hash, d.wallet_address, d.status, d.created_at,
+           u.email AS user_email, c.name AS company_name
+    FROM usdc_deposits d
+    LEFT JOIN users u ON u.id = d.user_id
+    LEFT JOIN companies c ON c.id = d.company_id
+    ORDER BY d.created_at DESC
+  `);
+  res.json({ deposits: rows });
+});
+
+app.get('/admin/api/crypto/unmatched', requireAdminSession, async (req, res) => {
+  let query = `SELECT * FROM unmatched_usdc_transfers`;
+  if (req.query.resolved === 'false') query += ` WHERE resolved = FALSE`;
+  query += ` ORDER BY created_at DESC`;
+  const { rows } = await pool.query(query);
+  res.json({ transfers: rows });
+});
+
+app.patch('/admin/api/crypto/unmatched/:id', requireAdminSession, async (req, res) => {
+  const { resolved, note } = req.body;
+  const { rowCount } = await pool.query(
+    `UPDATE unmatched_usdc_transfers SET resolved = $1, resolution_note = $2 WHERE id = $3`,
+    [!!resolved, note || null, req.params.id]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Transfer not found' });
+  res.json({ message: 'Transfer updated' });
+});
+
+app.post('/admin/api/crypto/rescan', requireAdminSession, async (req, res) => {
+  const block = parseInt(req.body.fromBlock);
+  if (isNaN(block) || block < 0) return res.status(400).json({ error: 'fromBlock must be a non-negative integer' });
+  await pool.query(
+    `INSERT INTO monitor_state (key, value, updated_at) VALUES ('usdc_last_block', $1, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+    [String(block)]
+  );
+  res.json({ message: `Monitor checkpoint reset to block ${block}` });
 });
 
 // ─── Billing ──────────────────────────────────────────────────────────────────
