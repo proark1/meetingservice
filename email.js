@@ -64,4 +64,55 @@ function welcomeEmail(email, apiKey) {
 </div>`;
 }
 
-module.exports = { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail };
+function passwordChangedEmail(email) {
+  return `<div style="font-family:Inter,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#f8fafc">
+  <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      MeetingService
+    </div>
+    <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Password changed</h1>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Your MeetingService password was just changed. If you made this change, you're all set.</p>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">If you <strong>didn't</strong> change your password, your account may be compromised. Reset it immediately:</p>
+    <a href="${APP_URL}/reset" style="display:block;text-align:center;background:#ef4444;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">Secure my account →</a>
+    <p style="font-size:12px;color:#94a3b8;margin:20px 0 0;line-height:1.6">This email was sent to ${email}.</p>
+  </div>
+</div>`;
+}
+
+function companyInviteEmail({ to, companyName, inviteCode }) {
+  return `<div style="font-family:Inter,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#f8fafc">
+  <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      MeetingService
+    </div>
+    <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">You've been invited to ${companyName}</h1>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Use the invite code below to join the <strong>${companyName}</strong> workspace on MeetingService. You'll share their credit balance and API keys.</p>
+    <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:16px;text-align:center;font-family:monospace;font-size:22px;font-weight:700;color:#4361ee;letter-spacing:0.1em;margin:0 0 24px">${inviteCode}</div>
+    <a href="${APP_URL}/dashboard" style="display:block;text-align:center;background:#4361ee;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">Join ${companyName} →</a>
+    <p style="font-size:12px;color:#94a3b8;margin:20px 0 0;line-height:1.6">Sign in to your dashboard, go to Company, and enter this code.</p>
+  </div>
+</div>`;
+}
+
+function meetingReceiptEmail({ to, meetingId, title, durationMinutes, cost }) {
+  return `<div style="font-family:Inter,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#f8fafc">
+  <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      MeetingService
+    </div>
+    <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Meeting receipt</h1>
+    <p style="font-size:14px;color:#64748b;margin:0 0 20px;line-height:1.6">Your meeting has ended. Here's the usage summary:</p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 24px">
+      <tr><td style="padding:10px 0;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">Meeting</td><td style="padding:10px 0;font-size:13px;font-weight:600;color:#0f172a;text-align:right;border-bottom:1px solid #e2e8f0;">${title || meetingId}</td></tr>
+      <tr><td style="padding:10px 0;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">Duration</td><td style="padding:10px 0;font-size:13px;font-weight:600;color:#0f172a;text-align:right;border-bottom:1px solid #e2e8f0;">${parseFloat(durationMinutes).toFixed(1)} minutes</td></tr>
+      <tr><td style="padding:10px 0;font-size:14px;font-weight:700;color:#0f172a;">Credits charged</td><td style="padding:10px 0;font-size:14px;font-weight:800;color:#ef4444;text-align:right;">$${parseFloat(cost).toFixed(4)}</td></tr>
+    </table>
+    <a href="${APP_URL}/dashboard" style="display:block;text-align:center;background:#4361ee;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">View billing history →</a>
+  </div>
+</div>`;
+}
+
+module.exports = { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail, companyInviteEmail, meetingReceiptEmail };

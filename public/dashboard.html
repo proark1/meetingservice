@@ -915,14 +915,19 @@ curl https://meetingservice.app/api/meetings \
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
-const API_KEY = 'mk_default_test_key';
+let userApiKey  = null; // loaded from /api/user/keys on init
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'success') {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  t.innerHTML = `<span>${type === 'success' ? '✓' : '✗'}</span>${msg}`;
+  const icon = document.createElement('span');
+  icon.textContent = type === 'success' ? '✓' : '✗';
+  const text = document.createElement('span');
+  text.textContent = msg;
+  t.appendChild(icon);
+  t.appendChild(text);
   c.appendChild(t);
   setTimeout(() => t.remove(), 3500);
 }
@@ -986,20 +991,28 @@ async function doLogout() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function initApp() {
-  const res = await fetch('/api/auth/me');
-  if (!res.ok) {
+  // Fetch user + keys in parallel (one round-trip each, no sequential dependency)
+  const [meRes, keysRes] = await Promise.all([
+    fetch('/api/auth/me'),
+    fetch('/api/user/keys'),
+  ]);
+  if (!meRes.ok) {
     document.getElementById('loginPage').style.display = 'flex';
     document.getElementById('appPage').style.display = 'none';
     return;
   }
-  currentUser = await res.json();
+  currentUser = await meRes.json();
+  const keysData = keysRes.ok ? await keysRes.json() : { keys: [] };
+  const keys = keysData.keys || [];
+  userApiKey = keys.find(k => k.is_active)?.key || null;
+
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('appPage').style.display = 'block';
-  populateOverview();
-  loadKeys();
+  populateOverview(keys);
+  renderKeysList(keys);
 }
 
-function populateOverview() {
+function populateOverview(keys) {
   if (!currentUser) return;
   const credits = currentUser.company_id ? (currentUser.company_credits || 0) : (currentUser.credits_usd || 0);
   document.getElementById('ov-balance').textContent = fmtUsd(credits);
@@ -1024,24 +1037,20 @@ function populateOverview() {
     document.getElementById('set-company').value = currentUser.company_name;
   }
 
-  // Quick start code
-  fetch('/api/user/keys').then(r => r.json()).then(({ keys }) => {
-    const activeKey = (keys || []).find(k => k.is_active);
-    if (activeKey) {
-      document.getElementById('quickstartCode').textContent = `curl -X POST https://meetingservice.app/api/meetings \\
+  // Quick start code — use already-loaded keys
+  const activeKey = (keys || []).find(k => k.is_active);
+  if (activeKey) {
+    document.getElementById('quickstartCode').textContent = `curl -X POST https://meetingservice.app/api/meetings \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: ${activeKey.key}" \\
   -d '{"title": "My Meeting"}'`;
-    }
-    document.getElementById('ov-keys').textContent = (keys || []).filter(k => k.is_active).length;
-  }).catch(() => {});
+  }
+  document.getElementById('ov-keys').textContent = (keys || []).filter(k => k.is_active).length;
 }
 
 // ─── API Keys ─────────────────────────────────────────────────────────────────
-async function loadKeys() {
-  const res = await fetch('/api/user/keys');
-  if (res.status === 401) return;
-  const { keys } = await res.json();
+function renderKeysList(keys) {
+  userApiKey = (keys || []).find(k => k.is_active)?.key || null;
   document.getElementById('ov-keys').textContent = (keys || []).filter(k => k.is_active).length;
   const tbody = document.getElementById('keys-tbody');
   if (!keys || !keys.length) {
@@ -1055,14 +1064,28 @@ async function loadKeys() {
     <tr>
       <td>
         <span class="key-mono">${esc(k.key)}</span>
-        <button class="btn btn-ghost btn-sm" style="margin-left:6px;" onclick="navigator.clipboard.writeText('${esc(k.key)}').then(()=>toast('Copied!'))">Copy</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:6px;" data-copy="${esc(k.key)}">Copy</button>
       </td>
       <td>${esc(k.label)}</td>
       <td><span class="badge ${k.is_active ? 'badge-green' : 'badge-red'}">${k.is_active ? 'Active' : 'Revoked'}</span></td>
       <td class="text-muted">${fmtFull(k.last_used_at)}</td>
       <td class="text-muted">${fmt(k.created_at)}</td>
-      <td>${k.is_active ? `<button class="btn btn-danger btn-sm" onclick="revokeKey(${k.id})">Revoke</button>` : '—'}</td>
+      <td>${k.is_active ? `<button class="btn btn-danger btn-sm revoke-key-btn" data-id="${k.id}">Revoke</button>` : '—'}</td>
     </tr>`).join('');
+  // Attach event handlers (safe — no inline script with user data)
+  tbody.querySelectorAll('[data-copy]').forEach(btn => {
+    btn.addEventListener('click', () => navigator.clipboard.writeText(btn.dataset.copy).then(() => toast('Copied!')).catch(() => {}));
+  });
+  tbody.querySelectorAll('.revoke-key-btn').forEach(btn => {
+    btn.addEventListener('click', () => revokeKey(btn.dataset.id, btn));
+  });
+}
+
+async function loadKeys() {
+  const res = await fetch('/api/user/keys');
+  if (res.status === 401) return;
+  const { keys } = await res.json();
+  renderKeysList(keys);
 }
 
 async function createKey() {
@@ -1078,9 +1101,16 @@ async function createKey() {
   loadKeys();
 }
 
-async function revokeKey(id) {
+async function revokeKey(id, btn) {
   if (!confirm('Revoke this API key? It will stop working immediately and cannot be restored.')) return;
-  await fetch(`/api/user/keys/${id}`, { method: 'DELETE' });
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking…'; }
+  const res = await fetch(`/api/user/keys/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    toast(d.error || 'Failed to revoke key', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    return;
+  }
   toast('Key revoked');
   loadKeys();
 }
@@ -1090,16 +1120,23 @@ async function createMeeting() {
   const title = document.getElementById('nm-title').value.trim() || 'Untitled Meeting';
   const name  = document.getElementById('nm-name').value.trim();
   if (!name) { toast('Please enter your name', 'error'); return; }
-  const res  = await fetch('/api/meetings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-    body: JSON.stringify({ title }),
-  });
-  const data = await res.json();
-  if (!res.ok) { toast(data.error || 'Could not create meeting', 'error'); return; }
-  sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
-  sessionStorage.setItem('userName', name);
-  window.location.href = `/join/${data.meetingId}`;
+  if (!userApiKey) { toast('Please create an API key in Settings → API Keys first', 'error'); return; }
+  const btn = document.querySelector('#sec-meeting .btn-blue.btn-full');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  try {
+    const res  = await fetch('/api/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': userApiKey },
+      body: JSON.stringify({ title }),
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Could not create meeting', 'error'); return; }
+    sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
+    sessionStorage.setItem('userName', name);
+    window.location.href = `/join/${data.meetingId}`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Start meeting →'; }
+  }
 }
 
 function joinMeeting() {
@@ -1265,15 +1302,24 @@ async function loadMembers() {
     <td style="font-weight:500;">${esc(m.email)}</td>
     <td><span class="badge badge-blue">${esc(m.account_type)}</span></td>
     <td class="text-muted">${fmt(m.created_at)}</td>
-    <td>${isOwner && m.id !== (currentUser?.id) ? `<button class="btn btn-danger btn-sm" onclick="removeMember(${m.id},'${esc(m.email)}')">Remove</button>` : ''}</td>
+    <td>${isOwner && m.id !== (currentUser?.id) ? `<button class="btn btn-danger btn-sm member-remove-btn" data-id="${m.id}" data-email="${esc(m.email)}">Remove</button>` : ''}</td>
   </tr>`).join('');
+  // Attach handlers — data attributes prevent onclick XSS
+  tbody.querySelectorAll('.member-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => removeMember(btn.dataset.id, btn.dataset.email, btn));
+  });
 }
 
-async function removeMember(id, email) {
+async function removeMember(id, email, btn) {
   if (!confirm(`Remove ${email} from your company?`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Removing…'; }
   const res = await fetch(`/api/company/members/${id}`, { method: 'DELETE' });
-  const data = await res.json();
-  if (!res.ok) { toast(data.error, 'error'); return; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    toast(data.error || 'Failed to remove member', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Remove'; }
+    return;
+  }
   toast('Member removed');
   loadMembers();
 }
@@ -1290,11 +1336,14 @@ async function loadWebhooks() {
   }
   tbody.innerHTML = webhooks.map(w => `<tr>
     <td style="font-family:monospace;font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.url)}</td>
-    <td style="font-size:12px;">${(w.events || []).join(', ')}</td>
+    <td style="font-size:12px;">${(w.events || []).map(e => esc(e)).join(', ')}</td>
     <td><span class="badge ${w.is_active ? 'badge-green' : 'badge-red'}">${w.is_active ? 'Active' : 'Inactive'}</span></td>
     <td class="text-muted">${fmt(w.created_at)}</td>
-    <td><button class="btn btn-danger btn-sm" onclick="deleteWebhook(${w.id})">Delete</button></td>
+    <td><button class="btn btn-danger btn-sm webhook-delete-btn" data-id="${w.id}">Delete</button></td>
   </tr>`).join('');
+  tbody.querySelectorAll('.webhook-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteWebhook(btn.dataset.id, btn));
+  });
 }
 
 async function createWebhook() {
@@ -1316,9 +1365,16 @@ async function createWebhook() {
   loadWebhooks();
 }
 
-async function deleteWebhook(id) {
+async function deleteWebhook(id, btn) {
   if (!confirm('Delete this webhook?')) return;
-  await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  const res = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    toast(d.error || 'Failed to delete webhook', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+    return;
+  }
   toast('Webhook deleted');
   loadWebhooks();
 }
@@ -1347,14 +1403,8 @@ document.getElementById('joinCodeInput')?.addEventListener('keydown', e => { if 
 document.getElementById('new-key-label')?.addEventListener('keydown', e => { if (e.key === 'Enter') createKey(); });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-(async () => {
-  const res = await fetch('/api/auth/me');
-  if (res.ok) {
-    await initApp();
-  } else {
-    document.getElementById('loginPage').style.display = 'flex';
-  }
-})();
+// initApp() handles auth check — no pre-flight fetch needed
+initApp();
 </script>
 </body>
 </html>

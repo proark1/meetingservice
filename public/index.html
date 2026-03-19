@@ -1048,36 +1048,50 @@
   </div>
 </footer>
 
+<div id="toastContainer" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
 <script>
-const API_KEY = 'mk_default_test_key';
+function showToast(msg, type) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.style.cssText = `background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.08);min-width:220px;display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;border-left:3px solid ${type === 'error' ? '#ef4444' : '#10b981'};font-family:Inter,-apple-system,sans-serif;`;
+  const icon = document.createElement('span');
+  icon.textContent = type === 'error' ? '✗' : '✓';
+  const text = document.createElement('span');
+  text.textContent = msg;
+  t.appendChild(icon); t.appendChild(text);
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
 
 document.getElementById('createBtn').addEventListener('click', async () => {
   const title = document.getElementById('meetingTitle').value.trim() || 'Untitled Meeting';
   const name  = document.getElementById('hostName').value.trim();
-  if (!name) { alert('Please enter your name'); return; }
+  if (!name) { showToast('Please enter your name', 'error'); return; }
   const btn = document.getElementById('createBtn');
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
-    const res  = await fetch('/api/meetings', {
+    const res  = await fetch('/api/meetings/guest', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title }),
     });
     const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Could not create meeting — please try again', 'error'); return; }
     sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
     sessionStorage.setItem('userName', name);
     window.location.href = `/join/${data.meetingId}`;
   } catch(e) {
+    showToast('Could not create meeting — please try again', 'error');
+  } finally {
     btn.disabled = false; btn.textContent = 'Start meeting →';
-    alert('Could not create meeting — please try again');
   }
 });
 
 document.getElementById('joinBtn').addEventListener('click', () => {
   const code = document.getElementById('meetingCode').value.trim();
   const name = document.getElementById('joinName').value.trim();
-  if (!code) { alert('Please enter a meeting code'); return; }
-  if (!name) { alert('Please enter your name'); return; }
+  if (!code) { showToast('Please enter a meeting code', 'error'); return; }
+  if (!name) { showToast('Please enter your name', 'error'); return; }
   sessionStorage.setItem('userName', name);
   window.location.href = `/join/${code}`;
 });

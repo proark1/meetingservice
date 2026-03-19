@@ -12,7 +12,7 @@ const rateLimit  = require('express-rate-limit');
 const compression = require('compression');
 const morgan     = require('morgan');
 const { pool, initDB, getSettings } = require('./db');
-const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail } = require('./email');
+const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail } = require('./email');
 const crypto = require('crypto');
 
 // ─── Environment validation ───────────────────────────────────────────────────
@@ -48,8 +48,8 @@ function getHDAddress(index) {
 }
 
 function generateInviteCode() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  // 96 bits of entropy — brute-force resistant
+  return crypto.randomBytes(9).toString('base64url');
 }
 
 const app    = express();
@@ -58,17 +58,17 @@ const server = http.createServer(app);
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['*'];  // default permissive for dev — set ALLOWED_ORIGINS in production
+  : ['http://localhost:3000'];  // safe dev default — set ALLOWED_ORIGINS in production
 
 const io = new Server(server, {
-  cors: { origin: allowedOrigins.includes('*') ? '*' : allowedOrigins, credentials: true },
+  cors: { origin: allowedOrigins, credentials: true },
   pingTimeout:  60000,
   pingInterval: 25000,
 });
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       cb(null, true);
     } else {
       cb(new Error('CORS: origin not allowed'));
@@ -109,6 +109,14 @@ const resetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 3,
   message: { error: 'Too many reset requests — please try again in 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const guestMeetingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many guest meetings — please create a free account for more' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -257,10 +265,13 @@ function findMeeting(req, res, next) {
   next();
 }
 
-// Checks x-admin-token for meeting-level admin actions
+// Checks x-admin-token for meeting-level admin actions (timing-safe comparison)
 function requireMeetingAdmin(req, res, next) {
-  const adminToken = req.headers['x-admin-token'];
-  if (!adminToken || adminToken !== req.meeting.adminToken) {
+  const provided = req.headers['x-admin-token'] || '';
+  const expected = req.meeting.adminToken || '';
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length === 0 || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return res.status(403).json({ error: 'Admin token required' });
   }
   next();
@@ -371,7 +382,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, email, password_hash, is_admin, is_active FROM users WHERE email = $1`,
+      `SELECT id, email, password_hash, is_admin, is_active, company_id FROM users WHERE email = $1`,
       [email]
     );
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid email or password' });
@@ -382,12 +393,10 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: 'Invalid email or password' });
 
-    req.session.userId  = user.id;
-    req.session.email   = user.email;
-    req.session.isAdmin = user.is_admin;
-    // Get company_id for session
-    const { rows: compRows } = await pool.query(`SELECT company_id FROM users WHERE id = $1`, [user.id]);
-    req.session.companyId = compRows[0]?.company_id || null;
+    req.session.userId    = user.id;
+    req.session.email     = user.email;
+    req.session.isAdmin   = user.is_admin;
+    req.session.companyId = user.company_id || null;
     res.json({ message: 'Logged in', isAdmin: user.is_admin });
   } catch (err) {
     console.error('Login error:', err);
@@ -483,6 +492,8 @@ app.post('/api/auth/change-password', requireUserSession, async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
     const hash = await bcrypt.hash(newPassword, 12);
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, req.session.userId]);
+    // Send confirmation email (fire-and-forget)
+    sendEmail({ to: req.session.email, subject: 'Your MeetingService password was changed', html: passwordChangedEmail(req.session.email) }).catch(() => {});
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
@@ -1096,6 +1107,25 @@ async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
     console.error('deliverWebhook error:', err);
   }
 }
+
+// ─── Guest meeting (no auth — rate limited, no billing) ──────────────────────
+app.post('/api/meetings/guest', guestMeetingLimiter, async (req, res) => {
+  const id         = generateMeetingId();
+  const adminToken = uuidv4();
+  const meeting    = {
+    id,
+    adminToken,
+    title:    ((req.body.title || 'Untitled Meeting') + '').slice(0, 100),
+    createdAt: Date.now(),
+    participants:     new Map(),
+    waitingRoom:      new Map(),
+    peakParticipants: 0,
+    logId:            null,
+    settings: { muteOnJoin: false, videoOffOnJoin: false, maxParticipants: 50, locked: false, waitingRoom: false },
+  };
+  meetings.set(id, meeting);
+  res.status(201).json({ meetingId: id, adminToken, joinUrl: `/join/${id}`, title: meeting.title });
+});
 
 // ─── Meetings REST API ────────────────────────────────────────────────────────
 app.post('/api/meetings', authApi, async (req, res) => {
