@@ -770,36 +770,73 @@ body.light .btn-secondary:hover { background: var(--border); }
 .caption-bar.caption-interim { color: rgba(255,255,255,0.7); }
 
 /* ─── Background panel ───────────────────────────────────────────────────── */
+/* ─── Background effects panel (compact horizontal) ─────────────────────── */
 .bg-panel {
-  position: absolute; bottom: 72px;
+  position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%);
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 12px;
-  min-width: 230px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); z-index: 10;
+  border-radius: 14px; padding: 10px 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55); z-index: 10;
+  white-space: nowrap;
 }
 .bg-panel.hidden { display: none; }
-.bg-panel h4 { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
-.bg-swatches {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;
+.bg-panel-header {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); margin-bottom: 8px; font-weight: 600;
 }
+.bg-options-row { display: flex; align-items: center; gap: 6px; }
+/* "Off" and "Blur" — labeled pill buttons */
+.bg-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--surface2); border: 2px solid transparent;
+  border-radius: 10px; padding: 7px 12px;
+  color: var(--text-muted); font-size: 10px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; min-width: 52px;
+}
+.bg-opt:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+.bg-opt.selected { border-color: var(--primary); color: var(--primary); background: rgba(67,97,238,0.12); }
+.bg-opt-blur { background: linear-gradient(135deg, rgba(67,97,238,0.25), rgba(0,0,0,0.5)); color: var(--text-muted); }
+/* Vertical separator */
+.bg-sep { width: 1px; height: 36px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+/* Colour swatches — visual only, no label */
 .bg-swatch {
-  aspect-ratio: 16/9; border-radius: 6px; border: 2px solid transparent;
-  cursor: pointer; overflow: hidden; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3px;
-  background: var(--surface2); color: var(--text-muted); font-size: 10px; font-weight: 600;
-  transition: border-color 0.15s, transform 0.1s;
+  width: 44px; height: 36px; border-radius: 8px;
+  border: 2px solid transparent; cursor: pointer; flex-shrink: 0;
+  background: var(--surface2); transition: border-color 0.15s, transform 0.12s;
+  display: flex; align-items: center; justify-content: center;
 }
-.bg-swatch svg { flex-shrink: 0; }
-.bg-swatch:hover { border-color: var(--primary); transform: scale(1.05); }
-.bg-swatch.selected { border-color: var(--primary); color: var(--primary); }
-.bg-swatch-blur { background: linear-gradient(135deg, rgba(67,97,238,0.3), rgba(0,0,0,0.6)); }
-.bg-upload-btn {
-  width: 100%; padding: 7px 10px; background: var(--surface2);
-  border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted);
-  font-size: 12px; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; gap: 6px; justify-content: center;
-  transition: background 0.15s, color 0.15s;
+.bg-swatch:hover { border-color: var(--primary); transform: scale(1.07); }
+.bg-swatch.selected { border-color: var(--primary); }
+.bg-swatch-add {
+  border: 2px dashed var(--border); color: var(--text-muted);
 }
-.bg-upload-btn:hover { background: var(--border); color: var(--text); }
+.bg-swatch-add:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ─── More options panel ────────────────────────────────────────────────── */
+.more-panel {
+  position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 6px;
+  min-width: 240px; box-shadow: 0 8px 32px rgba(0,0,0,0.55); z-index: 10;
+}
+.more-panel.hidden { display: none; }
+.more-opt {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 10px 12px; border-radius: 9px;
+  border: none; background: none; color: var(--text);
+  cursor: pointer; text-align: left; transition: background 0.12s;
+}
+.more-opt:hover { background: var(--surface2); }
+.more-opt.active { color: var(--primary); }
+.more-opt-icon { display: flex; align-items: center; flex-shrink: 0; color: var(--text-muted); }
+.more-opt.active .more-opt-icon { color: var(--primary); }
+.more-opt-title { font-size: 13px; font-weight: 500; flex: 1; }
+.more-opt-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; background: var(--danger); color: white;
+  flex-shrink: 0;
+}
+.more-opt-badge.badge-active { background: rgba(67,97,238,0.25); color: var(--primary); }
+.more-panel-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
 /* ─── Layout switcher ────────────────────────────────────────────────────── */
 .layout-btns {

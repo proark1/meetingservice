@@ -176,26 +176,71 @@
 
   <!-- Background effects panel -->
   <div class="bg-panel hidden" id="bgPanel">
-    <h4>Background</h4>
-    <div class="bg-swatches">
-      <button class="bg-swatch bg-swatch-none selected" data-mode="none" title="No background">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        <span>None</span>
+    <div class="bg-panel-header">Background</div>
+    <div class="bg-options-row">
+      <!-- Off -->
+      <button class="bg-opt bg-opt-none selected" data-mode="none" title="No effect">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span>Off</span>
       </button>
-      <button class="bg-swatch bg-swatch-blur" data-mode="blur" title="Blur background">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
+      <!-- Blur -->
+      <button class="bg-opt bg-opt-blur" data-mode="blur" title="Blur background">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/></svg>
         <span>Blur</span>
       </button>
-      <button class="bg-swatch" data-mode="black" title="Black background" style="background:#000;"></button>
-      <button class="bg-swatch" data-mode="gradient1" title="Dark gradient" style="background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);"></button>
-      <button class="bg-swatch" data-mode="gradient2" title="Ocean gradient" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);"></button>
-      <button class="bg-swatch" data-mode="gradient3" title="Forest gradient" style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);"></button>
+      <div class="bg-sep"></div>
+      <!-- Color backgrounds — no label, just visual swatch -->
+      <button class="bg-swatch" data-mode="black" title="Black" style="background:#111;"></button>
+      <button class="bg-swatch" data-mode="gradient1" title="Indigo" style="background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);"></button>
+      <button class="bg-swatch" data-mode="gradient2" title="Ocean" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);"></button>
+      <button class="bg-swatch" data-mode="gradient3" title="Navy" style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);"></button>
+      <!-- Upload -->
+      <button class="bg-swatch bg-swatch-add" id="bgUploadBtn" title="Custom image">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>
-    <button class="bg-upload-btn" id="bgUploadBtn">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      Custom image…
-    </button>
     <input type="file" id="bgUploadInput" accept="image/*" style="display:none;">
+  </div>
+
+  <!-- More options panel (Record, Captions, Effects, Devices, Lock) -->
+  <div class="more-panel hidden" id="morePanel">
+    <button class="more-opt" id="moreRecordOpt">
+      <span class="more-opt-icon" id="moreRecordIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></span>
+      <span class="more-opt-title" id="moreRecordTitle">Record meeting</span>
+      <span class="more-opt-badge hidden" id="moreRecordBadge">REC</span>
+    </button>
+    <button class="more-opt" id="moreCaptionsOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><line x1="7" y1="13" x2="13" y2="13"/><line x1="7" y1="17" x2="11" y2="17"/></svg></span>
+      <span class="more-opt-title" id="moreCaptionsTitle">Live captions</span>
+      <span class="more-opt-badge hidden" id="moreCaptionsBadge">On</span>
+    </button>
+    <button class="more-opt" id="moreEffectsOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+      <span class="more-opt-title">Background effects</span>
+      <span class="more-opt-badge hidden" id="moreEffectsBadge">On</span>
+    </button>
+    <div class="more-panel-sep"></div>
+    <button class="more-opt" id="moreDevicesOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <span class="more-opt-title">Audio & video settings</span>
+    </button>
+    <button class="more-opt hidden" id="moreLockOpt">
+      <span class="more-opt-icon" id="moreLockIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+      <span class="more-opt-title" id="moreLockTitle">Lock meeting</span>
+    </button>
+    <button class="more-opt" id="moreShortcutsOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg></span>
+      <span class="more-opt-title">Keyboard shortcuts</span>
+    </button>
+  </div>
+
+  <!-- Hidden button proxies kept for their event handlers & updateControlButtons() -->
+  <div style="display:none" aria-hidden="true">
+    <button id="recordBtn"><span id="recordIcon"></span><span id="recordLabel"></span></button>
+    <button id="captionsBtn"></button>
+    <button id="blurBtn"><span id="bgLabel"></span></button>
+    <button id="lockBtn"><span id="lockIcon"></span><span id="lockLabel"></span></button>
+    <button id="deviceBtn"></button>
   </div>
 
   <!-- Controls bar -->
@@ -230,7 +275,7 @@
         <span class="ctrl-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
         </span>
-        <span class="ctrl-label" id="handLabel">Raise hand</span>
+        <span class="ctrl-label" id="handLabel">Hand</span>
       </button>
       <!-- Reactions -->
       <div class="ctrl-reactions-wrap">
@@ -258,44 +303,6 @@
 
       <div class="ctrl-divider"></div>
 
-      <!-- Record -->
-      <button class="ctrl-btn" id="recordBtn" title="Record meeting (R)">
-        <span class="ctrl-icon" id="recordIcon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-        </span>
-        <span class="ctrl-label" id="recordLabel">Record</span>
-      </button>
-      <!-- Captions -->
-      <button class="ctrl-btn" id="captionsBtn" title="Live captions (C)">
-        <span class="ctrl-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><path d="M17 2H7a1 1 0 0 0-1 1v1h12V3a1 1 0 0 0-1-1z"/><line x1="7" y1="13" x2="13" y2="13"/><line x1="7" y1="17" x2="11" y2="17"/></svg>
-        </span>
-        <span class="ctrl-label">Captions</span>
-      </button>
-      <!-- Background effects -->
-      <button class="ctrl-btn" id="blurBtn" title="Background effects (B)">
-        <span class="ctrl-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </span>
-        <span class="ctrl-label" id="bgLabel">Effects</span>
-      </button>
-      <!-- Lock meeting (admin only) -->
-      <button class="ctrl-btn" id="lockBtn" title="Lock meeting (L)" style="display:none;">
-        <span class="ctrl-icon" id="lockIcon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </span>
-        <span class="ctrl-label" id="lockLabel">Lock</span>
-      </button>
-      <!-- Devices -->
-      <button class="ctrl-btn" id="deviceBtn" title="Audio & video settings">
-        <span class="ctrl-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </span>
-        <span class="ctrl-label">Devices</span>
-      </button>
-
-      <div class="ctrl-divider"></div>
-
       <!-- Participants -->
       <button class="ctrl-btn" id="peopleBtn" title="Participants">
         <span class="ctrl-icon">
@@ -313,6 +320,13 @@
         </button>
         <span class="chat-badge hidden" id="chatBadge">0</span>
       </div>
+      <!-- More options -->
+      <button class="ctrl-btn" id="moreBtn" title="More options">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg>
+        </span>
+        <span class="ctrl-label">More</span>
+      </button>
     </div><!-- end controls-center -->
 
     <div class="controls-end">
@@ -977,21 +991,22 @@ document.querySelectorAll('.reaction-btn').forEach(btn => {
   });
 });
 
-// Background effects panel
-$('#blurBtn').addEventListener('click', (e) => {
-  e.stopPropagation();
+// ─── Background effects panel (triggered from More menu) ──────────────────────
+function toggleBgPanel() {
   const panel = $('#bgPanel');
-  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
-  // Position near the button
-  panel.classList.remove('hidden');
-});
+  panel.classList.toggle('hidden');
+}
 
-document.querySelectorAll('.bg-swatch').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.bg-swatch').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    const mode = btn.dataset.mode;
-    setBgMode(mode);
+// Sync selected state on bg-opt and bg-swatch buttons
+function syncBgPanel() {
+  document.querySelectorAll('.bg-opt').forEach(b => b.classList.toggle('selected', b.dataset.mode === bgMode));
+  document.querySelectorAll('.bg-swatch').forEach(b => b.classList.toggle('selected', b.dataset.mode === bgMode));
+}
+
+document.querySelectorAll('.bg-opt, .bg-swatch').forEach(btn => {
+  if (!btn.id) btn.addEventListener('click', () => {
+    setBgMode(btn.dataset.mode);
+    syncBgPanel();
     $('#bgPanel').classList.add('hidden');
   });
 });
@@ -1003,21 +1018,58 @@ $('#bgUploadInput').addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (ev) => {
     bgCustomImage = new Image();
-    bgCustomImage.onload = () => {
-      document.querySelectorAll('.bg-swatch').forEach(b => b.classList.remove('selected'));
-      setBgMode('image');
-      showToast('Custom background set');
-    };
+    bgCustomImage.onload = () => { setBgMode('image'); syncBgPanel(); showToast('Custom background set'); };
     bgCustomImage.src = ev.target.result;
   };
   reader.readAsDataURL(file);
   $('#bgPanel').classList.add('hidden');
 });
 
-// Add 'Captions' button handler
-$('#captionsBtn').addEventListener('click', toggleCaptions);
+// ─── More panel ───────────────────────────────────────────────────────────────
+$('#moreBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#bgPanel').classList.add('hidden');
+  $('#deviceSelector').classList.add('hidden');
+  $('#morePanel').classList.toggle('hidden');
+});
 
-// Add 'Lock' button handler
+$('#moreRecordOpt').addEventListener('click', () => {
+  $('#morePanel').classList.add('hidden');
+  if (isRecording) stopRecording(); else startRecording();
+});
+$('#moreCaptionsOpt').addEventListener('click', () => {
+  $('#morePanel').classList.add('hidden');
+  toggleCaptions();
+});
+$('#moreEffectsOpt').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#morePanel').classList.add('hidden');
+  toggleBgPanel();
+});
+$('#moreDevicesOpt').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  $('#morePanel').classList.add('hidden');
+  // Trigger the device selector logic
+  $('#deviceBtn').click();
+});
+$('#moreLockOpt').addEventListener('click', () => {
+  $('#morePanel').classList.add('hidden');
+  toggleLock();
+});
+$('#moreShortcutsOpt').addEventListener('click', () => {
+  $('#morePanel').classList.add('hidden');
+  toggleShortcutsModal();
+});
+
+// Close More panel on outside click
+document.addEventListener('click', (e) => {
+  const mp = $('#morePanel');
+  if (!mp.classList.contains('hidden') && !mp.contains(e.target) && e.target.id !== 'moreBtn' && !e.target.closest('#moreBtn'))
+    mp.classList.add('hidden');
+});
+
+// Legacy hidden-button handlers (still needed by updateControlButtons)
+$('#captionsBtn').addEventListener('click', toggleCaptions);
 $('#lockBtn').addEventListener('click', toggleLock);
 
 // Expose lock button when admin
@@ -1597,7 +1649,7 @@ document.addEventListener('click', (e) => {
   if (!$('#reactionsTray').classList.contains('hidden') && !e.target.closest('#reactBtn') && !e.target.closest('#reactionsTray'))
     $('#reactionsTray').classList.add('hidden');
   const bgPanel = $('#bgPanel');
-  if (!bgPanel.classList.contains('hidden') && !bgPanel.contains(e.target) && e.target.id !== 'blurBtn' && !e.target.closest('#blurBtn'))
+  if (!bgPanel.classList.contains('hidden') && !bgPanel.contains(e.target) && !e.target.closest('#moreEffectsOpt'))
     bgPanel.classList.add('hidden');
 });
 
@@ -1844,29 +1896,56 @@ function updateControlButtons() {
 
   $('#handBtn').className  = `ctrl-btn${isHandRaised    ? ' state-raised'  : ''}`;
   const handLabel = $('#handLabel');
-  if (handLabel) handLabel.textContent = isHandRaised ? 'Lower hand' : 'Raise hand';
+  if (handLabel) handLabel.textContent = isHandRaised ? 'Lower' : 'Hand';
 
+  // Hidden proxy buttons (keep for legacy compatibility)
   const recBtn = $('#recordBtn');
-  recBtn.className = `ctrl-btn${isRecording ? ' state-danger' : ''}`;
-  $('#recordIcon').innerHTML = isRecording ? ICONS.recOn : ICONS.recOff;
+  if (recBtn) { recBtn.className = `ctrl-btn${isRecording ? ' state-danger' : ''}`; }
+  const recIconEl = $('#recordIcon');
+  if (recIconEl) recIconEl.innerHTML = isRecording ? ICONS.recOn : ICONS.recOff;
   const recLabel = $('#recordLabel');
   if (recLabel) recLabel.textContent = isRecording ? 'Stop rec' : 'Record';
 
-  $('#blurBtn').className    = `ctrl-btn${bgMode !== 'none' ? ' state-active'  : ''}`;
-  const bgLbl = $('#bgLabel');
-  if (bgLbl) bgLbl.textContent = bgMode !== 'none' ? 'Effects on' : 'Effects';
-
-  $('#captionsBtn').className = `ctrl-btn${captionsOn ? ' state-active' : ''}`;
-
   const lockBtn = $('#lockBtn');
   if (lockBtn) {
-    lockBtn.className = `ctrl-btn${isLocked ? ' state-danger' : ''}`;
     const lockIcon = $('#lockIcon');
     if (lockIcon) lockIcon.innerHTML = isLocked
       ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
       : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
-    const lockLbl = $('#lockLabel');
-    if (lockLbl) lockLbl.textContent = isLocked ? 'Unlock' : 'Lock';
+  }
+
+  // More panel badges & active states
+  const moreRecBadge = $('#moreRecordBadge');
+  if (moreRecBadge) {
+    moreRecBadge.classList.toggle('hidden', !isRecording);
+    moreRecBadge.className = isRecording ? 'more-opt-badge' : 'more-opt-badge hidden';
+  }
+  $('#moreRecordOpt')?.classList.toggle('active', isRecording);
+  const moreRecTitle = $('#moreRecordTitle');
+  if (moreRecTitle) moreRecTitle.textContent = isRecording ? 'Stop recording' : 'Record meeting';
+
+  const moreCaptBadge = $('#moreCaptionsBadge');
+  if (moreCaptBadge) moreCaptBadge.classList.toggle('hidden', !captionsOn);
+  if (moreCaptBadge && captionsOn) moreCaptBadge.className = 'more-opt-badge badge-active';
+  $('#moreCaptionsOpt')?.classList.toggle('active', captionsOn);
+
+  const moreEffBadge = $('#moreEffectsBadge');
+  const effectsOn = bgMode !== 'none';
+  if (moreEffBadge) {
+    moreEffBadge.classList.toggle('hidden', !effectsOn);
+    if (effectsOn) moreEffBadge.className = 'more-opt-badge badge-active';
+  }
+  $('#moreEffectsOpt')?.classList.toggle('active', effectsOn);
+
+  // Lock in More panel (admin only)
+  const moreLockOpt = $('#moreLockOpt');
+  if (moreLockOpt) {
+    moreLockOpt.classList.toggle('hidden', !isAdmin);
+    const moreLockTitle = $('#moreLockTitle');
+    if (moreLockTitle) moreLockTitle.textContent = isLocked ? 'Unlock meeting' : 'Lock meeting';
+    $('#moreLockIcon')?.children[0] && ($('#moreLockIcon').innerHTML = isLocked
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`);
   }
 
   // Update layout buttons
