@@ -617,6 +617,14 @@ input, select { font-family: inherit; }
   display: flex; align-items: center; gap: 6px; transition: background 0.15s;
 }
 .unpin-btn:hover { background: rgba(255,255,255,0.2); }
+.pip-btn {
+  position: absolute; top: 12px; right: 90px;
+  background: rgba(0,0,0,0.65); border: none; color: white;
+  border-radius: 8px; padding: 6px 14px; font-size: 13px;
+  font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: background 0.15s;
+}
+.pip-btn:hover { background: rgba(255,255,255,0.2); }
 
 /* Filmstrip (video grid in spotlight mode) */
 .video-grid.filmstrip {

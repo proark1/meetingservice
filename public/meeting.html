@@ -96,7 +96,7 @@
         </button>
       </div>
       <div class="recording-indicator hidden" id="recordingIndicator">
-        <span class="rec-dot"></span>REC
+        <span class="rec-dot"></span>REC <span id="recTimerText">0:00</span>
       </div>
       <button class="participants-pill" id="participantCountBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -115,6 +115,10 @@
       <button class="unpin-btn" id="unpinBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 10c0 2.7-1.7 5.2-3.5 7.1M12 23S3 17 3 10a9 9 0 0 1 4-7.5"/></svg>
         Unpin
+      </button>
+      <button class="pip-btn" id="pipBtn" title="Picture-in-Picture (P)" onclick="togglePiP()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="10" width="8" height="6" rx="1" fill="currentColor" stroke="none"/></svg>
+        Pop out
       </button>
     </div>
 
@@ -238,10 +242,17 @@
         </button>
         <div class="reactions-tray hidden" id="reactionsTray">
           <button class="reaction-btn" data-emoji="👍">👍</button>
+          <button class="reaction-btn" data-emoji="👎">👎</button>
           <button class="reaction-btn" data-emoji="❤️">❤️</button>
           <button class="reaction-btn" data-emoji="😂">😂</button>
+          <button class="reaction-btn" data-emoji="😮">😮</button>
           <button class="reaction-btn" data-emoji="🎉">🎉</button>
           <button class="reaction-btn" data-emoji="👏">👏</button>
+          <button class="reaction-btn" data-emoji="🙌">🙌</button>
+          <button class="reaction-btn" data-emoji="🔥">🔥</button>
+          <button class="reaction-btn" data-emoji="💯">💯</button>
+          <button class="reaction-btn" data-emoji="🤔">🤔</button>
+          <button class="reaction-btn" data-emoji="✅">✅</button>
         </div>
       </div>
 
@@ -322,15 +333,17 @@
       </div>
       <table class="shortcuts-table">
         <tr><td><kbd>M</kbd></td><td>Mute / unmute</td></tr>
+        <tr><td><kbd>Space</kbd></td><td>Push-to-talk (hold while muted)</td></tr>
         <tr><td><kbd>V</kbd></td><td>Camera on / off</td></tr>
         <tr><td><kbd>S</kbd></td><td>Start / stop screen share</td></tr>
         <tr><td><kbd>H</kbd></td><td>Raise / lower hand</td></tr>
         <tr><td><kbd>R</kbd></td><td>Start / stop recording</td></tr>
         <tr><td><kbd>C</kbd></td><td>Toggle live captions</td></tr>
         <tr><td><kbd>B</kbd></td><td>Background effects</td></tr>
+        <tr><td><kbd>P</kbd></td><td>Picture-in-Picture pop-out</td></tr>
         <tr><td><kbd>L</kbd></td><td>Lock / unlock meeting (host)</td></tr>
         <tr><td><kbd>?</kbd></td><td>Show / hide this panel</td></tr>
-        <tr><td><kbd>Esc</kbd></td><td>Close panels</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Close panels / exit focus view</td></tr>
       </table>
     </div>
   </div>
@@ -381,6 +394,7 @@ let recAudioDest    = null;
 let recAudioSources = {};
 let recFrameId      = null;
 let recCanvasEl     = null;
+let recTimerInterval = null;
 
 // Speaking detection
 let speakAudioCtx   = null;
@@ -399,6 +413,9 @@ let speakerInterval = null;
 
 // Lock
 let isLocked     = false;
+
+// Push-to-talk
+let pushToTalkActive = false;
 
 // Virtual background
 let bgMode       = 'none'; // 'none' | 'blur' | 'black' | 'gradient1' | 'gradient2' | 'gradient3' | 'image'
@@ -917,7 +934,9 @@ async function stopScreenShare() {
     for (const pid of Object.keys(peers)) {
       if (camTrack) {
         const vs = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-        if (vs) await vs.replaceTrack(camTrack);
+        // Restore blur track if blur is still active, otherwise restore raw camera
+        const restoreTrack = (isBlurOn && blurStream) ? (blurStream.getVideoTracks()[0] || camTrack) : camTrack;
+        if (vs) await vs.replaceTrack(restoreTrack);
       }
       if (micTrack) {
         const as = peers[pid].screenAudioSender || peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
@@ -1100,13 +1119,20 @@ async function startRecording() {
       a.download = `meeting-${meetingId}-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
+      if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
       isRecording = false; updateControlButtons();
       $('#recordingIndicator').classList.add('hidden');
+      $('#recTimerText').textContent = '0:00';
       showToast('Recording saved — check your downloads');
     };
     mediaRecorder.start(1000);
     isRecording = true; updateControlButtons();
     $('#recordingIndicator').classList.remove('hidden');
+    const recStartTs = Date.now();
+    recTimerInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - recStartTs) / 1000);
+      $('#recTimerText').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    }, 1000);
     showToast('Recording started');
     const myName = participants[myParticipantId]?.name || '';
     socket.emit('recording:broadcast-started', { hostName: myName });
@@ -1224,10 +1250,11 @@ function startBlur() {
 
   blurStream = blurCanvas.captureStream(24);
   const blurTrack = blurStream.getVideoTracks()[0];
-  for (const pid of Object.keys(peers)) {
+  // Use Promise.allSettled so all peers get the track replacement, errors are handled
+  Promise.allSettled(Object.keys(peers).map(pid => {
     const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-    if (s) s.replaceTrack(blurTrack);
-  }
+    return s ? s.replaceTrack(blurTrack) : Promise.resolve();
+  }));
   syncParticipantTile(myParticipantId);
 }
 
@@ -1238,10 +1265,10 @@ function stopBlur() {
   blurTempCanvas = null; blurTempCtx = null;
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
-    for (const pid of Object.keys(peers)) {
+    Promise.allSettled(Object.keys(peers).map(pid => {
       const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-      if (s && camTrack) s.replaceTrack(camTrack);
-    }
+      return (s && camTrack) ? s.replaceTrack(camTrack) : Promise.resolve();
+    }));
   }
   if (blurStream) { blurStream.getTracks().forEach(t => t.stop()); blurStream = null; }
   blurCanvas = null; blurCtx = null;
@@ -1431,6 +1458,24 @@ $('#deviceBtn').addEventListener('click', async () => {
     localStorage.setItem('soundsEnabled', soundsEnabled);
   });
   sel.appendChild(soundRow);
+  // Noise suppression toggle
+  const noiseEnabled = localStorage.getItem('noiseSuppression') !== 'false';
+  const noiseRow = document.createElement('div');
+  noiseRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;';
+  noiseRow.innerHTML = `<span style="font-size:13px;">Noise suppression</span>
+    <input type="checkbox" id="noiseToggle" style="cursor:pointer;width:16px;height:16px;" ${noiseEnabled ? 'checked' : ''}>`;
+  noiseRow.querySelector('#noiseToggle').addEventListener('change', async (e) => {
+    const enabled = e.target.checked;
+    localStorage.setItem('noiseSuppression', enabled);
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack?.applyConstraints) {
+        try { await audioTrack.applyConstraints({ noiseSuppression: enabled, echoCancellation: true, autoGainControl: enabled }); }
+        catch(err) { showToast('Noise suppression not supported by this device', 'error'); }
+      }
+    }
+  });
+  sel.appendChild(noiseRow);
   // Video quality section
   const qh = document.createElement('h4');
   qh.textContent = 'Video Quality';
@@ -1717,10 +1762,22 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     $('#shortcutsModal').classList.add('hidden');
     $('#bgPanel').classList.add('hidden');
+    if (focusedParticipant) exitFocus();
     return;
   }
   if (!myParticipantId) return;
   if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  // Push-to-talk: hold Space to temporarily unmute when muted
+  if (e.code === 'Space' && !e.repeat && isMuted) {
+    e.preventDefault();
+    pushToTalkActive = true;
+    if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = true);
+    isMuted = false;
+    updateControlButtons();
+    socket.emit('media:mute', { isMuted: false });
+    showToast('🎤 Push-to-talk — release Space to mute');
+    return;
+  }
   if (e.key === 'm' || e.key === 'M') $('#micBtn').click();
   else if (e.key === 'v' || e.key === 'V') $('#camBtn').click();
   else if (e.key === 's' || e.key === 'S') $('#screenBtn').click();
@@ -1729,7 +1786,18 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'c' || e.key === 'C') $('#captionsBtn').click();
   else if (e.key === 'b' || e.key === 'B') $('#blurBtn').click();
   else if (e.key === 'l' || e.key === 'L') { if (isAdmin) $('#lockBtn').click(); }
+  else if (e.key === 'p' || e.key === 'P') togglePiP();
   else if (e.key === '?') toggleShortcutsModal();
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space' && pushToTalkActive) {
+    pushToTalkActive = false;
+    if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
+    isMuted = true;
+    updateControlButtons();
+    socket.emit('media:mute', { isMuted: true });
+  }
 });
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
@@ -2214,6 +2282,22 @@ function denyWaiting(socketId) {
   delete waitingQueue[socketId];
   document.querySelector(`.waiting-section`)?.remove();
   if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+}
+
+// ─── Picture-in-Picture ───────────────────────────────────────────────────────
+async function togglePiP() {
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      // Prefer spotlight, otherwise first visible video tile
+      const vid = $('#spotlightMain video') || document.querySelector('#videoGrid .video-tile video');
+      if (!vid) { showToast('No video to pop out', 'error'); return; }
+      await vid.requestPictureInPicture();
+    }
+  } catch(e) {
+    if (e.name !== 'NotAllowedError') showToast('Picture-in-Picture not supported in this browser', 'error');
+  }
 }
 
 // ─── Connection quality indicator ─────────────────────────────────────────────
