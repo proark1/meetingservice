@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\assad\\\\Documents\\\\GitHub\\\\meetingservice && npm install\")",
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\assad\\\\Documents\\\\GitHub\\\\meetingservice && npm install 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\\\Users\\\\assad\\\\Documents\\\\GitHub\\\\meetingservice''; npm install\")"
+    ]
+  }
+}

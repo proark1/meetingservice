@@ -52,6 +52,21 @@ function generateInviteCode() {
   return crypto.randomBytes(9).toString('base64url');
 }
 
+// ─── Analytics helpers ────────────────────────────────────────────────────────
+function trackEvent(userId, companyId, eventType, meta = {}) {
+  pool.query(
+    `INSERT INTO analytics_events (event_type, user_id, company_id, meta) VALUES ($1,$2,$3,$4)`,
+    [eventType, userId || null, companyId || null, JSON.stringify(meta)]
+  ).catch(() => {});
+}
+
+function trackAiUsage(model, module, endpoint, promptTokens, completionTokens, costUsd = 0) {
+  pool.query(
+    `INSERT INTO ai_usage_log (model, module, endpoint, prompt_tokens, completion_tokens, cost_usd) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [model, module, endpoint, promptTokens, completionTokens, costUsd]
+  ).catch(() => {});
+}
+
 const app    = express();
 const server = http.createServer(app);
 
@@ -162,6 +177,7 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
         [userId || null, companyId || null, amt, session.id, `Stripe top-up $${amt}`]
       );
       console.log(`Credits added: $${amt} to ${companyId ? 'company '+companyId : 'user '+userId}`);
+      trackEvent(userId || null, companyId || null, 'billing.topup', { method: 'stripe', amountUsd: parseFloat(amt) });
     } catch(err) { console.error('Credit add error:', err); }
   }
   res.json({ received: true });
@@ -373,6 +389,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     sendEmail({ to: user.email, subject: 'Welcome to MeetingService!', html: welcomeEmail(user.email, key) }).catch(() => {});
 
     res.json({ message: 'Account created', email: user.email, apiKey: key, inviteCode, accountType: safeAccountType });
+    trackEvent(user.id, companyId || null, 'user.registered', { accountType: safeAccountType });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already registered' });
     console.error('Register error:', err);
@@ -403,6 +420,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = user.company_id || null;
     res.json({ message: 'Logged in', isAdmin: user.is_admin });
+    trackEvent(user.id, user.company_id || null, 'user.login', {});
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -530,6 +548,7 @@ app.post('/api/user/keys', requireUserSession, async (req, res) => {
     [req.session.userId, key, label]
   );
   res.status(201).json(rows[0]);
+  trackEvent(req.session.userId, req.session.companyId || null, 'api_key.created', {});
 });
 
 app.delete('/api/user/keys/:id', requireUserSession, async (req, res) => {
@@ -539,6 +558,7 @@ app.delete('/api/user/keys/:id', requireUserSession, async (req, res) => {
   );
   if (rowCount === 0) return res.status(404).json({ error: 'Key not found' });
   res.json({ message: 'API key revoked' });
+  trackEvent(req.session.userId, req.session.companyId || null, 'api_key.revoked', {});
 });
 
 // ─── Admin Auth ───────────────────────────────────────────────────────────────
@@ -915,6 +935,7 @@ app.post('/api/billing/stripe/checkout', requireUserSession, async (req, res) =>
       [req.session.userId, req.session.companyId || null, amt, session.id]
     );
     res.json({ url: session.url });
+    trackEvent(req.session.userId, req.session.companyId || null, 'billing.stripe_initiated', { amountUsd: amt });
   } catch(err) {
     console.error('Stripe checkout error:', err);
     res.status(500).json({ error: 'Failed to create checkout session' });
@@ -989,6 +1010,7 @@ app.post('/api/company/join', requireUserSession, async (req, res) => {
     await pool.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [company.id, req.session.userId]);
     req.session.companyId = company.id;
     res.json({ message: `Joined ${company.name}`, companyId: company.id, companyName: company.name });
+    trackEvent(req.session.userId, company.id, 'company.joined', {});
   } catch(err) {
     res.status(500).json({ error: 'Failed to join company' });
   }
@@ -1086,6 +1108,8 @@ async function chargeMeeting(meeting) {
       costUsd: cost,
     }).catch(() => {});
 
+    trackEvent(user_id, company_id, 'meeting.ended', { durationMinutes: parseFloat(mins.toFixed(2)), peakParticipants: meeting.peakParticipants || 1, costUsd: parseFloat(cost) });
+
   } catch (err) {
     console.error('chargeMeeting error:', err);
   }
@@ -1129,6 +1153,7 @@ app.post('/api/meetings/guest', guestMeetingLimiter, async (req, res) => {
     settings: { muteOnJoin: false, videoOffOnJoin: false, maxParticipants: 50, locked: false, waitingRoom: false },
   };
   meetings.set(id, meeting);
+  trackEvent(null, null, 'guest_meeting.created', {});
   res.status(201).json({ meetingId: id, adminToken, joinUrl: `/join/${id}`, title: meeting.title });
 });
 
@@ -1175,6 +1200,18 @@ app.post('/api/meetings', authApi, async (req, res) => {
       const s = scheduledMeetings.get(id);
       if (s && s.status === 'scheduled') activateScheduledMeeting(s);
     }, delay);
+
+    // Look up user from api key for analytics (fire-and-forget)
+    try {
+      const apiKey = req.headers['x-api-key'];
+      const { rows: keyRows } = await pool.query(
+        `SELECT ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1`,
+        [apiKey]
+      );
+      if (keyRows[0]) {
+        trackEvent(keyRows[0].user_id, keyRows[0].company_id, 'meeting.created', { scheduled: true, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom });
+      }
+    } catch(_e) {}
 
     return res.status(201).json({
       meetingId: id, adminToken, joinUrl: `/join/${id}`,
@@ -1226,6 +1263,16 @@ app.post('/api/meetings', authApi, async (req, res) => {
     meetingId: id, adminToken, joinUrl: `/join/${id}`,
     title: meeting.title, status: 'active', settings: meeting.settings,
   });
+  try {
+    const apiKey = req.headers['x-api-key'];
+    const { rows: keyRows } = await pool.query(
+      `SELECT ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1`,
+      [apiKey]
+    );
+    if (keyRows[0]) {
+      trackEvent(keyRows[0].user_id, keyRows[0].company_id, 'meeting.created', { scheduled: false, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom, maxParticipants: settings.maxParticipants });
+    }
+  } catch(_e) {}
 });
 
 app.get('/api/meetings', authApi, (_req, res) => {
@@ -1428,6 +1475,7 @@ app.post('/api/webhooks', requireUserSession, async (req, res) => {
     [req.session.userId, req.session.companyId || null, url.slice(0,500), safeEvents, secret]
   );
   res.status(201).json({ ...rows[0], secret });
+  trackEvent(req.session.userId, req.session.companyId || null, 'webhook.created', { eventCount: safeEvents.length });
 });
 
 app.delete('/api/webhooks/:id', requireUserSession, async (req, res) => {
@@ -1437,6 +1485,191 @@ app.delete('/api/webhooks/:id', requireUserSession, async (req, res) => {
   );
   if (!rowCount) return res.status(404).json({ error: 'Webhook not found' });
   res.json({ message: 'Webhook deleted' });
+  trackEvent(req.session.userId, req.session.companyId || null, 'webhook.deleted', {});
+});
+
+// ─── Support Keys ─────────────────────────────────────────────────────────────
+app.post('/api/user/support-key', requireUserSession, async (req, res) => {
+  // Invalidate any existing unexpired key for this user
+  await pool.query(`DELETE FROM support_keys WHERE user_id = $1`, [req.session.userId]);
+  // Generate a random 32-char key
+  const rawKey = crypto.randomBytes(16).toString('hex');
+  const keyHash = await bcrypt.hash(rawKey, 10);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  await pool.query(
+    `INSERT INTO support_keys (user_id, key_hash, expires_at) VALUES ($1,$2,$3)`,
+    [req.session.userId, keyHash, expiresAt]
+  );
+  res.json({ key: rawKey, expiresAt, message: 'Share this key with support. It expires in 24 hours and cannot be retrieved again.' });
+});
+
+// ─── Admin Analytics ──────────────────────────────────────────────────────────
+app.get('/admin/api/analytics/overview', requireAdminSession, async (_req, res) => {
+  try {
+    const [totals, today, week, month] = await Promise.all([
+      pool.query(`SELECT
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days') AS new_users_7d,
+        (SELECT COUNT(*) FROM meetings_log) AS total_meetings,
+        (SELECT COUNT(*) FROM meetings_log WHERE started_at > NOW() - INTERVAL '7 days') AS meetings_7d,
+        (SELECT COUNT(*) FROM meetings_log WHERE started_at > NOW() - INTERVAL '30 days') AS meetings_30d,
+        (SELECT COALESCE(SUM(ABS(amount_usd)),0) FROM credit_transactions WHERE type = 'meeting_charge') AS total_revenue,
+        (SELECT COALESCE(SUM(ABS(amount_usd)),0) FROM credit_transactions WHERE type = 'meeting_charge' AND created_at > NOW() - INTERVAL '30 days') AS revenue_30d,
+        (SELECT COUNT(*) FROM api_keys WHERE is_active = TRUE) AS active_keys,
+        (SELECT COUNT(*) FROM webhooks WHERE is_active = TRUE) AS active_webhooks,
+        (SELECT COUNT(*) FROM companies) AS total_companies,
+        (SELECT COALESCE(SUM(prompt_tokens + completion_tokens),0) FROM ai_usage_log) AS total_ai_tokens,
+        (SELECT COALESCE(SUM(cost_usd),0) FROM ai_usage_log) AS total_ai_cost
+      `),
+      pool.query(`SELECT COUNT(*) AS count FROM analytics_events WHERE created_at > NOW() - INTERVAL '1 day'`),
+      pool.query(`SELECT COUNT(*) AS count FROM analytics_events WHERE created_at > NOW() - INTERVAL '7 days'`),
+      pool.query(`SELECT COUNT(*) AS count FROM analytics_events WHERE created_at > NOW() - INTERVAL '30 days'`),
+    ]);
+    res.json({ ...totals.rows[0], events_1d: today.rows[0].count, events_7d: week.rows[0].count, events_30d: month.rows[0].count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/events', requireAdminSession, async (req, res) => {
+  const days = parseInt(req.query.days) || 30;
+  try {
+    const { rows } = await pool.query(`
+      SELECT event_type, COUNT(*) AS count,
+             COUNT(DISTINCT user_id) AS unique_users
+      FROM analytics_events
+      WHERE created_at > NOW() - ($1 || ' days')::INTERVAL
+      GROUP BY event_type ORDER BY count DESC
+    `, [days]);
+    res.json({ events: rows, days });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/trends', requireAdminSession, async (req, res) => {
+  const days = parseInt(req.query.days) || 30;
+  try {
+    const { rows } = await pool.query(`
+      SELECT date_trunc('day', started_at)::date AS day,
+             COUNT(*) AS meetings,
+             COALESCE(SUM(peak_participants),0) AS participants,
+             COALESCE(SUM(duration_minutes),0) AS total_minutes,
+             COALESCE(SUM(cost_usd),0) AS revenue
+      FROM meetings_log
+      WHERE started_at > NOW() - ($1 || ' days')::INTERVAL
+      GROUP BY day ORDER BY day ASC
+    `, [days]);
+    res.json({ trends: rows, days });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/users', requireAdminSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT u.id, u.email, u.account_type, u.created_at,
+             COUNT(DISTINCT ml.id) AS meeting_count,
+             COALESCE(SUM(ml.duration_minutes),0) AS total_minutes,
+             COALESCE(SUM(ABS(ct.amount_usd)),0) AS credits_spent,
+             COUNT(DISTINCT ak.id) AS api_key_count,
+             COUNT(DISTINCT wh.id) AS webhook_count,
+             MAX(ae.created_at) AS last_active
+      FROM users u
+      LEFT JOIN meetings_log ml ON ml.user_id = u.id
+      LEFT JOIN credit_transactions ct ON ct.user_id = u.id AND ct.type = 'meeting_charge'
+      LEFT JOIN api_keys ak ON ak.user_id = u.id AND ak.is_active = TRUE
+      LEFT JOIN webhooks wh ON wh.user_id = u.id
+      LEFT JOIN analytics_events ae ON ae.user_id = u.id
+      WHERE u.is_admin = FALSE
+      GROUP BY u.id ORDER BY meeting_count DESC, u.created_at DESC
+      LIMIT 100
+    `);
+    res.json({ users: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/ai', requireAdminSession, async (req, res) => {
+  try {
+    const [byModel, byModule, daily] = await Promise.all([
+      pool.query(`
+        SELECT model,
+               SUM(prompt_tokens) AS prompt_tokens,
+               SUM(completion_tokens) AS completion_tokens,
+               SUM(prompt_tokens + completion_tokens) AS total_tokens,
+               SUM(cost_usd) AS cost_usd,
+               COUNT(*) AS calls
+        FROM ai_usage_log GROUP BY model ORDER BY total_tokens DESC
+      `),
+      pool.query(`
+        SELECT module, endpoint,
+               SUM(prompt_tokens) AS prompt_tokens,
+               SUM(completion_tokens) AS completion_tokens,
+               SUM(prompt_tokens + completion_tokens) AS total_tokens,
+               SUM(cost_usd) AS cost_usd,
+               COUNT(*) AS calls
+        FROM ai_usage_log GROUP BY module, endpoint ORDER BY total_tokens DESC LIMIT 20
+      `),
+      pool.query(`
+        SELECT date_trunc('day', created_at)::date AS day,
+               model,
+               SUM(prompt_tokens + completion_tokens) AS total_tokens,
+               SUM(cost_usd) AS cost_usd
+        FROM ai_usage_log
+        WHERE created_at > NOW() - INTERVAL '30 days'
+        GROUP BY day, model ORDER BY day ASC
+      `),
+    ]);
+    res.json({ byModel: byModel.rows, byModule: byModule.rows, daily: daily.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/admin/api/analytics/support-key', requireAdminSession, async (req, res) => {
+  const { key } = req.body;
+  if (!key || typeof key !== 'string' || key.length !== 32) {
+    return res.status(400).json({ error: 'Invalid support key format' });
+  }
+  try {
+    // Find all non-expired, unused keys and compare
+    const { rows } = await pool.query(`
+      SELECT sk.id, sk.user_id, sk.key_hash, sk.expires_at, u.email, u.account_type, u.created_at AS user_created
+      FROM support_keys sk JOIN users u ON u.id = sk.user_id
+      WHERE sk.expires_at > NOW() AND sk.used_at IS NULL
+    `);
+    let matched = null;
+    for (const row of rows) {
+      const ok = await bcrypt.compare(key, row.key_hash);
+      if (ok) { matched = row; break; }
+    }
+    if (!matched) return res.status(404).json({ error: 'Support key not found, expired, or already used' });
+
+    // Mark as used
+    await pool.query(`UPDATE support_keys SET used_at = NOW() WHERE id = $1`, [matched.id]);
+
+    // Fetch that user's meeting history (full detail, gated by key)
+    const { rows: meetings } = await pool.query(`
+      SELECT meeting_id, title, started_at, ended_at, peak_participants, duration_minutes, cost_usd
+      FROM meetings_log WHERE user_id = $1 ORDER BY started_at DESC LIMIT 50
+    `, [matched.user_id]);
+
+    const { rows: events } = await pool.query(`
+      SELECT event_type, meta, created_at FROM analytics_events
+      WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100
+    `, [matched.user_id]);
+
+    res.json({
+      user: { id: matched.user_id, email: matched.email, accountType: matched.account_type, createdAt: matched.user_created },
+      meetings,
+      recentEvents: events,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── ICE server config ────────────────────────────────────────────────────────

@@ -898,6 +898,27 @@ curl https://meetingservice.app/api/meetings \
           </div>
         </div>
 
+        <!-- Support Key -->
+        <div class="card" style="margin-top:24px;">
+          <div class="card-header"><h2>Support Access Key</h2></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">
+              If you need help from support, generate a one-time key and share it. The key expires in <strong>24 hours</strong>, can only be used once, and only reveals your account activity to the admin for diagnosis. Without this key, no one — including admins — can view your private data.
+            </p>
+            <button class="btn btn-secondary" id="genSupportKeyBtn" onclick="generateSupportKey()">Generate Support Key</button>
+            <div id="supportKeyResult" style="margin-top:14px;display:none;">
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Your support key (share this with support — valid 24h, one-time use):</div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <code id="supportKeyValue" style="font-size:14px;font-weight:700;letter-spacing:0.05em;flex:1;word-break:break-all;"></code>
+                  <button class="btn btn-ghost btn-sm" onclick="copySupportKey()">Copy</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-xmuted);margin-top:8px;">⚠️ This key will not be shown again. Copy it now.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header"><h2>Danger Zone</h2></div>
           <div class="card-body">
@@ -1264,6 +1285,28 @@ async function changePassword() {
   document.getElementById('pw-current').value = '';
   document.getElementById('pw-new').value = '';
   document.getElementById('pw-confirm').value = '';
+}
+
+async function generateSupportKey() {
+  const btn = document.getElementById('genSupportKeyBtn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  try {
+    const res  = await fetch('/api/user/support-key', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Failed to generate key', 'error'); return; }
+    document.getElementById('supportKeyValue').textContent = data.key;
+    document.getElementById('supportKeyResult').style.display = '';
+    toast('Support key generated — share it with support before it expires', 'success');
+  } catch(e) {
+    toast('Failed to generate support key', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Generate Support Key';
+  }
+}
+
+function copySupportKey() {
+  const key = document.getElementById('supportKeyValue').textContent;
+  navigator.clipboard.writeText(key).then(() => toast('Copied!', 'success'));
 }
 
 // ─── Meeting History ──────────────────────────────────────────────────────────

@@ -144,6 +144,46 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_webhooks_company ON webhooks(company_id);
     `);
 
+    // ─── Analytics & support tables ──────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id          BIGSERIAL PRIMARY KEY,
+        event_type  VARCHAR(64) NOT NULL,
+        user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        company_id  INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+        meta        JSONB NOT NULL DEFAULT '{}',
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_anevt_type    ON analytics_events(event_type);
+      CREATE INDEX IF NOT EXISTS idx_anevt_user    ON analytics_events(user_id);
+      CREATE INDEX IF NOT EXISTS idx_anevt_created ON analytics_events(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS ai_usage_log (
+        id                BIGSERIAL PRIMARY KEY,
+        model             VARCHAR(64)  NOT NULL,
+        module            VARCHAR(64)  NOT NULL,
+        endpoint          VARCHAR(128),
+        prompt_tokens     INTEGER NOT NULL DEFAULT 0,
+        completion_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd          NUMERIC(12,6) NOT NULL DEFAULT 0,
+        created_at        TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_aiu_model   ON ai_usage_log(model);
+      CREATE INDEX IF NOT EXISTS idx_aiu_module  ON ai_usage_log(module);
+      CREATE INDEX IF NOT EXISTS idx_aiu_created ON ai_usage_log(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS support_keys (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        key_hash   VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at    TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_sk_user    ON support_keys(user_id);
+      CREATE INDEX IF NOT EXISTS idx_sk_expires ON support_keys(expires_at);
+    `);
+
     // ─── Platform config & monitor state tables ───────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS platform_config (
