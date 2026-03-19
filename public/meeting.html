@@ -12,15 +12,25 @@
 <!-- ─── Lobby ─────────────────────────────────────────────────────────────── -->
 <div class="lobby-overlay" id="lobby">
   <div class="lobby-card">
-    <h2 id="lobbyTitle">Getting ready...</h2>
+    <h2 id="lobbyTitle">Getting ready…</h2>
     <p class="meeting-code" id="lobbyCode"></p>
     <div class="lobby-preview" id="lobbyPreview">
       <video id="lobbyVideo" autoplay muted playsinline></video>
       <div class="avatar" id="lobbyAvatar"><span id="lobbyInitial">?</span></div>
     </div>
     <div class="lobby-controls">
-      <button class="btn-icon inactive" id="lobbyMicBtn" title="Toggle microphone">🎤</button>
-      <button class="btn-icon inactive" id="lobbyCamBtn" title="Toggle camera">📷</button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+        <button class="btn-icon inactive" id="lobbyMicBtn" title="Toggle microphone">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+        </button>
+        <span class="lobby-ctrl-label" id="lobbyMicLabel">Mic on</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+        <button class="btn-icon inactive" id="lobbyCamBtn" title="Toggle camera">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </button>
+        <span class="lobby-ctrl-label" id="lobbyCamLabel">Camera on</span>
+      </div>
     </div>
     <input type="text" id="lobbyName" placeholder="Enter your name">
     <p class="lobby-error hidden" id="lobbyError"></p>
@@ -28,31 +38,55 @@
   </div>
 </div>
 
-<!-- ─── Meeting room ──────────────────────────────────────────────────────── -->
+<!-- ─── Meeting room ───────────────────────────────────────────────────────── -->
 <div class="meeting-container" id="meetingRoom" style="display:none;">
 
   <!-- Top bar -->
   <div class="top-bar">
     <div class="top-bar-left">
       <span class="meeting-title" id="meetingTitle"></span>
-      <span class="meeting-id" id="meetingIdDisplay"></span>
-      <button class="btn-copy" id="copyLinkBtn">Copy Link</button>
+      <button class="btn-copy" id="copyLinkBtn" title="Copy meeting link">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span id="copyLinkText">Copy link</span>
+      </button>
+    </div>
+    <div class="top-bar-center">
+      <span class="meeting-timer" id="meetingTimer">0:00</span>
     </div>
     <div class="top-bar-right">
       <div class="recording-indicator hidden" id="recordingIndicator">
         <span class="rec-dot"></span>REC
       </div>
-      <span class="participant-count" id="participantCount">0</span>
+      <button class="participants-pill" id="participantCountBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span id="participantCount">0</span>
+      </button>
     </div>
   </div>
 
   <!-- Video area -->
-  <div class="video-area">
+  <div class="video-area" id="videoArea">
+
+    <!-- Spotlight main view (visible when a tile is pinned) -->
+    <div class="spotlight-main hidden" id="spotlightMain">
+      <!-- video/avatar injected by JS -->
+      <div class="spotlight-label" id="spotlightLabel"></div>
+      <button class="unpin-btn" id="unpinBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 10c0 2.7-1.7 5.2-3.5 7.1M12 23S3 17 3 10a9 9 0 0 1 4-7.5"/></svg>
+        Unpin
+      </button>
+    </div>
+
+    <!-- Video grid (becomes filmstrip in spotlight mode) -->
     <div class="video-grid grid-1" id="videoGrid"></div>
+
+    <!-- Side panel -->
     <div class="side-panel hidden" id="sidePanel">
       <div class="side-panel-header">
         <span id="sidePanelTitle">Participants</span>
-        <button id="closeSidePanel">&times;</button>
+        <button id="closeSidePanel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div class="side-panel-tabs">
         <button class="active" data-tab="participants">People</button>
@@ -65,7 +99,7 @@
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Send a message...">
+            <input type="text" id="chatInput" placeholder="Send a message…" maxlength="500">
             <button id="chatSendBtn">Send</button>
           </div>
         </div>
@@ -76,75 +110,189 @@
   <!-- Device selector dropdown -->
   <div class="device-selector hidden" id="deviceSelector"></div>
 
-  <!-- Controls -->
+  <!-- Controls bar -->
   <div class="controls-bar">
+    <div class="controls-info">
+      <span class="meeting-timer" id="meetingTimerBar">0:00</span>
+    </div>
+
     <div class="controls-center">
-      <button class="btn-icon inactive" id="micBtn"    title="Mute/Unmute (M)">🎤</button>
-      <button class="btn-icon inactive" id="camBtn"    title="Camera on/off (V)">📷</button>
-      <button class="btn-icon inactive" id="screenBtn" title="Share screen (S)">🖥</button>
-      <button class="btn-icon inactive" id="handBtn"   title="Raise hand (H)">✋</button>
-      <button class="btn-icon inactive" id="recordBtn" title="Record meeting (R)">⏺</button>
-      <button class="btn-icon inactive" id="blurBtn"   title="Background blur">🌀</button>
-      <button class="btn-icon inactive" id="deviceBtn" title="Devices">⚙</button>
-      <button class="btn-icon inactive" id="peopleBtn" title="Participants">👥</button>
-      <div style="position:relative;display:inline-flex;">
-        <button class="btn-icon inactive" id="chatBtn" title="Chat">💬</button>
+      <!-- Mic -->
+      <button class="ctrl-btn" id="micBtn" title="Toggle mic (M)">
+        <span class="ctrl-icon" id="micIcon"></span>
+        <span class="ctrl-label" id="micLabel">Mute</span>
+      </button>
+      <!-- Camera -->
+      <button class="ctrl-btn" id="camBtn" title="Toggle camera (V)">
+        <span class="ctrl-icon" id="camIcon"></span>
+        <span class="ctrl-label" id="camLabel">Stop video</span>
+      </button>
+
+      <div class="ctrl-divider"></div>
+
+      <!-- Screen share -->
+      <button class="ctrl-btn" id="screenBtn" title="Share screen (S)">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </span>
+        <span class="ctrl-label" id="screenLabel">Present</span>
+      </button>
+      <!-- Raise hand -->
+      <button class="ctrl-btn" id="handBtn" title="Raise hand (H)">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+        </span>
+        <span class="ctrl-label" id="handLabel">Raise hand</span>
+      </button>
+      <!-- Reactions -->
+      <div class="ctrl-reactions-wrap">
+        <button class="ctrl-btn" id="reactBtn" title="Reactions">
+          <span class="ctrl-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          </span>
+          <span class="ctrl-label">React</span>
+        </button>
+        <div class="reactions-tray hidden" id="reactionsTray">
+          <button class="reaction-btn" data-emoji="👍">👍</button>
+          <button class="reaction-btn" data-emoji="❤️">❤️</button>
+          <button class="reaction-btn" data-emoji="😂">😂</button>
+          <button class="reaction-btn" data-emoji="🎉">🎉</button>
+          <button class="reaction-btn" data-emoji="👏">👏</button>
+        </div>
+      </div>
+
+      <div class="ctrl-divider"></div>
+
+      <!-- Record -->
+      <button class="ctrl-btn" id="recordBtn" title="Record meeting (R)">
+        <span class="ctrl-icon" id="recordIcon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+        </span>
+        <span class="ctrl-label" id="recordLabel">Record</span>
+      </button>
+      <!-- Background blur -->
+      <button class="ctrl-btn" id="blurBtn" title="Background effects">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </span>
+        <span class="ctrl-label">Effects</span>
+      </button>
+      <!-- Devices -->
+      <button class="ctrl-btn" id="deviceBtn" title="Audio & video settings">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
+        <span class="ctrl-label">Devices</span>
+      </button>
+
+      <div class="ctrl-divider"></div>
+
+      <!-- Participants -->
+      <button class="ctrl-btn" id="peopleBtn" title="Participants">
+        <span class="ctrl-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        <span class="ctrl-label">People</span>
+      </button>
+      <!-- Chat -->
+      <div style="position:relative;display:inline-flex;align-items:center;">
+        <button class="ctrl-btn" id="chatBtn" title="Chat">
+          <span class="ctrl-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <span class="ctrl-label">Chat</span>
+        </button>
         <span class="chat-badge hidden" id="chatBadge">0</span>
       </div>
-      <button class="btn-leave" id="leaveBtn">Leave</button>
+    </div><!-- end controls-center -->
+
+    <div class="controls-end">
+      <button class="btn-leave" id="leaveBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Leave
+      </button>
     </div>
-  </div>
-</div>
+  </div><!-- end controls-bar -->
+</div><!-- end meeting-container -->
 
 <script>
-// ─── State ───────────────────────────────────────────────────────────────────
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+const ICONS = {
+  micOn:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`,
+  micOff: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`,
+  camOn:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
+  camOff: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`,
+  recOn:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><rect x="9" y="9" width="6" height="6" fill="currentColor" stroke="none"/></svg>`,
+  recOff: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
+  muteAllIcon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`,
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
 const meetingId = window.location.pathname.split('/').pop();
 const socket = io();
 
-let localStream      = null;
-let screenStream     = null;
-let myParticipantId  = null;
-let isAdmin          = false;
-let isMuted          = false;
-let isVideoOff       = false;
-let isScreenSharing  = false;
-let isHandRaised     = false;
-let isBlurOn         = false;
-let blurStream       = null;
-let blurCanvas       = null;
-let blurCtx          = null;
-let blurAnimFrame    = null;
+let localStream     = null;
+let screenStream    = null;
+let myParticipantId = null;
+let isAdmin         = false;
+let isMuted         = false;
+let isVideoOff      = false;
+let isScreenSharing = false;
+let isHandRaised    = false;
+let isBlurOn        = false;
+let blurStream      = null;
+let blurCanvas      = null;
+let blurCtx         = null;
+let blurAnimFrame   = null;
+let pinnedParticipant = null;
 
 // Recording
-let mediaRecorder    = null;
-let recordingChunks  = [];
-let isRecording      = false;
-let recAudioCtx      = null;
-let recAudioDest     = null;
-let recAudioSources  = {};   // pid -> AudioNode
-let recFrameId       = null;
-let recCanvasEl      = null;
+let mediaRecorder   = null;
+let recordingChunks = [];
+let isRecording     = false;
+let recAudioCtx     = null;
+let recAudioDest    = null;
+let recAudioSources = {};
+let recFrameId      = null;
+let recCanvasEl     = null;
+
+// Speaking detection
+let speakAudioCtx   = null;
+const speakAnalysers = {};
 
 // Chat
-let unreadChatCount  = 0;
+let unreadChatCount = 0;
+let lastChatSent    = 0;
 
-const peers        = {};  // participantId -> { pc, remoteStream, screenAudioSender }
-const participants = {};  // participantId -> info
+// Timer
+let meetingStartTime = null;
+let timerInterval    = null;
+
+const peers        = {};
+const participants = {};
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  {
+    urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443'],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turns:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
 ];
 
 const AVATAR_COLORS = ['#4361ee','#7209b7','#f72585','#4cc9f0','#fb8500','#06d6a0'];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
 
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
 }
 
 function getAvatarColor(pid) {
@@ -158,21 +306,60 @@ function showToast(msg, type = '') {
   t.className = 'toast' + (type ? ' toast-' + type : '');
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => {
-    t.classList.add('toast-fadeout');
-    setTimeout(() => t.remove(), 310);
-  }, 3200);
+  setTimeout(() => { t.classList.add('toast-fadeout'); setTimeout(() => t.remove(), 310); }, 3200);
 }
 
 function showLobbyError(msg) {
   const el = $('#lobbyError');
-  el.textContent = msg;
-  el.classList.remove('hidden');
+  el.textContent = msg; el.classList.remove('hidden');
 }
-
 function hideLobbyError() { $('#lobbyError').classList.add('hidden'); }
 
-// ─── Lobby ───────────────────────────────────────────────────────────────────
+// ─── Meeting timer ────────────────────────────────────────────────────────────
+function startTimer() {
+  meetingStartTime = Date.now();
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - meetingStartTime) / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const txt = h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+      : `${m}:${String(sec).padStart(2,'0')}`;
+    $('#meetingTimer').textContent = txt;
+    const bar = $('#meetingTimerBar');
+    if (bar) bar.textContent = txt;
+  }, 1000);
+}
+
+// ─── Speaking detection ───────────────────────────────────────────────────────
+function addSpeakAnalyser(pid, stream) {
+  if (!stream || !stream.getAudioTracks().length || speakAnalysers[pid]) return;
+  try {
+    if (!speakAudioCtx) speakAudioCtx = new AudioContext();
+    const analyser = speakAudioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    speakAudioCtx.createMediaStreamSource(stream).connect(analyser);
+    speakAnalysers[pid] = { analyser, data: new Uint8Array(analyser.frequencyBinCount) };
+  } catch(e) {}
+}
+
+function removeSpeakAnalyser(pid) { delete speakAnalysers[pid]; }
+
+setInterval(() => {
+  for (const [pid, { analyser, data }] of Object.entries(speakAnalysers)) {
+    analyser.getByteFrequencyData(data);
+    const avg = data.reduce((a,b) => a + b, 0) / data.length;
+    const speaking = avg > 10 && participants[pid] && !participants[pid].isMuted;
+    const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+    if (tile) tile.classList.toggle('is-speaking', speaking);
+    if (pid === pinnedParticipant) {
+      $('#spotlightMain')?.classList.toggle('is-speaking', speaking);
+    }
+  }
+}, 150);
+
+// ─── Lobby ────────────────────────────────────────────────────────────────────
 const lobbyNameInput = $('#lobbyName');
 lobbyNameInput.value = sessionStorage.getItem('userName') || '';
 $('#lobbyCode').textContent = meetingId;
@@ -197,12 +384,14 @@ lobbyNameInput.addEventListener('input', updateLobbyInitial);
 $('#lobbyMicBtn').addEventListener('click', () => {
   isMuted = !isMuted;
   $('#lobbyMicBtn').className = `btn-icon ${isMuted ? 'active' : 'inactive'}`;
+  $('#lobbyMicLabel').textContent = isMuted ? 'Mic off' : 'Mic on';
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
 });
 
 $('#lobbyCamBtn').addEventListener('click', () => {
   isVideoOff = !isVideoOff;
   $('#lobbyCamBtn').className = `btn-icon ${isVideoOff ? 'active' : 'inactive'}`;
+  $('#lobbyCamLabel').textContent = isVideoOff ? 'Camera off' : 'Camera on';
   if (localStream) {
     localStream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
     $('#lobbyAvatar').style.display = isVideoOff ? 'flex' : 'none';
@@ -224,7 +413,7 @@ function joinMeeting() {
   $('#lobbyJoinBtn').textContent = 'Joining…';
 }
 
-// Apply server feature flags (hide disabled buttons)
+// Apply server feature flags
 fetch('/api/config').then(r => r.json()).then(cfg => {
   if (!cfg.screenShareEnabled) $('#screenBtn').style.display = 'none';
   if (!cfg.recordingEnabled)   $('#recordBtn').style.display = 'none';
@@ -256,8 +445,7 @@ socket.on('joined', (data) => {
   $('#lobby').style.display = 'none';
   $('#meetingRoom').style.display = 'flex';
   $('#meetingTitle').textContent = data.title;
-  $('#meetingIdDisplay').textContent = meetingId;
-  document.title = data.title + ' - Meeting';
+  document.title = data.title + ' — Meeting';
 
   participants[myParticipantId] = {
     name: sessionStorage.getItem('userName'),
@@ -269,14 +457,17 @@ socket.on('joined', (data) => {
     createPeerConnection(p.participantId, true);
   }
 
+  // Start speaking detection for local mic
+  if (localStream) addSpeakAnalyser(myParticipantId, localStream);
+
   renderVideoGrid();
   renderParticipantsList();
+  startTimer();
 });
 
 socket.on('participant:joined', (p) => {
   participants[p.participantId] = p;
   createPeerConnection(p.participantId, false);
-  if (isRecording) addRecAudioSource(p.participantId);
   renderVideoGrid();
   renderParticipantsList();
   showToast(`${p.name} joined`);
@@ -286,17 +477,29 @@ socket.on('participant:left', ({ participantId, name }) => {
   delete participants[participantId];
   if (peers[participantId]) { peers[participantId].pc.close(); delete peers[participantId]; }
   if (isRecording) removeRecAudioSource(participantId);
+  removeSpeakAnalyser(participantId);
+  if (pinnedParticipant === participantId) pinnedParticipant = null;
   renderVideoGrid();
   renderParticipantsList();
   showToast(`${name} left`);
 });
 
 socket.on('participant:updated', (update) => {
-  if (participants[update.participantId]) {
-    Object.assign(participants[update.participantId], update);
-    syncParticipantTile(update.participantId);
-    renderParticipantsList();
+  if (!participants[update.participantId]) return;
+  const prev = { ...participants[update.participantId] };
+  Object.assign(participants[update.participantId], update);
+
+  // Auto-spotlight when someone starts screen sharing
+  if (!prev.isScreenSharing && update.isScreenSharing && !pinnedParticipant) {
+    pinnedParticipant = update.participantId;
   }
+  // Auto-unpin when screen share stops
+  if (prev.isScreenSharing && update.isScreenSharing === false && pinnedParticipant === update.participantId) {
+    pinnedParticipant = null;
+  }
+
+  syncParticipantTile(update.participantId);
+  renderParticipantsList();
 });
 
 socket.on('meeting:ended', ({ reason }) => {
@@ -309,8 +512,7 @@ socket.on('meeting:all-muted', () => {
     isMuted = true;
     if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
     if (participants[myParticipantId]) participants[myParticipantId].isMuted = true;
-    updateControlButtons();
-    syncParticipantTile(myParticipantId);
+    updateControlButtons(); syncParticipantTile(myParticipantId);
   }
 });
 
@@ -320,8 +522,7 @@ socket.on('admin:mute', () => {
   isMuted = true;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
   if (participants[myParticipantId]) participants[myParticipantId].isMuted = true;
-  updateControlButtons();
-  syncParticipantTile(myParticipantId);
+  updateControlButtons(); syncParticipantTile(myParticipantId);
   showToast('You were muted by the host');
 });
 
@@ -329,8 +530,7 @@ socket.on('admin:unmute', () => {
   isMuted = false;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = true);
   if (participants[myParticipantId]) participants[myParticipantId].isMuted = false;
-  updateControlButtons();
-  syncParticipantTile(myParticipantId);
+  updateControlButtons(); syncParticipantTile(myParticipantId);
   showToast('You were unmuted by the host');
 });
 
@@ -338,6 +538,24 @@ socket.on('admin:kick', ({ reason }) => {
   showToast(reason || 'You were removed from the meeting', 'error');
   setTimeout(() => window.location.href = '/', 2000);
 });
+
+// Reactions
+socket.on('react', ({ participantId, emoji }) => {
+  showReactionFloat(participantId, emoji);
+});
+
+function showReactionFloat(pid, emoji) {
+  const container = pid === pinnedParticipant
+    ? $('#spotlightMain')
+    : document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'reaction-float';
+  el.textContent = emoji;
+  el.style.left = (15 + Math.random() * 65) + '%';
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 2400);
+}
 
 // ─── WebRTC ───────────────────────────────────────────────────────────────────
 function createPeerConnection(participantId, initiator) {
@@ -352,7 +570,12 @@ function createPeerConnection(participantId, initiator) {
 
   pc.ontrack = (e) => {
     e.streams[0].getTracks().forEach(t => peers[participantId].remoteStream.addTrack(t));
+    // Start speaking detection once we get audio
+    if (!speakAnalysers[participantId]) {
+      addSpeakAnalyser(participantId, peers[participantId].remoteStream);
+    }
     syncParticipantTile(participantId);
+    if (isRecording) addRecAudioSource(participantId);
   };
 
   pc.oniceconnectionstatechange = () => {
@@ -365,7 +588,7 @@ function createPeerConnection(participantId, initiator) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('signal:offer', { to: participantId, offer: pc.localDescription });
-      } catch (err) { console.error('Offer error:', err); }
+      } catch(err) { console.error('Offer error:', err); }
     };
   }
   return pc;
@@ -378,31 +601,30 @@ socket.on('signal:offer', async ({ from, offer }) => {
     const answer = await peers[from].pc.createAnswer();
     await peers[from].pc.setLocalDescription(answer);
     socket.emit('signal:answer', { to: from, answer: peers[from].pc.localDescription });
-  } catch (err) { console.error('Answer error:', err); }
+  } catch(err) { console.error('Answer error:', err); }
 });
 
 socket.on('signal:answer', async ({ from, answer }) => {
   if (peers[from]) {
     try { await peers[from].pc.setRemoteDescription(new RTCSessionDescription(answer)); }
-    catch (err) { console.error('Set answer error:', err); }
+    catch(err) { console.error('Set answer error:', err); }
   }
 });
 
 socket.on('signal:ice-candidate', async ({ from, candidate }) => {
   if (peers[from]) {
     try { await peers[from].pc.addIceCandidate(new RTCIceCandidate(candidate)); }
-    catch (err) { console.error('ICE error:', err); }
+    catch(err) {}
   }
 });
 
-// ─── Controls ────────────────────────────────────────────────────────────────
+// ─── Controls ─────────────────────────────────────────────────────────────────
 $('#micBtn').addEventListener('click', () => {
   isMuted = !isMuted;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
   if (participants[myParticipantId]) participants[myParticipantId].isMuted = isMuted;
   socket.emit('media:toggle-audio', { isMuted });
-  updateControlButtons();
-  syncParticipantTile(myParticipantId);
+  updateControlButtons(); syncParticipantTile(myParticipantId);
 });
 
 $('#camBtn').addEventListener('click', () => {
@@ -410,8 +632,7 @@ $('#camBtn').addEventListener('click', () => {
   if (localStream) localStream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
   if (participants[myParticipantId]) participants[myParticipantId].isVideoOff = isVideoOff;
   socket.emit('media:toggle-video', { isVideoOff });
-  updateControlButtons();
-  syncParticipantTile(myParticipantId);
+  updateControlButtons(); syncParticipantTile(myParticipantId);
 });
 
 $('#screenBtn').addEventListener('click', async () => {
@@ -422,24 +643,21 @@ $('#screenBtn').addEventListener('click', async () => {
     const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
 
     for (const pid of Object.keys(peers)) {
-      const videoSender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-      if (videoSender) await videoSender.replaceTrack(screenVideoTrack);
+      const vs = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+      if (vs) await vs.replaceTrack(screenVideoTrack);
       if (screenAudioTrack) {
-        const audioSender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
-        if (audioSender) {
-          await audioSender.replaceTrack(screenAudioTrack);
-          peers[pid].screenAudioSender = audioSender;
-        }
+        const as = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
+        if (as) { await as.replaceTrack(screenAudioTrack); peers[pid].screenAudioSender = as; }
       }
     }
-
     screenVideoTrack.onended = () => stopScreenShare();
     isScreenSharing = true;
     if (participants[myParticipantId]) participants[myParticipantId].isScreenSharing = true;
     socket.emit('media:screen-share', { isScreenSharing: true });
-    updateControlButtons();
-    syncParticipantTile(myParticipantId);
-  } catch (err) {
+    // Auto-spotlight self when sharing screen
+    if (!pinnedParticipant) { pinnedParticipant = myParticipantId; renderVideoGrid(); }
+    else { updateControlButtons(); syncParticipantTile(myParticipantId); }
+  } catch(err) {
     if (err.name !== 'NotAllowedError') showToast('Screen share failed', 'error');
   }
 });
@@ -464,27 +682,61 @@ async function stopScreenShare() {
   isScreenSharing = false;
   if (participants[myParticipantId]) participants[myParticipantId].isScreenSharing = false;
   socket.emit('media:screen-share', { isScreenSharing: false });
-  updateControlButtons();
-  syncParticipantTile(myParticipantId);
+  if (pinnedParticipant === myParticipantId) { pinnedParticipant = null; renderVideoGrid(); }
+  else { updateControlButtons(); syncParticipantTile(myParticipantId); }
 }
 
-// Raise hand
 $('#handBtn').addEventListener('click', () => {
   isHandRaised = !isHandRaised;
   if (participants[myParticipantId]) participants[myParticipantId].isHandRaised = isHandRaised;
   socket.emit('raise-hand', { isHandRaised });
-  updateControlButtons();
-  syncParticipantTile(myParticipantId);
-  renderParticipantsList();
-  if (isHandRaised) showToast('Hand raised — host can see this');
+  updateControlButtons(); syncParticipantTile(myParticipantId); renderParticipantsList();
+  if (isHandRaised) showToast('Hand raised');
 });
 
-// Recording
 $('#recordBtn').addEventListener('click', () => {
-  if (isRecording) stopRecording();
-  else startRecording();
+  if (isRecording) stopRecording(); else startRecording();
 });
 
+// Reactions
+$('#reactBtn').addEventListener('click', () => {
+  $('#reactionsTray').classList.toggle('hidden');
+});
+document.querySelectorAll('.reaction-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    socket.emit('react', { emoji: btn.dataset.emoji });
+    $('#reactionsTray').classList.add('hidden');
+  });
+});
+
+// Blur
+$('#blurBtn').addEventListener('click', () => {
+  if (!localStream?.getVideoTracks().length) return;
+  isBlurOn = !isBlurOn;
+  updateControlButtons();
+  if (isBlurOn) startBlur(); else stopBlur();
+});
+
+// Copy link
+$('#copyLinkBtn').addEventListener('click', async () => {
+  const url = `${location.origin}/join/${meetingId}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Meeting link copied!');
+    $('#copyLinkText').textContent = 'Copied!';
+    setTimeout(() => { $('#copyLinkText').textContent = 'Copy link'; }, 2000);
+  } catch { showToast(`Link: ${url}`); }
+});
+
+// Unpin button
+$('#unpinBtn').addEventListener('click', () => {
+  pinnedParticipant = null; renderVideoGrid();
+});
+
+// Participant count pill opens people panel
+$('#participantCountBtn').addEventListener('click', () => toggleSidePanel('participants'));
+
+// ─── Recording ────────────────────────────────────────────────────────────────
 async function startRecording() {
   try {
     recAudioCtx  = new AudioContext();
@@ -499,52 +751,41 @@ async function startRecording() {
     for (const pid of Object.keys(peers)) addRecAudioSource(pid);
 
     recCanvasEl = document.createElement('canvas');
-    recCanvasEl.width  = 1280;
-    recCanvasEl.height = 720;
+    recCanvasEl.width = 1280; recCanvasEl.height = 720;
     const ctx = recCanvasEl.getContext('2d');
 
     function drawFrame() {
       ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, 1280, 720);
-
       const tiles = [...document.querySelectorAll('#videoGrid .video-tile')];
       const n = tiles.length;
       if (n > 0) {
         const cols = n === 1 ? 1 : n <= 4 ? 2 : 3;
         const rows = Math.ceil(n / cols);
-        const w = 1280 / cols;
-        const h = 720  / rows;
+        const w = 1280 / cols, h = 720 / rows;
         tiles.forEach((tile, i) => {
-          const x   = (i % cols) * w;
-          const y   = Math.floor(i / cols) * h;
+          const x = (i % cols) * w, y = Math.floor(i / cols) * h;
           const vid = tile.querySelector('video');
           const pid = tile.dataset.pid;
-          const p   = pid ? participants[pid] : null;
+          const p = pid ? participants[pid] : null;
           if (vid && vid.readyState >= 2) {
             ctx.drawImage(vid, x, y, w, h);
           } else {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(x, y, w, h);
+            ctx.fillStyle = '#1a1a2e'; ctx.fillRect(x, y, w, h);
             if (p) {
               ctx.fillStyle = getAvatarColor(pid);
-              ctx.beginPath();
-              ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.18, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = '#fff';
-              ctx.font = `bold ${Math.min(w, h) * 0.14}px sans-serif`;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText((p.name || '?')[0].toUpperCase(), x + w / 2, y + h / 2);
+              ctx.beginPath(); ctx.arc(x+w/2, y+h/2, Math.min(w,h)*0.18, 0, Math.PI*2); ctx.fill();
+              ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.min(w,h)*0.14}px sans-serif`;
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              ctx.fillText((p.name||'?')[0].toUpperCase(), x+w/2, y+h/2);
             }
           }
           if (p) {
             ctx.fillStyle = 'rgba(0,0,0,0.55)';
-            ctx.fillRect(x + 4, y + h - 26, Math.min((p.name?.length || 0) * 8 + 20, w - 8), 22);
-            ctx.fillStyle = '#fff';
-            ctx.font = '13px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(p.name || '', x + 10, y + h - 15);
+            ctx.fillRect(x+4, y+h-26, Math.min((p.name?.length||0)*8+20, w-8), 22);
+            ctx.fillStyle = '#fff'; ctx.font = '13px sans-serif';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(p.name||'', x+10, y+h-15);
           }
         });
       }
@@ -552,48 +793,39 @@ async function startRecording() {
     }
     drawFrame();
 
-    const videoStream = recCanvasEl.captureStream(30);
     const combined = new MediaStream([
-      ...videoStream.getVideoTracks(),
+      ...recCanvasEl.captureStream(30).getVideoTracks(),
       ...recAudioDest.stream.getAudioTracks(),
     ]);
-
     const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
       .find(t => MediaRecorder.isTypeSupported(t)) || '';
-
-    mediaRecorder   = new MediaRecorder(combined, mimeType ? { mimeType } : {});
+    mediaRecorder = new MediaRecorder(combined, mimeType ? { mimeType } : {});
     recordingChunks = [];
-
     mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordingChunks.push(e.data); };
     mediaRecorder.onstop = () => {
       if (recFrameId) { cancelAnimationFrame(recFrameId); recFrameId = null; }
       if (recAudioCtx) { recAudioCtx.close(); recAudioCtx = null; }
       recAudioDest = null; recAudioSources = {}; recCanvasEl = null;
       const blob = new Blob(recordingChunks, { type: 'video/webm' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
       a.download = `meeting-${meetingId}-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      isRecording = false;
-      updateControlButtons();
+      isRecording = false; updateControlButtons();
       $('#recordingIndicator').classList.add('hidden');
       showToast('Recording saved — check your downloads');
     };
-
     mediaRecorder.start(1000);
-    isRecording = true;
-    updateControlButtons();
+    isRecording = true; updateControlButtons();
     $('#recordingIndicator').classList.remove('hidden');
     showToast('Recording started');
-  } catch (err) {
+  } catch(err) {
     console.error('Recording error:', err);
     showToast('Recording failed: ' + (err.message || err), 'error');
     if (recAudioCtx) { recAudioCtx.close(); recAudioCtx = null; }
-    if (recFrameId)  { cancelAnimationFrame(recFrameId); recFrameId = null; }
+    if (recFrameId) { cancelAnimationFrame(recFrameId); recFrameId = null; }
     isRecording = false;
   }
 }
@@ -608,56 +840,37 @@ function addRecAudioSource(pid) {
   if (rs?.getAudioTracks().length > 0) {
     try {
       const src = recAudioCtx.createMediaStreamSource(rs);
-      src.connect(recAudioDest);
-      recAudioSources[pid] = src;
-    } catch (e) { console.warn('addRecAudioSource failed for', pid, e); }
+      src.connect(recAudioDest); recAudioSources[pid] = src;
+    } catch(e) {}
   }
 }
 
 function removeRecAudioSource(pid) {
   if (recAudioSources[pid]) {
-    try { recAudioSources[pid].disconnect(); } catch (e) {}
+    try { recAudioSources[pid].disconnect(); } catch(e) {}
     delete recAudioSources[pid];
   }
 }
 
-// Background blur
-$('#blurBtn').addEventListener('click', () => {
-  if (!localStream?.getVideoTracks().length) return;
-  isBlurOn = !isBlurOn;
-  updateControlButtons();
-  if (isBlurOn) startBlur(); else stopBlur();
-});
-
+// ─── Background blur ──────────────────────────────────────────────────────────
 function startBlur() {
-  const track    = localStream.getVideoTracks()[0];
+  const track = localStream.getVideoTracks()[0];
   const settings = track.getSettings();
-  const w = settings.width  || 640;
-  const h = settings.height || 480;
-
+  const w = settings.width || 640, h = settings.height || 480;
   blurCanvas = document.createElement('canvas');
   blurCanvas.width = w; blurCanvas.height = h;
   blurCtx = blurCanvas.getContext('2d');
-
   const tmp = document.createElement('video');
-  tmp.srcObject = new MediaStream([track]);
-  tmp.play();
-
+  tmp.srcObject = new MediaStream([track]); tmp.play();
   function draw() {
     if (!isBlurOn) return;
-    blurCtx.filter = 'blur(10px)';
-    blurCtx.drawImage(tmp, 0, 0, w, h);
-    blurCtx.filter = 'none';
-    blurCtx.save();
-    blurCtx.beginPath();
-    blurCtx.ellipse(w / 2, h / 2.2, w * 0.28, h * 0.45, 0, 0, Math.PI * 2);
-    blurCtx.clip();
-    blurCtx.drawImage(tmp, 0, 0, w, h);
-    blurCtx.restore();
+    blurCtx.filter = 'blur(10px)'; blurCtx.drawImage(tmp, 0, 0, w, h);
+    blurCtx.filter = 'none'; blurCtx.save();
+    blurCtx.beginPath(); blurCtx.ellipse(w/2, h/2.2, w*0.28, h*0.45, 0, 0, Math.PI*2);
+    blurCtx.clip(); blurCtx.drawImage(tmp, 0, 0, w, h); blurCtx.restore();
     blurAnimFrame = requestAnimationFrame(draw);
   }
   draw();
-
   blurStream = blurCanvas.captureStream(24);
   const blurTrack = blurStream.getVideoTracks()[0];
   for (const pid of Object.keys(peers)) {
@@ -681,47 +894,33 @@ function stopBlur() {
   syncParticipantTile(myParticipantId);
 }
 
-// Copy link
-$('#copyLinkBtn').addEventListener('click', async () => {
-  const url = `${location.origin}/join/${meetingId}`;
-  try {
-    await navigator.clipboard.writeText(url);
-    showToast('Meeting link copied!');
-    const btn = $('#copyLinkBtn');
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy Link', 2000);
-  } catch { showToast(`Link: ${url}`); }
-});
-
-// Device selection
+// ─── Device selection ─────────────────────────────────────────────────────────
 $('#deviceBtn').addEventListener('click', async () => {
   const sel = $('#deviceSelector');
   if (!sel.classList.contains('hidden')) { sel.classList.add('hidden'); return; }
-
   const devices  = await navigator.mediaDevices.enumerateDevices();
   const cameras  = devices.filter(d => d.kind === 'videoinput');
   const mics     = devices.filter(d => d.kind === 'audioinput');
   const speakers = devices.filter(d => d.kind === 'audiooutput');
   const curVid   = localStream?.getVideoTracks()[0]?.getSettings().deviceId || '';
   const curAud   = localStream?.getAudioTracks()[0]?.getSettings().deviceId || '';
-
   sel.innerHTML = '';
   if (cameras.length) {
     sel.innerHTML += '<h4>Camera</h4>';
     cameras.forEach(d => {
-      sel.innerHTML += `<button class="${d.deviceId === curVid ? 'selected' : ''}" onclick="switchCamera('${d.deviceId}')">${d.label || 'Camera ' + d.deviceId.slice(0,4)}</button>`;
+      sel.innerHTML += `<button class="${d.deviceId===curVid?'selected':''}" onclick="switchCamera('${d.deviceId}')">${d.label||'Camera '+d.deviceId.slice(0,4)}</button>`;
     });
   }
   if (mics.length) {
     sel.innerHTML += '<h4>Microphone</h4>';
     mics.forEach(d => {
-      sel.innerHTML += `<button class="${d.deviceId === curAud ? 'selected' : ''}" onclick="switchMic('${d.deviceId}')">${d.label || 'Mic ' + d.deviceId.slice(0,4)}</button>`;
+      sel.innerHTML += `<button class="${d.deviceId===curAud?'selected':''}" onclick="switchMic('${d.deviceId}')">${d.label||'Mic '+d.deviceId.slice(0,4)}</button>`;
     });
   }
   if (speakers.length) {
     sel.innerHTML += '<h4>Speaker</h4>';
     speakers.forEach(d => {
-      sel.innerHTML += `<button onclick="switchSpeaker('${d.deviceId}')">${d.label || 'Speaker ' + d.deviceId.slice(0,4)}</button>`;
+      sel.innerHTML += `<button onclick="switchSpeaker('${d.deviceId}')">${d.label||'Speaker '+d.deviceId.slice(0,4)}</button>`;
     });
   }
   sel.classList.remove('hidden');
@@ -732,7 +931,7 @@ async function switchCamera(deviceId) {
     const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
     const newTrack  = newStream.getVideoTracks()[0];
     const oldTrack  = localStream?.getVideoTracks()[0];
-    if (oldTrack)    { localStream.removeTrack(oldTrack); oldTrack.stop(); }
+    if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
     if (localStream) localStream.addTrack(newTrack);
     for (const pid of Object.keys(peers)) {
       const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
@@ -740,7 +939,7 @@ async function switchCamera(deviceId) {
     }
     syncParticipantTile(myParticipantId);
     $('#deviceSelector').classList.add('hidden');
-  } catch (err) { console.error('Switch camera error:', err); }
+  } catch(err) { console.error('Switch camera error:', err); }
 }
 
 async function switchMic(deviceId) {
@@ -748,7 +947,7 @@ async function switchMic(deviceId) {
     const newStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
     const newTrack  = newStream.getAudioTracks()[0];
     const oldTrack  = localStream?.getAudioTracks()[0];
-    if (oldTrack)    { localStream.removeTrack(oldTrack); oldTrack.stop(); }
+    if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
     if (localStream) localStream.addTrack(newTrack);
     if (isMuted) newTrack.enabled = false;
     for (const pid of Object.keys(peers)) {
@@ -756,27 +955,29 @@ async function switchMic(deviceId) {
       if (s) await s.replaceTrack(newTrack);
     }
     $('#deviceSelector').classList.add('hidden');
-  } catch (err) { console.error('Switch mic error:', err); }
+  } catch(err) { console.error('Switch mic error:', err); }
 }
 
 function switchSpeaker(deviceId) {
-  document.querySelectorAll('.video-tile video').forEach(v => { if (v.setSinkId) v.setSinkId(deviceId); });
+  document.querySelectorAll('.video-tile video, #spotlightMain video').forEach(v => {
+    if (v.setSinkId) v.setSinkId(deviceId);
+  });
   $('#deviceSelector').classList.add('hidden');
 }
 
 document.addEventListener('click', (e) => {
   const sel = $('#deviceSelector');
-  if (!sel.classList.contains('hidden') && !sel.contains(e.target) && e.target.id !== 'deviceBtn') {
+  if (!sel.classList.contains('hidden') && !sel.contains(e.target) && e.target.id !== 'deviceBtn' && !e.target.closest('#deviceBtn'))
     sel.classList.add('hidden');
-  }
+  if (!$('#reactionsTray').classList.contains('hidden') && !e.target.closest('#reactBtn') && !e.target.closest('#reactionsTray'))
+    $('#reactionsTray').classList.add('hidden');
 });
 
-// Side panel
+// ─── Side panel ───────────────────────────────────────────────────────────────
 $('#peopleBtn').addEventListener('click', () => toggleSidePanel('participants'));
 $('#chatBtn').addEventListener('click', () => {
   toggleSidePanel('chat');
-  unreadChatCount = 0;
-  updateChatBadge();
+  unreadChatCount = 0; updateChatBadge();
 });
 $('#closeSidePanel').addEventListener('click', () => $('#sidePanel').classList.add('hidden'));
 
@@ -812,21 +1013,24 @@ function updateChatBadge() {
   }
 }
 
-// Chat
+// ─── Chat ─────────────────────────────────────────────────────────────────────
 $('#chatSendBtn').addEventListener('click', sendChat);
 $('#chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 
 function sendChat() {
+  const now = Date.now();
+  if (now - lastChatSent < 300) return;
   const text = $('#chatInput').value.trim();
   if (!text) return;
+  lastChatSent = now;
   socket.emit('chat:message', { text });
   $('#chatInput').value = '';
 }
 
 socket.on('chat:message', ({ from, name, text, timestamp }) => {
   const container = $('#chatMessages');
-  const time      = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const isOwn     = from === myParticipantId;
+  const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const isOwn = from === myParticipantId;
   container.innerHTML += `
     <div class="chat-msg${isOwn ? ' chat-msg-own' : ''}">
       <div class="chat-author">${escapeHtml(name)}${isOwn ? ' (You)' : ''}</div>
@@ -834,23 +1038,23 @@ socket.on('chat:message', ({ from, name, text, timestamp }) => {
       <div class="chat-time">${time}</div>
     </div>`;
   container.scrollTop = container.scrollHeight;
-
   const chatOpen = !$('#sidePanel').classList.contains('hidden') &&
     document.querySelector('.side-panel-tabs button.active')?.dataset.tab === 'chat';
   if (!chatOpen) { unreadChatCount++; updateChatBadge(); }
 });
 
-// Leave
+// ─── Leave ────────────────────────────────────────────────────────────────────
 $('#leaveBtn').addEventListener('click', () => {
   if (!confirm('Leave this meeting?')) return;
   if (isRecording) stopRecording();
   if (localStream)  localStream.getTracks().forEach(t => t.stop());
   if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+  if (timerInterval) clearInterval(timerInterval);
   socket.disconnect();
   window.location.href = '/';
 });
 
-// Keyboard shortcuts
+// ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
   if (!myParticipantId) return;
   if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
@@ -863,51 +1067,151 @@ document.addEventListener('keydown', (e) => {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 function updateControlButtons() {
-  $('#micBtn').className    = `btn-icon ${isMuted         ? 'active' : 'inactive'}`;
-  $('#camBtn').className    = `btn-icon ${isVideoOff      ? 'active' : 'inactive'}`;
-  $('#screenBtn').className = `btn-icon ${isScreenSharing ? 'btn-on' : 'inactive'}`;
-  $('#handBtn').className   = `btn-icon ${isHandRaised    ? 'btn-on' : 'inactive'}`;
-  $('#recordBtn').className = `btn-icon ${isRecording     ? 'active' : 'inactive'}`;
-  $('#blurBtn').className   = `btn-icon ${isBlurOn        ? 'btn-on' : 'inactive'}`;
+  const micBtn = $('#micBtn');
+  micBtn.className = `ctrl-btn${isMuted ? ' state-danger' : ''}`;
+  $('#micIcon').innerHTML = isMuted ? ICONS.micOff : ICONS.micOn;
+  const micLabel = micBtn.querySelector('.ctrl-label');
+  if (micLabel) micLabel.textContent = isMuted ? 'Unmute' : 'Mute';
+
+  const camBtn = $('#camBtn');
+  camBtn.className = `ctrl-btn${isVideoOff ? ' state-danger' : ''}`;
+  $('#camIcon').innerHTML = isVideoOff ? ICONS.camOff : ICONS.camOn;
+  const camLabel = camBtn.querySelector('.ctrl-label');
+  if (camLabel) camLabel.textContent = isVideoOff ? 'Start video' : 'Stop video';
+
+  $('#screenBtn').className = `ctrl-btn${isScreenSharing ? ' state-active' : ''}`;
+  const screenLabel = $('#screenLabel');
+  if (screenLabel) screenLabel.textContent = isScreenSharing ? 'Stop share' : 'Present';
+
+  $('#handBtn').className  = `ctrl-btn${isHandRaised    ? ' state-raised'  : ''}`;
+  const handLabel = $('#handLabel');
+  if (handLabel) handLabel.textContent = isHandRaised ? 'Lower hand' : 'Raise hand';
+
+  const recBtn = $('#recordBtn');
+  recBtn.className = `ctrl-btn${isRecording ? ' state-danger' : ''}`;
+  $('#recordIcon').innerHTML = isRecording ? ICONS.recOn : ICONS.recOff;
+  const recLabel = $('#recordLabel');
+  if (recLabel) recLabel.textContent = isRecording ? 'Stop rec' : 'Record';
+
+  $('#blurBtn').className   = `ctrl-btn${isBlurOn        ? ' state-active'  : ''}`;
 }
 
-// Full grid re-render: diff-based — preserves existing video elements to prevent flicker
+// Full grid re-render (diff-based to prevent flicker)
 function renderVideoGrid() {
   const grid   = $('#videoGrid');
   const allIds = Object.keys(participants);
   const count  = allIds.length;
 
-  grid.className = 'video-grid';
-  if      (count <= 1) grid.classList.add('grid-1');
-  else if (count === 2) grid.classList.add('grid-2');
-  else if (count <= 4) grid.classList.add('grid-4');
-  else if (count <= 6) grid.classList.add('grid-6');
-  else                 grid.classList.add('grid-many');
+  if (pinnedParticipant && participants[pinnedParticipant]) {
+    // Spotlight mode
+    updateSpotlightMain();
+    grid.className = 'video-grid filmstrip';
+    const filmIds = allIds.filter(id => id !== pinnedParticipant);
 
-  // Remove tiles for participants that left
-  for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
-    if (!participants[tile.dataset.pid]) tile.remove();
-  }
-  // Add or update tiles
-  for (const pid of allIds) {
-    let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
-    if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
-    else       { syncVideoTile(tile, pid); }
+    for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
+      if (!participants[tile.dataset.pid] || tile.dataset.pid === pinnedParticipant) tile.remove();
+    }
+    for (const pid of filmIds) {
+      let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
+      if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
+      else syncVideoTile(tile, pid);
+    }
+    $('#videoArea').classList.add('spotlight-active');
+    $('#spotlightMain').classList.remove('hidden');
+  } else {
+    // Normal grid
+    $('#videoArea').classList.remove('spotlight-active');
+    clearSpotlightMain();
+    $('#spotlightMain').classList.add('hidden');
+
+    grid.className = 'video-grid';
+    if      (count <= 1) grid.classList.add('grid-1');
+    else if (count === 2) grid.classList.add('grid-2');
+    else if (count <= 4) grid.classList.add('grid-4');
+    else if (count <= 6) grid.classList.add('grid-6');
+    else                 grid.classList.add('grid-many');
+
+    for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
+      if (!participants[tile.dataset.pid]) tile.remove();
+    }
+    for (const pid of allIds) {
+      let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
+      if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
+      else syncVideoTile(tile, pid);
+    }
   }
 
   $('#participantCount').textContent = count;
   updateControlButtons();
 }
 
-// Sync just one tile without rebuilding the whole grid
+// Update single tile (used on state changes)
 function syncParticipantTile(pid) {
+  if (pid === pinnedParticipant) updateSpotlightMain();
   const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
   if (tile) {
     syncVideoTile(tile, pid);
-    $('#participantCount').textContent = Object.keys(participants).length;
-    updateControlButtons();
+  } else if (pid !== pinnedParticipant) {
+    renderVideoGrid(); return;
+  }
+  $('#participantCount').textContent = Object.keys(participants).length;
+  updateControlButtons();
+}
+
+function clearSpotlightMain() {
+  const sm = $('#spotlightMain');
+  const vid = sm.querySelector('video');
+  if (vid) { vid.srcObject = null; vid.remove(); }
+  const av = sm.querySelector('.sm-avatar');
+  if (av) av.remove();
+}
+
+function updateSpotlightMain() {
+  const sm  = $('#spotlightMain');
+  const pid = pinnedParticipant;
+  const p   = participants[pid];
+  if (!p) return;
+  const isLocal = pid === myParticipantId;
+
+  const showVideo = isLocal ? (!p.isVideoOff || p.isScreenSharing) : (!p.isVideoOff && !!peers[pid]);
+  let expectedSrc = null;
+  if (showVideo) {
+    expectedSrc = isLocal
+      ? ((isBlurOn && blurStream) ? blurStream : (isScreenSharing && screenStream) ? screenStream : localStream)
+      : (peers[pid]?.remoteStream || null);
+  }
+
+  let video  = sm.querySelector('video');
+  let avatar = sm.querySelector('.sm-avatar');
+
+  if (showVideo && expectedSrc) {
+    if (avatar) { avatar.remove(); avatar = null; }
+    if (!video) {
+      video = document.createElement('video');
+      video.autoplay = true; video.playsInline = true;
+      if (isLocal) video.muted = true;
+      if (isLocal && !p.isScreenSharing) video.classList.add('mirror');
+      sm.prepend(video);
+    } else {
+      video.classList.toggle('mirror', isLocal && !p.isScreenSharing);
+    }
+    if (video.srcObject !== expectedSrc) video.srcObject = expectedSrc;
   } else {
-    renderVideoGrid();
+    if (video) { video.srcObject = null; video.remove(); video = null; }
+    if (!avatar) {
+      avatar = document.createElement('div');
+      avatar.className = 'sm-avatar';
+      sm.prepend(avatar);
+    }
+    avatar.textContent = (p.name||'?')[0].toUpperCase();
+    avatar.style.background = getAvatarColor(pid);
+  }
+
+  const label = sm.querySelector('.spotlight-label');
+  if (label) {
+    label.innerHTML = escapeHtml(p.name||'')
+      + (p.isMuted ? ' <span class="muted-icon" style="color:var(--danger)">&#x1F507;</span>' : '')
+      + (p.isHandRaised ? ' &#x270B;' : '');
   }
 }
 
@@ -921,8 +1225,15 @@ function createVideoTile(pid) {
 
   const screenBadge = document.createElement('div');
   screenBadge.className = 'screen-share-badge';
-  screenBadge.textContent = 'Screen';
+  screenBadge.textContent = 'Sharing';
   tile.appendChild(screenBadge);
+
+  const pinBtn = document.createElement('button');
+  pinBtn.className = 'pin-btn';
+  pinBtn.title = 'Pin to spotlight';
+  pinBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+  pinBtn.addEventListener('click', (e) => { e.stopPropagation(); pinParticipant(pid); });
+  tile.appendChild(pinBtn);
 
   const handBadge = document.createElement('div');
   handBadge.className = 'hand-badge hidden';
@@ -937,20 +1248,23 @@ function createVideoTile(pid) {
   adminActions.className = 'admin-actions';
   tile.appendChild(adminActions);
 
+  // Click filmstrip tile in spotlight mode to switch pinned
+  tile.addEventListener('click', () => {
+    if (document.querySelector('.video-grid.filmstrip')) pinParticipant(pid);
+  });
+
   syncVideoTile(tile, pid);
   return tile;
 }
 
 function syncVideoTile(tile, pid) {
-  const p      = participants[pid];
+  const p = participants[pid];
   if (!p) return;
   const isLocal = pid === myParticipantId;
 
-  // Mirror only when local + showing camera (not screen share)
   tile.className = 'video-tile';
   if (isLocal && !p.isScreenSharing) tile.classList.add('is-local');
 
-  // Determine video source
   const showVideo = isLocal ? (!p.isVideoOff || p.isScreenSharing) : (!p.isVideoOff && !!peers[pid]);
   let expectedSrc = null;
   if (showVideo) {
@@ -967,8 +1281,7 @@ function syncVideoTile(tile, pid) {
     if (!video) {
       if (avatar) { avatar.remove(); avatar = null; }
       video = document.createElement('video');
-      video.autoplay    = true;
-      video.playsInline = true;
+      video.autoplay = true; video.playsInline = true;
       if (isLocal) video.muted = true;
       media.appendChild(video);
     }
@@ -980,32 +1293,35 @@ function syncVideoTile(tile, pid) {
       avatar.className = 'avatar';
       media.appendChild(avatar);
     }
-    avatar.textContent   = (p.name || '?')[0].toUpperCase();
+    avatar.textContent = (p.name||'?')[0].toUpperCase();
     avatar.style.background = getAvatarColor(pid);
   }
 
-  // Badges
   const screenBadge = tile.querySelector('.screen-share-badge');
   if (screenBadge) screenBadge.style.display = p.isScreenSharing ? 'block' : 'none';
 
   const handBadge = tile.querySelector('.hand-badge');
   if (handBadge) handBadge.classList.toggle('hidden', !p.isHandRaised);
 
-  // Name label
-  const label = tile.querySelector('.tile-label');
-  if (label) {
-    label.innerHTML = `${escapeHtml(p.name || 'Unknown')}`
+  const lbl = tile.querySelector('.tile-label');
+  if (lbl) {
+    lbl.innerHTML = escapeHtml(p.name||'Unknown')
       + (isLocal ? ' <span class="you-tag">(You)</span>' : '')
-      + (p.isMuted ? ' <span class="muted-icon">🔇</span>' : '');
+      + (p.isMuted
+          ? ` <span class="muted-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span>`
+          : '');
   }
 
-  // Admin actions
   const adminActions = tile.querySelector('.admin-actions');
   if (adminActions) {
     if (isAdmin && !isLocal) {
       adminActions.innerHTML = `
-        <button title="${p.isMuted ? 'Unmute' : 'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">${p.isMuted ? '🔇' : '🎤'}</button>
-        <button title="Remove" onclick="adminKick('${pid}')">✕</button>`;
+        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>'}</svg>
+        </button>
+        <button title="Remove" onclick="adminKick('${pid}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>`;
       adminActions.style.display = 'flex';
     } else {
       adminActions.style.display = 'none';
@@ -1016,6 +1332,15 @@ function syncVideoTile(tile, pid) {
 function renderParticipantsList() {
   const list = $('#participantsList');
   list.innerHTML = '';
+
+  if (isAdmin) {
+    const muteAllBtn = document.createElement('button');
+    muteAllBtn.className = 'mute-all-btn';
+    muteAllBtn.innerHTML = `${ICONS.muteAllIcon} Mute everyone`;
+    muteAllBtn.onclick = adminMuteAll;
+    list.appendChild(muteAllBtn);
+  }
+
   for (const [pid, p] of Object.entries(participants)) {
     const isLocal = pid === myParticipantId;
     const item = document.createElement('div');
@@ -1024,23 +1349,36 @@ function renderParticipantsList() {
       <div class="participant-info">
         <div class="participant-avatar" style="background:${getAvatarColor(pid)}">${(p.name||'?')[0].toUpperCase()}</div>
         <div class="participant-name">
-          ${escapeHtml(p.name || 'Unknown')}
+          ${escapeHtml(p.name||'Unknown')}
           ${p.isAdmin  ? '<span class="admin-badge">Host</span>' : ''}
-          ${isLocal    ? '<span class="you-badge">You</span>' : ''}
+          ${isLocal    ? '<span class="you-badge">You</span>'    : ''}
           ${p.isHandRaised ? '<span class="hand-indicator">✋</span>' : ''}
-          ${p.isMuted  ? '<span style="color:var(--text-muted);font-size:13px">🔇</span>' : ''}
+          ${p.isMuted  ? '<span style="color:var(--text-muted);font-size:12px;margin-left:3px;display:inline-flex;align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/></svg></span>' : ''}
         </div>
       </div>
       ${isAdmin && !isLocal ? `
       <div class="participant-actions">
-        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">${p.isMuted?'🔇':'🎤'}</button>
-        <button title="Remove" onclick="adminKick('${pid}')">✕</button>
+        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>'}</svg>
+        </button>
+        <button title="Remove" onclick="adminKick('${pid}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>` : ''}`;
     list.appendChild(item);
   }
 }
 
-// Admin helpers
+function pinParticipant(pid) {
+  if (pid === null || pid === pinnedParticipant) {
+    pinnedParticipant = null;
+  } else {
+    pinnedParticipant = pid;
+  }
+  renderVideoGrid();
+}
+
+// ─── Admin helpers ────────────────────────────────────────────────────────────
 async function adminToggleMute(pid, currentlyMuted) {
   const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
   await fetch(`/api/meetings/${meetingId}/participants/${pid}/${currentlyMuted ? 'unmute' : 'mute'}`, {
@@ -1058,6 +1396,17 @@ async function adminKick(pid) {
     body: JSON.stringify({ reason: 'Removed by host' }),
   });
 }
+
+async function adminMuteAll() {
+  const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
+  await fetch(`/api/meetings/${meetingId}/mute-all`, {
+    method: 'POST',
+    headers: { 'x-api-key': 'mk_default_test_key', 'x-admin-token': adminToken },
+  });
+}
+
+// ─── Init control icons ───────────────────────────────────────────────────────
+updateControlButtons();
 </script>
 </body>
 </html>

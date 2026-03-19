@@ -619,6 +619,15 @@ io.on('connection', (socket) => {
     if (p) { p.isHandRaised = isHandRaised; io.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isHandRaised }); }
   });
 
+  socket.on('react', ({ emoji }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    // Sanitize: only allow known emoji values
+    const allowed = ['👍','❤️','😂','🎉','👏'];
+    if (!allowed.includes(emoji)) return;
+    io.to(currentMeetingId).emit('react', { participantId: currentParticipantId, emoji });
+  });
+
   socket.on('chat:message', ({ text }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
