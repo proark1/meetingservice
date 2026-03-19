@@ -556,8 +556,8 @@
           <button class="btn btn-ghost btn-sm" onclick="loadCryptoDeposits()">Refresh</button>
         </div>
         <table>
-          <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Wallet</th><th>TX Hash</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody id="crypto-deposits-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+          <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Wallet</th><th>TX Hash</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <tbody id="crypto-deposits-body"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
 
@@ -1120,7 +1120,7 @@ async function cryptoRescan() {
 async function loadCryptoDeposits() {
   const { deposits } = await fetch('/admin/api/crypto/deposits').then(r => r.json());
   const tbody = document.getElementById('crypto-deposits-body');
-  if (!deposits.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No USDC deposits</td></tr>'; return; }
+  if (!deposits.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No USDC deposits</td></tr>'; return; }
   tbody.innerHTML = deposits.map(d => `
     <tr>
       <td>${d.id}</td>
@@ -1129,9 +1129,22 @@ async function loadCryptoDeposits() {
       <td>$${parseFloat(d.amount_usd || 0).toFixed(4)}</td>
       <td style="font-family:monospace;font-size:11px;">${d.wallet_address ? d.wallet_address.slice(0,12)+'…' : '—'}</td>
       <td style="font-family:monospace;font-size:11px;">${d.tx_hash ? d.tx_hash.slice(0,12)+'…' : '—'}</td>
-      <td><span class="badge ${d.status==='completed'?'green':d.status==='pending'?'orange':'red'}">${d.status}</span></td>
+      <td><span class="badge ${d.status==='confirmed'||d.status==='completed'?'green':d.status==='pending'?'orange':'red'}">${d.status}</span></td>
       <td>${fmt(d.created_at)}</td>
+      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#4361ee;color:#fff;" onclick="confirmDeposit(${d.id}, ${parseFloat(d.amount_usd||0).toFixed(4)})">Confirm</button>` : ''}</td>
     </tr>`).join('');
+}
+
+async function confirmDeposit(id, amount) {
+  if (!confirm(`Confirm deposit #${id} for $${amount}? This will credit the user immediately.`)) return;
+  const r = await fetch(`/admin/api/crypto/deposits/${id}/confirm`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amountUsd: amount }),
+  });
+  const data = await r.json();
+  if (r.ok) { showToast(`Deposit #${id} confirmed — $${parseFloat(data.amountUsd).toFixed(4)} credited`); loadCryptoDeposits(); }
+  else showToast(data.error || 'Failed to confirm deposit', 'error');
 }
 
 async function loadUnmatchedTransfers() {

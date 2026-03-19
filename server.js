@@ -11,7 +11,7 @@ const helmet     = require('helmet');
 const rateLimit  = require('express-rate-limit');
 const compression = require('compression');
 const morgan     = require('morgan');
-const { pool, initDB, getSettings } = require('./db');
+const { pool, initDB, getSettings, invalidateSettingsCache } = require('./db');
 const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail } = require('./email');
 const crypto = require('crypto');
 
@@ -26,6 +26,11 @@ if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
 }
 if (!process.env.SESSION_SECRET) {
   console.warn('WARNING: SESSION_SECRET not set — using insecure default. Set SESSION_SECRET env var.');
+}
+if (process.env.NODE_ENV === 'production' &&
+    (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD === 'Test321!')) {
+  console.error('FATAL: ADMIN_PASSWORD must be set in production and cannot be the default value.');
+  process.exit(1);
 }
 
 let stripe = null;
@@ -267,9 +272,11 @@ async function authApi(req, res, next) {
   }
   try {
     const { rows } = await pool.query(
-      `SELECT id FROM api_keys WHERE key = $1 AND is_active = TRUE`, [key]
+      `SELECT ak.id, ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1 AND ak.is_active = TRUE`,
+      [key]
     );
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid or missing API key' });
+    req.apiUser = { userId: rows[0].user_id, companyId: rows[0].company_id };
     // Track last use (fire-and-forget)
     pool.query(`UPDATE api_keys SET last_used_at = NOW() WHERE key = $1`, [key]).catch(() => {});
     next();
@@ -471,7 +478,7 @@ app.post('/api/auth/forgot-password', resetLimiter, async (req, res) => {
   res.json({ message: 'If that email is registered, a reset link has been sent.' });
 });
 
-app.get('/api/auth/reset-password', async (req, res) => {
+app.get('/api/auth/reset-password', resetLimiter, async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: 'Token required' });
   const { rows } = await pool.query(
@@ -718,6 +725,7 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
       [key, String(value)]
     );
   }
+  invalidateSettingsCache();
   res.json({ message: 'Settings updated' });
 });
 
@@ -870,6 +878,26 @@ app.get('/admin/api/crypto/deposits', requireAdminSession, async (_req, res) => 
     ORDER BY d.created_at DESC
   `);
   res.json({ deposits: rows });
+});
+
+app.patch('/admin/api/crypto/deposits/:id/confirm', requireAdminSession, async (req, res) => {
+  const { rows } = await pool.query(
+    `UPDATE usdc_deposits SET status = 'confirmed' WHERE id = $1 AND status = 'pending' RETURNING user_id, company_id, amount_usd`,
+    [req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Deposit not found or already confirmed' });
+  const d = rows[0];
+  const amt = req.body.amountUsd || d.amount_usd;
+  if (d.company_id) {
+    await pool.query(`UPDATE companies SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, d.company_id]);
+  } else {
+    await pool.query(`UPDATE users SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, d.user_id]);
+  }
+  await pool.query(
+    `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, description) VALUES ($1,$2,$3,'usdc_deposit','USDC deposit confirmed')`,
+    [d.user_id, d.company_id, amt]
+  );
+  res.json({ ok: true, amountUsd: amt });
 });
 
 app.get('/admin/api/crypto/unmatched', requireAdminSession, async (req, res) => {
@@ -1049,14 +1077,50 @@ app.delete('/api/company/members/:id', requireUserSession, async (req, res) => {
   res.json({ message: 'Member removed' });
 });
 
+// ─── Participant removal helper (used by disconnect and kick handlers) ────────
+async function removeParticipantFromMeeting(meeting, participantId, io) {
+  const p = meeting.participants.get(participantId);
+  meeting.participants.delete(participantId);
+  io.to(meeting.id).emit('participant:left', { participantId, name: p ? p.name : 'Unknown' });
+
+  // Fire participant.left webhook
+  if (meeting.logId) {
+    const { rows: lRows } = await pool.query(
+      `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
+    ).catch(() => ({ rows: [] }));
+    if (lRows[0]) {
+      deliverWebhook(meeting.logId, lRows[0].user_id, lRows[0].company_id, 'participant.left', {
+        meetingId: meeting.id, participantId, name: p ? p.name : 'Unknown',
+      }).catch(() => {});
+    }
+  }
+
+  // If room is empty, schedule charge and cleanup after 60s grace period
+  if (meeting.participants.size === 0) {
+    setTimeout(() => {
+      const m = meetings.get(meeting.id);
+      if (m && m.participants.size === 0) {
+        meetings.delete(meeting.id);
+        chargeMeeting(m).catch(err => console.error('Failed to charge meeting', m.id, err));
+      }
+    }, 60000);
+  }
+
+  return p;
+}
+
 // ─── Meeting charge helper ────────────────────────────────────────────────────
+function calculateMeetingCost(durationMinutes, peakParticipants, rate) {
+  return Math.round(durationMinutes * peakParticipants * rate * 10000) / 10000;
+}
+
 async function chargeMeeting(meeting) {
   try {
     if (!meeting.logId) return; // not persisted
     const mins = (Date.now() - meeting.createdAt) / 60000;
     const s = await getSettings();
     const rate = parseFloat(s.meeting_cost_per_participant_minute) || 0.01;
-    const cost = parseFloat((mins * (meeting.peakParticipants || 1) * rate).toFixed(4));
+    const cost = calculateMeetingCost(mins, meeting.peakParticipants || 1, rate);
     if (cost < 0.0001) return;
 
     // Look up who created the meeting to find user/company
@@ -1111,11 +1175,27 @@ async function chargeMeeting(meeting) {
     trackEvent(user_id, company_id, 'meeting.ended', { durationMinutes: parseFloat(mins.toFixed(2)), peakParticipants: meeting.peakParticipants || 1, costUsd: parseFloat(cost) });
 
   } catch (err) {
-    console.error('chargeMeeting error:', err);
+    console.error('chargeMeeting error (revenue may be lost):', err);
+    throw err;
   }
 }
 
 // ─── Webhook delivery ─────────────────────────────────────────────────────────
+async function fetchWithRetry(url, options, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return; // success or client error — don't retry
+    } catch (err) {
+      if (i === retries - 1) {
+        console.error(`Webhook ${url} failed after ${retries} attempts:`, err.message);
+      } else {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+      }
+    }
+  }
+}
+
 async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
   try {
     const { rows } = await pool.query(
@@ -1125,12 +1205,12 @@ async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
     const body = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
     for (const wh of rows) {
       const sig = 'sha256=' + crypto.createHmac('sha256', wh.secret).update(body).digest('hex');
-      fetch(wh.url, {
+      fetchWithRetry(wh.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-MeetingService-Event': event },
         body,
         signal: AbortSignal.timeout(8000),
-      }).catch(err => console.error(`Webhook delivery failed for ${wh.url}:`, err.message));
+      });
     }
   } catch (err) {
     console.error('deliverWebhook error:', err);
@@ -1171,7 +1251,7 @@ app.post('/api/meetings', authApi, async (req, res) => {
   const settings   = {
     muteOnJoin:      req.body.muteOnJoin      ?? false,
     videoOffOnJoin:  req.body.videoOffOnJoin  ?? false,
-    maxParticipants: req.body.maxParticipants ?? maxDefault,
+    maxParticipants: Math.min(Math.max(parseInt(req.body.maxParticipants) || maxDefault, 2), 500),
     locked:          false,
     waitingRoom:     req.body.waitingRoom     ?? false,
   };
@@ -1196,22 +1276,16 @@ app.post('/api/meetings', authApi, async (req, res) => {
 
     // Set a timer for exact activation
     const delay = scheduledAt - Date.now();
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       const s = scheduledMeetings.get(id);
       if (s && s.status === 'scheduled') activateScheduledMeeting(s);
     }, delay);
+    scheduled.timerId = timerId;
 
-    // Look up user from api key for analytics (fire-and-forget)
-    try {
-      const apiKey = req.headers['x-api-key'];
-      const { rows: keyRows } = await pool.query(
-        `SELECT ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1`,
-        [apiKey]
-      );
-      if (keyRows[0]) {
-        trackEvent(keyRows[0].user_id, keyRows[0].company_id, 'meeting.created', { scheduled: true, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom });
-      }
-    } catch(_e) {}
+    // Track analytics using user already resolved by authApi middleware
+    if (req.apiUser) {
+      trackEvent(req.apiUser.userId, req.apiUser.companyId, 'meeting.created', { scheduled: true, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom });
+    }
 
     return res.status(201).json({
       meetingId: id, adminToken, joinUrl: `/join/${id}`,
@@ -1235,18 +1309,14 @@ app.post('/api/meetings', authApi, async (req, res) => {
   };
   meetings.set(id, meeting);
 
-  // Persist to meetings_log — look up user from api key
-  try {
-    const apiKey = req.headers['x-api-key'];
-    const { rows: keyRows } = await pool.query(
-      `SELECT ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1`,
-      [apiKey]
-    );
-    if (keyRows.length > 0) {
-      const { user_id, company_id } = keyRows[0];
+  // Persist to meetings_log — use user already resolved by authApi middleware
+  if (req.apiUser) {
+    try {
+      const { userId: user_id, companyId: company_id } = req.apiUser;
+      const keyFingerprint = crypto.createHash('sha256').update(req.headers['x-api-key']).digest('hex').slice(0, 16);
       const { rows: logRows } = await pool.query(
         `INSERT INTO meetings_log (meeting_id, title, created_by_key, user_id, company_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [id, meeting.title, apiKey, user_id, company_id || null]
+        [id, meeting.title, keyFingerprint, user_id, company_id || null]
       );
       meeting.logId = logRows[0].id;
 
@@ -1254,25 +1324,18 @@ app.post('/api/meetings', authApi, async (req, res) => {
       deliverWebhook(logRows[0].id, user_id, company_id, 'meeting.started', {
         meetingId: id, title: meeting.title,
       }).catch(() => {});
+    } catch (err) {
+      console.error('meetings_log insert error:', err);
     }
-  } catch (err) {
-    console.error('meetings_log insert error:', err);
   }
 
   res.status(201).json({
     meetingId: id, adminToken, joinUrl: `/join/${id}`,
     title: meeting.title, status: 'active', settings: meeting.settings,
   });
-  try {
-    const apiKey = req.headers['x-api-key'];
-    const { rows: keyRows } = await pool.query(
-      `SELECT ak.user_id, u.company_id FROM api_keys ak JOIN users u ON u.id = ak.user_id WHERE ak.key = $1`,
-      [apiKey]
-    );
-    if (keyRows[0]) {
-      trackEvent(keyRows[0].user_id, keyRows[0].company_id, 'meeting.created', { scheduled: false, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom, maxParticipants: settings.maxParticipants });
-    }
-  } catch(_e) {}
+  if (req.apiUser) {
+    trackEvent(req.apiUser.userId, req.apiUser.companyId, 'meeting.created', { scheduled: false, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom, maxParticipants: settings.maxParticipants });
+  }
 });
 
 app.get('/api/meetings', authApi, (_req, res) => {
@@ -1336,15 +1399,17 @@ app.delete('/api/meetings/:meetingId', authApi, (req, res) => {
     io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by admin' });
     meetings.delete(m.id);
     scheduledMeetings.delete(m.id);
-    chargeMeeting(m).catch(() => {});
+    chargeMeeting(m).catch(err => console.error('Failed to charge meeting', m.id, err));
     return res.json({ message: 'Meeting ended' });
   }
 
   if (s) {
-    const adminToken = req.headers['x-admin-token'];
-    if (!adminToken || adminToken !== s.adminToken) {
+    const provided = Buffer.from(req.headers['x-admin-token'] || '');
+    const expected = Buffer.from(s.adminToken || '');
+    if (provided.length === 0 || provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
       return res.status(403).json({ error: 'Admin token required' });
     }
+    if (s.timerId) clearTimeout(s.timerId);
     scheduledMeetings.delete(s.id);
     return res.json({ message: 'Scheduled meeting cancelled' });
   }
@@ -1382,12 +1447,11 @@ app.post('/api/meetings/:meetingId/participants/:participantId/unmute', authApi,
   res.json({ message: `${p.name} unmuted` });
 });
 
-app.post('/api/meetings/:meetingId/participants/:participantId/kick', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+app.post('/api/meetings/:meetingId/participants/:participantId/kick', authApi, findMeeting, requireMeetingAdmin, async (req, res) => {
   const p = req.meeting.participants.get(req.params.participantId);
   if (!p) return res.status(404).json({ error: 'Participant not found' });
   io.to(p.socketId).emit('admin:kick', { reason: req.body.reason || 'Removed by admin' });
-  req.meeting.participants.delete(p.id);
-  io.to(req.meeting.id).emit('participant:left', { participantId: p.id, name: p.name });
+  await removeParticipantFromMeeting(req.meeting, p.id, io);
   res.json({ message: `${p.name} kicked` });
 });
 
@@ -1901,29 +1965,7 @@ io.on('connection', (socket) => {
     if (!currentMeetingId || !currentParticipantId) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
-    const p = meeting.participants.get(currentParticipantId);
-    meeting.participants.delete(currentParticipantId);
-    socket.to(currentMeetingId).emit('participant:left', {
-      participantId: currentParticipantId, name: p ? p.name : 'Unknown',
-    });
-    // Fire participant.left webhook
-    if (meeting.logId) {
-      const { rows: lRows } = await pool.query(`SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]).catch(() => ({ rows: [] }));
-      if (lRows[0]) {
-        deliverWebhook(meeting.logId, lRows[0].user_id, lRows[0].company_id, 'participant.left', {
-          meetingId: meeting.id, participantId: currentParticipantId, name: p ? p.name : 'Unknown',
-        }).catch(() => {});
-      }
-    }
-    if (meeting.participants.size === 0) {
-      setTimeout(() => {
-        const m = meetings.get(currentMeetingId);
-        if (m && m.participants.size === 0) {
-          meetings.delete(currentMeetingId);
-          chargeMeeting(m).catch(() => {});
-        }
-      }, 60000);
-    }
+    await removeParticipantFromMeeting(meeting, currentParticipantId, io);
   });
 });
 

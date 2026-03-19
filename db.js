@@ -315,9 +315,18 @@ async function initDB() {
   }
 }
 
+let settingsCache = null;
+let settingsCacheAt = 0;
+const SETTINGS_TTL = 60_000; // 60 seconds
+
 async function getSettings() {
+  if (settingsCache && Date.now() - settingsCacheAt < SETTINGS_TTL) return settingsCache;
   const { rows } = await pool.query('SELECT key, value FROM settings');
-  return Object.fromEntries(rows.map(r => [r.key, r.value]));
+  settingsCache = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  settingsCacheAt = Date.now();
+  return settingsCache;
 }
 
-module.exports = { pool, initDB, getSettings };
+function invalidateSettingsCache() { settingsCache = null; }
+
+module.exports = { pool, initDB, getSettings, invalidateSettingsCache };
