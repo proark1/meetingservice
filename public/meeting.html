@@ -798,7 +798,16 @@ function createPeerConnection(participantId, initiator) {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   peers[participantId] = { pc, remoteStream: new MediaStream(), screenAudioSender: null };
 
-  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  if (localStream) {
+    localStream.getTracks().forEach(t => {
+      // For video: send the blur/background canvas track if active, not the raw camera
+      if (t.kind === 'video' && isBlurOn && blurStream) {
+        const blurTrack = blurStream.getVideoTracks()[0];
+        if (blurTrack) { pc.addTrack(blurTrack, localStream); return; }
+      }
+      pc.addTrack(t, localStream);
+    });
+  }
 
   pc.onicecandidate = (e) => {
     if (e.candidate) socket.emit('signal:ice-candidate', { to: participantId, candidate: e.candidate });
