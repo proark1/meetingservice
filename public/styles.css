@@ -909,5 +909,20 @@ kbd {
 }
 .chat-react-picker button:hover { background: var(--surface2); transform: scale(1.2); }
 
+/* ─── Focus mode (single participant fills full video area) ──────────────── */
+.video-area.focus-active .video-grid { display: none !important; }
+.video-area.focus-active .spotlight-main { flex: 1; }
+
+/* Focus button on tile — top-left, appears on hover */
+.focus-btn {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,0.7); border: none; color: white;
+  border-radius: 8px; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0; transition: opacity 0.15s; z-index: 3;
+}
+.video-tile:hover .focus-btn { opacity: 1; }
+.focus-btn:hover { background: rgba(67,97,238,0.85); }
+
 /* ─── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

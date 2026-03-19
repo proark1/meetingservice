@@ -393,7 +393,8 @@ let speechRecog  = null;
 const captionTimers = {}; // pid → clearTimeout handle
 
 // Layout
-let layoutMode   = localStorage.getItem('layoutMode') || 'auto';
+let layoutMode        = localStorage.getItem('layoutMode') || 'auto';
+let focusedParticipant = null; // fills the entire video area, no filmstrip
 let speakerInterval = null;
 
 // Lock
@@ -1005,7 +1006,8 @@ $('#copyLinkBtn').addEventListener('click', async () => {
 
 // Unpin button
 $('#unpinBtn').addEventListener('click', () => {
-  pinnedParticipant = null; renderVideoGrid();
+  if (focusedParticipant) exitFocus();
+  else { pinnedParticipant = null; renderVideoGrid(); }
 });
 
 // Participant count pill opens people panel
@@ -1783,8 +1785,27 @@ function renderVideoGrid() {
   const allIds = Object.keys(participants);
   const count  = allIds.length;
 
+  // Clear focus if the participant left
+  if (focusedParticipant && !participants[focusedParticipant]) {
+    focusedParticipant = null;
+    if (pinnedParticipant === focusedParticipant) pinnedParticipant = null;
+  }
+
+  // Apply / remove focus-active class
+  $('#videoArea').classList.toggle('focus-active', !!focusedParticipant);
+
+  // Update unpin button label based on mode
+  const unpinBtn = $('#unpinBtn');
+  if (unpinBtn) {
+    if (focusedParticipant) {
+      unpinBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="21" y2="3"/><line x1="3" y1="21" x2="14" y2="10"/></svg> Exit focus`;
+    } else {
+      unpinBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 10c0 2.7-1.7 5.2-3.5 7.1M12 23S3 17 3 10a9 9 0 0 1 4-7.5"/></svg> Unpin`;
+    }
+  }
+
   // Gallery mode: force equal grid, no spotlight
-  if (layoutMode === 'gallery') {
+  if (layoutMode === 'gallery' && !focusedParticipant) {
     pinnedParticipant = null;
     $('#videoArea').classList.remove('spotlight-active');
     clearSpotlightMain();
@@ -1941,6 +1962,13 @@ function createVideoTile(pid) {
   pinBtn.addEventListener('click', (e) => { e.stopPropagation(); pinParticipant(pid); });
   tile.appendChild(pinBtn);
 
+  const focusBtn = document.createElement('button');
+  focusBtn.className = 'focus-btn';
+  focusBtn.title = 'Fill screen';
+  focusBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+  focusBtn.addEventListener('click', (e) => { e.stopPropagation(); focusParticipant(pid); });
+  tile.appendChild(focusBtn);
+
   const handBadge = document.createElement('div');
   handBadge.className = 'hand-badge hidden';
   handBadge.textContent = '✋';
@@ -2076,11 +2104,24 @@ function renderParticipantsList() {
 }
 
 function pinParticipant(pid) {
+  if (focusedParticipant) exitFocus();
   if (pid === null || pid === pinnedParticipant) {
     pinnedParticipant = null;
   } else {
     pinnedParticipant = pid;
   }
+  renderVideoGrid();
+}
+
+function focusParticipant(pid) {
+  focusedParticipant = pid;
+  pinnedParticipant  = pid; // reuse spotlight render logic
+  renderVideoGrid();
+}
+
+function exitFocus() {
+  focusedParticipant = null;
+  pinnedParticipant  = null;
   renderVideoGrid();
 }
 
