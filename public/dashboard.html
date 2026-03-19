@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — MeetingService</title>
+  <title>Dashboard — onepizza.io</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -311,7 +311,7 @@
       <div class="logo-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
       </div>
-      MeetingService
+      onepizza.io
     </div>
     <h1>Sign In</h1>
     <p>Access your dashboard, API keys, and billing.</p>
@@ -343,7 +343,7 @@
       <div class="logo-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
       </div>
-      MeetingService
+      onepizza.io
     </div>
     <nav class="sidebar-nav">
       <div class="nav-item active" data-section="overview" onclick="goTo('overview')">
@@ -496,7 +496,7 @@
             <p class="text-sm text-muted mb-16">Use your API key in the <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">x-api-key</code> header to create and manage meetings programmatically:</p>
             <div class="code-block" id="quickstartCodeBlock">
               <button class="copy-btn" onclick="copyCode('quickstartCodeBlock')">Copy</button>
-              <pre id="quickstartCode">curl -X POST https://meetingservice.app/api/meetings \
+              <pre id="quickstartCode">curl -X POST https://onepizza.io/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d '{"title": "My Meeting"}'</pre>
@@ -610,13 +610,13 @@
             <div class="code-block" id="apiCodeBlock">
               <button class="copy-btn" onclick="copyCode('apiCodeBlock')">Copy</button>
               <pre># Create a meeting
-curl -X POST https://meetingservice.app/api/meetings \
+curl -X POST https://onepizza.io/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d '{"title": "Team Standup"}'
 
 # List your meetings
-curl https://meetingservice.app/api/meetings \
+curl https://onepizza.io/api/meetings \
   -H "x-api-key: YOUR_API_KEY"</pre>
             </div>
             <p class="text-sm text-muted mt-12"><a href="/docs" style="color:var(--primary);font-weight:600;">View full API documentation →</a></p>
@@ -1070,7 +1070,7 @@ function populateOverview(keys) {
   // Quick start code — use already-loaded keys
   const activeKey = (keys || []).find(k => k.is_active);
   if (activeKey) {
-    document.getElementById('quickstartCode').textContent = `curl -X POST https://meetingservice.app/api/meetings \\
+    document.getElementById('quickstartCode').textContent = `curl -X POST https://onepizza.io/api/meetings \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: ${activeKey.key}" \\
   -d '{"title": "My Meeting"}'`;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MeetingService — API Documentation</title>
+  <title>onepizza.io — API Documentation</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -80,7 +80,7 @@
 <body>
 
 <nav>
-  <a href="/" style="color:#4361ee;font-size:15px;">MeetingService</a>
+  <a href="/" style="color:#4361ee;font-size:15px;">onepizza.io</a>
   <a href="/docs">API Docs</a>
   <a href="/dashboard">Dashboard</a>
   <a href="/register">Register</a>
@@ -88,12 +88,12 @@
 
 <div class="docs-container">
 
-<h1>MeetingService API</h1>
+<h1>onepizza.io API</h1>
 <p class="subtitle">A RESTful + WebSocket API for creating and managing video meetings. Built for developers, agents, and teams.</p>
 <div class="meta">
   <span>Version: <strong>3.0.0</strong></span>
   <span>Updated: <strong>March 19, 2026</strong></span>
-  <span>Base URL: <strong>https://meetingservice-production.up.railway.app</strong></span>
+  <span>Base URL: <strong>https://onepizza.io</strong></span>
 </div>
 
 <div class="note">
@@ -530,7 +530,7 @@ curl -X POST /api/meetings \
 <p>Connect to the Socket.IO server at the base URL. The same server handles both signaling and meeting state.</p>
 
 <pre><code>import { io } from "socket.io-client";
-const socket = io("https://meetingservice-production.up.railway.app");</code></pre>
+const socket = io("https://onepizza.io");</code></pre>
 
 <h3>Client → Server</h3>
 <table>
@@ -790,20 +790,20 @@ Supported media tracks:
 <h2 id="quickstart">18. Quick Start</h2>
 
 <h3>1. Start a guest meeting (no account needed)</h3>
-<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/meetings/guest \
+<pre><code>curl -X POST https://onepizza.io/api/meetings/guest \
   -H "Content-Type: application/json" \
   -d '{"title": "Quick Sync"}'
 # Open the joinUrl in a browser to join</code></pre>
 
 <h3>2. Create an account and get an API key</h3>
-<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/auth/register \
+<pre><code>curl -X POST https://onepizza.io/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","password":"secret123"}'
 # Save the apiKey from the response</code></pre>
 
 <h3>3. Create, manage, and end a meeting via API</h3>
 <pre><code>API_KEY="mk_yourkey"
-BASE="https://meetingservice-production.up.railway.app"
+BASE="https://onepizza.io"
 
 # Create
 RESP=$(curl -s -X POST $BASE/api/meetings \
@@ -829,7 +829,7 @@ curl -s -X DELETE $BASE/api/meetings/$MEETING_ID \
   -H "x-admin-token: $ADMIN_TOKEN"</code></pre>
 
 <h3>4. Schedule a future meeting</h3>
-<pre><code>curl -X POST https://meetingservice-production.up.railway.app/api/meetings \
+<pre><code>curl -X POST https://onepizza.io/api/meetings \
   -H "Content-Type: application/json" \
   -H "x-api-key: $API_KEY" \
   -d '{"title":"Daily Standup","scheduledAt":"2026-04-01T09:00:00Z"}'</code></pre>
@@ -837,7 +837,7 @@ curl -s -X DELETE $BASE/api/meetings/$MEETING_ID \
 <h3>5. Connect via Socket.IO (Node.js)</h3>
 <pre><code>import { io } from "socket.io-client";
 
-const socket = io("https://meetingservice-production.up.railway.app");
+const socket = io("https://onepizza.io");
 
 socket.emit("join-meeting", {
   meetingId: "abc-defg-hij",
@@ -897,7 +897,7 @@ socket.emit("react", { emoji: "👍" });</code></pre>
 </table>
 
 <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);color:var(--text-muted);font-size:13px;text-align:center;">
-  MeetingService &mdash; <a href="https://meetingservice-production.up.railway.app">meetingservice-production.up.railway.app</a>
+  onepizza.io &mdash; <a href="https://onepizza.io">onepizza.io</a>
 </div>
 
 </div>

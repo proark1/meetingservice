@@ -1,7 +1,7 @@
 const { Resend } = require('resend');
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const APP_URL = process.env.APP_URL || 'https://meetingservice-production.up.railway.app';
-const FROM    = 'MeetingService <noreply@meetingservice.app>';
+const FROM    = 'onepizza.io <noreply@onepizza.io>';
 
 async function sendEmail({ to, subject, html }) {
   if (!process.env.RESEND_API_KEY) return; // silently skip in dev
@@ -18,10 +18,10 @@ function passwordResetEmail(resetToken) {
   <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
     <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-      MeetingService
+      onepizza.io
     </div>
     <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Reset your password</h1>
-    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">We received a request to reset your MeetingService password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">We received a request to reset your onepizza.io password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
     <a href="${url}" style="display:block;text-align:center;background:#4361ee;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">Reset Password →</a>
     <p style="font-size:12px;color:#94a3b8;margin:20px 0 0;line-height:1.6">If you didn't request this, you can safely ignore this email. The link expires in 1 hour and your password won't change.</p>
   </div>
@@ -34,10 +34,10 @@ function lowBalanceEmail(balance, email) {
   <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
     <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-      MeetingService
+      onepizza.io
     </div>
     <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Low balance alert</h1>
-    <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.6">Your MeetingService balance has dropped below $2.00. You currently have <strong style="color:#0f172a">$${parseFloat(balance).toFixed(2)}</strong> remaining.</p>
+    <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.6">Your onepizza.io balance has dropped below $2.00. You currently have <strong style="color:#0f172a">$${parseFloat(balance).toFixed(2)}</strong> remaining.</p>
     <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Top up now to make sure your meetings keep running without interruption.</p>
     <a href="${url}" style="display:block;text-align:center;background:#4361ee;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">Top Up Credits →</a>
   </div>
@@ -49,9 +49,9 @@ function welcomeEmail(email, apiKey) {
   <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
     <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-      MeetingService
+      onepizza.io
     </div>
-    <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Welcome to MeetingService! 🎉</h1>
+    <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Welcome to onepizza.io! 🎉</h1>
     <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.6">Your account is ready — here's your API key. Save it somewhere safe, it won't be shown again.</p>
     <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;font-family:monospace;font-size:13px;word-break:break-all;margin:0 0 20px;color:#0f172a">${apiKey}</div>
     <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0 0 8px">Quick start:</p>
@@ -69,10 +69,10 @@ function passwordChangedEmail(email) {
   <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
     <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-      MeetingService
+      onepizza.io
     </div>
     <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Password changed</h1>
-    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Your MeetingService password was just changed. If you made this change, you're all set.</p>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Your onepizza.io password was just changed. If you made this change, you're all set.</p>
     <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">If you <strong>didn't</strong> change your password, your account may be compromised. Reset it immediately:</p>
     <a href="${APP_URL}/reset" style="display:block;text-align:center;background:#ef4444;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">Secure my account →</a>
     <p style="font-size:12px;color:#94a3b8;margin:20px 0 0;line-height:1.6">This email was sent to ${email}.</p>
@@ -85,10 +85,10 @@ function companyInviteEmail({ to, companyName, inviteCode }) {
   <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
     <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-      MeetingService
+      onepizza.io
     </div>
     <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">You've been invited to ${companyName}</h1>
-    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Use the invite code below to join the <strong>${companyName}</strong> workspace on MeetingService. You'll share their credit balance and API keys.</p>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">Use the invite code below to join the <strong>${companyName}</strong> workspace on onepizza.io. You'll share their credit balance and API keys.</p>
     <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:16px;text-align:center;font-family:monospace;font-size:22px;font-weight:700;color:#4361ee;letter-spacing:0.1em;margin:0 0 24px">${inviteCode}</div>
     <a href="${APP_URL}/dashboard" style="display:block;text-align:center;background:#4361ee;color:#fff;padding:13px 24px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none">Join ${companyName} →</a>
     <p style="font-size:12px;color:#94a3b8;margin:20px 0 0;line-height:1.6">Sign in to your dashboard, go to Company, and enter this code.</p>
@@ -101,7 +101,7 @@ function meetingReceiptEmail({ to, meetingId, title, durationMinutes, cost }) {
   <div style="background:#fff;border-radius:12px;padding:36px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.08)">
     <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin-bottom:28px;color:#0f172a">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-      MeetingService
+      onepizza.io
     </div>
     <h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px">Meeting receipt</h1>
     <p style="font-size:14px;color:#64748b;margin:0 0 20px;line-height:1.6">Your meeting has ended. Here's the usage summary:</p>

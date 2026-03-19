@@ -210,7 +210,7 @@ app.use(session({
     pool,
     createTableIfMissing: true,
   }),
-  secret:            process.env.SESSION_SECRET || 'meetingservice-secret-2024',
+  secret:            process.env.SESSION_SECRET || 'onepizza-secret-2024',
   resave:            false,
   saveUninitialized: false,
   cookie: {
@@ -393,7 +393,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     req.session.companyId = companyId;
 
     // Send welcome email (fire-and-forget)
-    sendEmail({ to: user.email, subject: 'Welcome to MeetingService!', html: welcomeEmail(user.email, key) }).catch(() => {});
+    sendEmail({ to: user.email, subject: 'Welcome to onepizza.io!', html: welcomeEmail(user.email, key) }).catch(() => {});
 
     res.json({ message: 'Account created', email: user.email, apiKey: key, inviteCode, accountType: safeAccountType });
     trackEvent(user.id, companyId || null, 'user.registered', { accountType: safeAccountType });
@@ -475,7 +475,7 @@ app.post('/api/auth/forgot-password', resetLimiter, async (req, res) => {
         `INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
         [user.id, token]
       );
-      sendEmail({ to: user.email, subject: 'Reset your MeetingService password', html: passwordResetEmail(token) }).catch(() => {});
+      sendEmail({ to: user.email, subject: 'Reset your onepizza.io password', html: passwordResetEmail(token) }).catch(() => {});
     }
   } catch (err) {
     console.error('Forgot password error:', err);
@@ -528,7 +528,7 @@ app.post('/api/auth/change-password', requireUserSession, async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 12);
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, req.session.userId]);
     // Send confirmation email (fire-and-forget)
-    sendEmail({ to: req.session.email, subject: 'Your MeetingService password was changed', html: passwordChangedEmail(req.session.email) }).catch(() => {});
+    sendEmail({ to: req.session.email, subject: 'Your onepizza.io password was changed', html: passwordChangedEmail(req.session.email) }).catch(() => {});
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
@@ -943,13 +943,13 @@ app.post('/api/billing/stripe/checkout', requireUserSession, async (req, res) =>
   if (!amt || amt < 5 || amt > 1000) return res.status(400).json({ error: 'Amount must be between $5 and $1000' });
 
   try {
-    const appUrl = process.env.APP_URL || 'https://meetingservice-production.up.railway.app';
+    const appUrl = process.env.APP_URL || 'https://onepizza.io';
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
           currency: 'usd',
-          product_data: { name: `Meeting Credits — $${amt}`, description: 'Credits for MeetingService usage' },
+          product_data: { name: `onepizza.io Credits — $${amt}`, description: 'Credits for onepizza.io usage' },
           unit_amount: Math.round(amt * 100),
         },
         quantity: 1,
@@ -1145,7 +1145,7 @@ async function chargeMeeting(meeting) {
       const thresh = parseFloat(s.low_balance_threshold_usd) || 2.0;
       const prevBal = newBal + cost;
       if (prevBal >= thresh && newBal < thresh && uRows[0]?.email) {
-        sendEmail({ to: uRows[0].email, subject: 'Low balance alert — MeetingService', html: lowBalanceEmail(newBal, uRows[0].email) }).catch(() => {});
+        sendEmail({ to: uRows[0].email, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, uRows[0].email) }).catch(() => {});
       }
     } else if (user_id) {
       const { rows: bRows } = await pool.query(
@@ -1155,7 +1155,7 @@ async function chargeMeeting(meeting) {
       const newBal = parseFloat(bRows[0]?.credits_usd || 0);
       const thresh = parseFloat(s.low_balance_threshold_usd) || 2.0;
       if ((newBal + cost) >= thresh && newBal < thresh && bRows[0]?.email) {
-        sendEmail({ to: bRows[0].email, subject: 'Low balance alert — MeetingService', html: lowBalanceEmail(newBal, bRows[0].email) }).catch(() => {});
+        sendEmail({ to: bRows[0].email, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, bRows[0].email) }).catch(() => {});
       }
     }
 
@@ -1212,7 +1212,7 @@ async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
       const sig = 'sha256=' + crypto.createHmac('sha256', wh.secret).update(body).digest('hex');
       fetchWithRetry(wh.url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-MeetingService-Event': event },
+        headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-OnePizza-Event': event },
         body,
         signal: AbortSignal.timeout(8000),
       });
@@ -1980,7 +1980,7 @@ const PORT = process.env.PORT || 3000;
 initDB()
   .then(() => {
     server.listen(PORT, () => {
-      console.log(`Meeting Service running on http://localhost:${PORT}`);
+      console.log(`onepizza.io running on http://localhost:${PORT}`);
       console.log(`Admin panel at http://localhost:${PORT}/admin`);
     });
   })

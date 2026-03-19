@@ -1,7 +1,7 @@
 {
-  "name": "meetingservice",
+  "name": "onepizza",
   "version": "1.0.0",
-  "description": "A simple, API-based video meeting service",
+  "description": "onepizza.io — Video meeting service",
   "main": "server.js",
   "private": true,
   "scripts": {
