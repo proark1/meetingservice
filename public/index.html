@@ -1096,6 +1096,11 @@ document.getElementById('joinBtn').addEventListener('click', () => {
   window.location.href = `/join/${code}`;
 });
 
+// Redirect already-logged-in users straight to the dashboard
+fetch('/api/auth/me', { credentials: 'include' })
+  .then(r => { if (r.ok) window.location.replace('/dashboard'); })
+  .catch(() => {});
+
 // Enter key support
 document.querySelectorAll('.quickstart-card input').forEach(input => {
   input.addEventListener('keydown', e => {
