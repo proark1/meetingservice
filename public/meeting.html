@@ -383,7 +383,11 @@ setInterval(() => {
 
 // ─── Lobby ────────────────────────────────────────────────────────────────────
 const lobbyNameInput = $('#lobbyName');
-lobbyNameInput.value = sessionStorage.getItem('userName') || '';
+const _urlName = new URLSearchParams(location.search).get('name');
+lobbyNameInput.value = _urlName
+  ? decodeURIComponent(_urlName).slice(0, 60)
+  : (sessionStorage.getItem('userName') || '');
+if (_urlName) updateLobbyInitial();
 $('#lobbyCode').textContent = meetingId;
 
 async function initPreview() {
@@ -449,7 +453,7 @@ fetch('/api/config').then(r => r.json()).then(cfg => {
   if (!cfg.blurEnabled)        $('#blurBtn').style.display   = 'none';
 }).catch(() => {});
 
-initPreview();
+initPreview().then(() => { if (_urlName) joinMeeting(); });
 
 // ─── Socket events ────────────────────────────────────────────────────────────
 socket.on('error', ({ message }) => {

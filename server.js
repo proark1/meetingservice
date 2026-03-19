@@ -99,9 +99,11 @@ app.use(cors({
 
 // ─── Security, compression, logging ──────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, frameguard: false, crossOriginEmbedderPolicy: false }));
-// Allow embedding from lovable.app; omit X-Frame-Options so this CSP takes precedence
+// Allow iframe embedding. Defaults to * (any domain) so API customers can embed meetings
+// on their own domains. Set ALLOWED_FRAME_ANCESTORS env var to restrict (e.g. "https://app.example.com").
 app.use((_req, res, next) => {
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://*.lovable.app https://onetabai.lovable.app");
+  const frameAncestors = process.env.ALLOWED_FRAME_ANCESTORS || '*';
+  res.setHeader('Content-Security-Policy', `frame-ancestors ${frameAncestors}`);
   next();
 });
 app.use(compression());
