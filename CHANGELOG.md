@@ -2,7 +2,17 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-20T21:30:00+01:00
+## [1.0.0] — 2026-03-20T22:15:00+01:00
+
+### Changed
+- Complete UI overhaul: modern light theme across all pages (white backgrounds, subtle shadows)
+- New unified color palette: indigo-600 primary, emerald-500 success, consistent across all pages
+- Meeting page converted from dark to light theme: white controls bar, light video tiles, clean side panels
+- Modernized control buttons: soft gray pills with colored active states
+- Refined typography: Inter font, antialiased rendering, consistent weight scale
+- Improved mobile: horizontal-scroll controls, safe-area padding, 44px touch targets
+- Polished components: cards with subtle shadows, softer badges, cleaner tables
+- Custom scrollbar styling
 
 ### Added
 - Comprehensive analytics dashboard with 6 sub-tabs: Overview, Features, Users, Meetings, AI Usage, Health

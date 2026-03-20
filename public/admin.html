@@ -10,8 +10,8 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9;
-      --primary: #4361ee; --primary-hover: #3a56d4; --primary-light: #eef0fd;
-      --danger: #ef233c; --danger-hover: #d90429;
+      --primary: #4f46e5; --primary-hover: #4338ca; --primary-light: #eef0fd;
+      --danger: #ef4444; --danger-hover: #dc2626;
       --success: #059669; --warning: #d97706;
       --text: #0f172a; --text-muted: #64748b; --text-xmuted: #94a3b8;
       --border: #e2e8f0; --radius: 12px; --radius-sm: 8px;
@@ -1250,7 +1250,7 @@ async function loadCryptoDeposits() {
       <td style="font-family:monospace;font-size:11px;">${d.tx_hash ? d.tx_hash.slice(0,12)+'…' : '—'}</td>
       <td><span class="badge ${d.status==='confirmed'||d.status==='completed'?'green':d.status==='pending'?'orange':'red'}">${d.status}</span></td>
       <td>${fmt(d.created_at)}</td>
-      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#4361ee;color:#fff;" onclick="confirmDeposit(${d.id}, ${parseFloat(d.amount_usd||0).toFixed(4)})">Confirm</button>` : ''}</td>
+      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#4f46e5;color:#fff;" onclick="confirmDeposit(${d.id}, ${parseFloat(d.amount_usd||0).toFixed(4)})">Confirm</button>` : ''}</td>
     </tr>`).join('');
 }
 
@@ -1381,7 +1381,7 @@ const EVENT_LABELS = {
   'feature.captions':'Captions','feature.waiting_room':'Waiting Room',
   'feature.blur':'Background Effects',
 };
-const AN_COLORS = ['#4361ee','#7b2fff','#059669','#d97706','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f59e0b'];
+const AN_COLORS = ['#4f46e5','#7b2fff','#059669','#d97706','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f59e0b'];
 
 async function loadAnEvents() {
   try {
