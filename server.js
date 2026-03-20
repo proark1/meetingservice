@@ -241,6 +241,7 @@ function activateScheduledMeeting(scheduled) {
   };
   meetings.set(scheduled.id, meeting);
   scheduled.status = 'active';
+  scheduledMeetings.delete(scheduled.id);
 }
 
 // Check every 15s for scheduled meetings that need activating
@@ -255,9 +256,8 @@ setInterval(() => {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function generateMeetingId() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz';
-  const pick  = (n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  return `${pick(3)}-${pick(4)}-${pick(3)}`;
+  const seg = (n) => crypto.randomBytes(n).toString('hex').slice(0, n);
+  return `${seg(3)}-${seg(4)}-${seg(3)}`;
 }
 
 function generateApiKey() {
@@ -1088,6 +1088,13 @@ app.delete('/api/company/members/:id', requireUserSession, async (req, res) => {
 async function removeParticipantFromMeeting(meeting, participantId, io) {
   const p = meeting.participants.get(participantId);
   meeting.participants.delete(participantId);
+  // Clear recording state if the recorder disconnected without stopping
+  if (meeting.recordingParticipantId === participantId) {
+    meeting.isRecording = false;
+    meeting.recordingHostName = '';
+    meeting.recordingParticipantId = null;
+    io.to(meeting.id).emit('recording:stopped');
+  }
   io.to(meeting.id).emit('participant:left', { participantId, name: p ? p.name : 'Unknown' });
 
   // Fire participant.left webhook
@@ -1778,6 +1785,7 @@ app.get('/admin/dashboard', requireAdminSession, (_req, res) => {
 io.on('connection', (socket) => {
   let currentMeetingId      = null;
   let currentParticipantId  = null;
+  let currentWaitingRoomId  = null; // set while in waiting room, cleared on admit/deny/join
 
   socket.on('join-meeting', ({ meetingId, name, isAdmin, adminToken }) => {
     const meeting = meetings.get(meetingId);
@@ -1831,6 +1839,8 @@ io.on('connection', (socket) => {
       isAdmin: participant.isAdmin,
       muteOnJoin: meeting.settings.muteOnJoin,
       videoOffOnJoin: meeting.settings.videoOffOnJoin,
+      isRecording: meeting.isRecording || false,
+      recordingHostName: meeting.recordingHostName || '',
     });
 
     socket.to(meetingId).emit('participant:joined', {
@@ -1861,6 +1871,7 @@ io.on('connection', (socket) => {
     }
     const safeName = ((name || 'Anonymous') + '').trim().slice(0, 60) || 'Anonymous';
     meeting.waitingRoom.set(socket.id, { socketId: socket.id, name: safeName });
+    currentWaitingRoomId = mid;
     socket.join(`waiting:${mid}`);
     // Notify host(s) that someone is waiting
     socket.to(mid).emit('waiting-room:participant-waiting', { socketId: socket.id, name: safeName, count: meeting.waitingRoom.size });
@@ -1952,7 +1963,20 @@ io.on('connection', (socket) => {
   socket.on('recording:broadcast-started', ({ hostName }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
-    socket.to(currentMeetingId).emit('recording:started', { hostName: (hostName || '').slice(0, 60) });
+    const safeHost = (hostName || '').slice(0, 60);
+    meeting.isRecording = true;
+    meeting.recordingHostName = safeHost;
+    meeting.recordingParticipantId = currentParticipantId;
+    socket.to(currentMeetingId).emit('recording:started', { hostName: safeHost });
+  });
+
+  socket.on('recording:broadcast-stopped', () => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    meeting.isRecording = false;
+    meeting.recordingHostName = '';
+    meeting.recordingParticipantId = null;
+    socket.to(currentMeetingId).emit('recording:stopped');
   });
 
   socket.on('chat:message', ({ text }) => {
@@ -1984,6 +2008,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
+    // Clean up waiting room entry if the socket disconnected while waiting
+    if (currentWaitingRoomId) {
+      const waitMeeting = meetings.get(currentWaitingRoomId);
+      if (waitMeeting && waitMeeting.waitingRoom.has(socket.id)) {
+        waitMeeting.waitingRoom.delete(socket.id);
+        io.to(currentWaitingRoomId).emit('waiting-room:participant-waiting', {
+          socketId: socket.id, name: '', count: waitMeeting.waitingRoom.size, removed: true,
+        });
+      }
+    }
     if (!currentMeetingId || !currentParticipantId) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
