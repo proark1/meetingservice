@@ -2,9 +2,20 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-20T20:45:00+01:00
+## [1.0.0] — 2026-03-20T21:30:00+01:00
 
 ### Added
+- Comprehensive analytics dashboard with 6 sub-tabs: Overview, Features, Users, Meetings, AI Usage, Health
+- Real-time live meeting monitoring (auto-refreshes every 30s) with participant/recording/screen share counts
+- Feature usage tracking: screen share, recording, chat, reactions, captions, hand raise, waiting room, background effects
+- 6 new analytics API endpoints: features, errors, realtime, retention, health, peak-hours
+- Peak hours heatmap (7×24 grid showing meeting distribution by day and hour)
+- Week-over-week user retention analysis
+- System health monitoring: uptime, memory, heap, DB pool, active/scheduled meetings
+- Error log aggregation with route/message grouping
+- Live meetings table showing active meeting details
+- 10+ new `trackEvent()` calls across socket handlers for granular feature tracking
+- Per-connection `currentUserId`/`currentCompanyId` for accurate event attribution
 - Add CHANGELOG.md with full project history
 - Add pre-commit hook (Claude Code) to enforce CHANGELOG.md updates
 - Add "Before every commit" section to CLAUDE.md

@@ -1786,6 +1786,124 @@ app.post('/admin/api/analytics/support-key', requireAdminSession, async (req, re
   }
 });
 
+// ─── Analytics endpoints ──────────────────────────────────────────────────────
+app.get('/admin/api/analytics/features', requireAdminSession, async (req, res) => {
+  const days = parseInt(req.query.days) || 30;
+  try {
+    const { rows } = await pool.query(`
+      SELECT event_type AS feature,
+             COUNT(*) AS total_uses,
+             COUNT(DISTINCT user_id) AS unique_users,
+             COUNT(DISTINCT DATE(created_at)) AS active_days
+      FROM analytics_events
+      WHERE event_type LIKE 'feature.%'
+        AND created_at > NOW() - ($1 || ' days')::INTERVAL
+      GROUP BY event_type ORDER BY total_uses DESC
+    `, [days]);
+    res.json({ features: rows, days });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/errors', requireAdminSession, async (req, res) => {
+  const days = parseInt(req.query.days) || 30;
+  try {
+    const { rows } = await pool.query(`
+      SELECT event_type,
+             meta->>'route' AS route,
+             meta->>'message' AS message,
+             COUNT(*) AS count,
+             MAX(created_at) AS last_seen
+      FROM analytics_events
+      WHERE event_type LIKE 'error.%'
+        AND created_at > NOW() - ($1 || ' days')::INTERVAL
+      GROUP BY event_type, meta->>'route', meta->>'message'
+      ORDER BY count DESC LIMIT 50
+    `, [days]);
+    res.json({ errors: rows, days });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/realtime', requireAdminSession, (_req, res) => {
+  let totalParticipants = 0, activeRecordings = 0, activeScreenShares = 0;
+  const meetingList = [];
+  for (const [id, m] of meetings) {
+    const pCount = m.participants.size;
+    totalParticipants += pCount;
+    if (m.isRecording) activeRecordings++;
+    for (const p of m.participants.values()) {
+      if (p.isScreenSharing) activeScreenShares++;
+    }
+    meetingList.push({
+      id, title: m.title || 'Untitled',
+      participantCount: pCount,
+      duration: Math.round((Date.now() - m.createdAt) / 60000),
+      isRecording: m.isRecording || false,
+    });
+  }
+  res.json({
+    activeMeetings: meetings.size,
+    totalParticipants, activeRecordings, activeScreenShares,
+    meetingList: meetingList.sort((a,b) => b.participantCount - a.participantCount).slice(0, 20),
+  });
+});
+
+app.get('/admin/api/analytics/retention', requireAdminSession, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      WITH weekly AS (
+        SELECT DISTINCT user_id, DATE_TRUNC('week', started_at)::date AS week
+        FROM meetings_log WHERE user_id IS NOT NULL
+      )
+      SELECT w1.week,
+             COUNT(DISTINCT w1.user_id) AS users,
+             COUNT(DISTINCT w2.user_id) AS retained
+      FROM weekly w1
+      LEFT JOIN weekly w2 ON w1.user_id = w2.user_id AND w2.week = w1.week + INTERVAL '1 week'
+      WHERE w1.week > NOW() - INTERVAL '12 weeks'
+      GROUP BY w1.week ORDER BY w1.week
+    `);
+    res.json({ retention: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/api/analytics/health', requireAdminSession, (_req, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    uptimeSeconds: Math.round(process.uptime()),
+    memoryMB: Math.round(mem.rss / 1024 / 1024),
+    heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+    heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+    dbPoolTotal: pool.totalCount,
+    dbPoolIdle: pool.idleCount,
+    dbPoolWaiting: pool.waitingCount,
+    activeMeetings: meetings.size,
+    scheduledMeetings: scheduledMeetings.size,
+  });
+});
+
+app.get('/admin/api/analytics/peak-hours', requireAdminSession, async (req, res) => {
+  const days = parseInt(req.query.days) || 90;
+  try {
+    const { rows } = await pool.query(`
+      SELECT EXTRACT(DOW FROM started_at) AS dow,
+             EXTRACT(HOUR FROM started_at) AS hour,
+             COUNT(*) AS count
+      FROM meetings_log
+      WHERE started_at > NOW() - ($1 || ' days')::INTERVAL
+      GROUP BY dow, hour ORDER BY dow, hour
+    `, [days]);
+    res.json({ peakHours: rows, days });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── ICE server config ────────────────────────────────────────────────────────
 app.get('/api/config/ice-servers', (_req, res) => {
   const servers = [{ urls: 'stun:stun.l.google.com:19302' }];
@@ -1822,6 +1940,8 @@ io.on('connection', (socket) => {
   let currentMeetingId      = null;
   let currentParticipantId  = null;
   let currentWaitingRoomId  = null; // set while in waiting room, cleared on admit/deny/join
+  let currentUserId         = null;
+  let currentCompanyId      = null;
 
   socket.on('join-meeting', ({ meetingId, name, isAdmin, adminToken }) => {
     const meeting = meetings.get(meetingId);
@@ -1891,6 +2011,9 @@ io.on('connection', (socket) => {
     if (meeting.logId) {
       pool.query(`SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]).then(({ rows }) => {
         if (rows[0]) {
+          currentUserId = rows[0].user_id;
+          currentCompanyId = rows[0].company_id;
+          trackEvent(currentUserId, currentCompanyId, 'meeting.participant_joined', { meetingId, participantCount: meeting.participants.size });
           deliverWebhook(meeting.logId, rows[0].user_id, rows[0].company_id, 'participant.joined', {
             meetingId, participantId, name: participant.name,
           }).catch(() => {});
@@ -1926,6 +2049,7 @@ io.on('connection', (socket) => {
     meeting.waitingRoom.delete(targetSocketId);
     io.to(targetSocketId).emit('waiting-room:admitted');
     socket.to(mid).emit('waiting-room:participant-waiting', { socketId: targetSocketId, name: waiter.name, count: meeting.waitingRoom.size, removed: true });
+    trackEvent(currentUserId, currentCompanyId, 'feature.waiting_room', { action: 'admit' });
   });
 
   socket.on('waiting-room:deny', ({ meetingId: mid, socketId: targetSocketId }) => {
@@ -1938,6 +2062,7 @@ io.on('connection', (socket) => {
     meeting.waitingRoom.delete(targetSocketId);
     io.to(targetSocketId).emit('waiting-room:denied', { message: 'The host did not admit you to this meeting.' });
     socket.to(mid).emit('waiting-room:participant-waiting', { socketId: targetSocketId, name: waiter.name, count: meeting.waitingRoom.size, removed: true });
+    trackEvent(currentUserId, currentCompanyId, 'feature.waiting_room', { action: 'deny' });
   });
 
   socket.on('signal:offer', ({ to, offer }) => {
@@ -1980,6 +2105,7 @@ io.on('connection', (socket) => {
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
     if (p) { p.isScreenSharing = isScreenSharing; socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isScreenSharing }); }
+    trackEvent(currentUserId, currentCompanyId, 'feature.screen_share', { action: isScreenSharing ? 'start' : 'stop' });
   });
 
   socket.on('raise-hand', ({ isHandRaised }) => {
@@ -1987,6 +2113,7 @@ io.on('connection', (socket) => {
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
     if (p) { p.isHandRaised = isHandRaised; io.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isHandRaised }); }
+    trackEvent(currentUserId, currentCompanyId, 'feature.hand_raise', { raised: isHandRaised });
   });
 
   socket.on('react', ({ emoji }) => {
@@ -1996,6 +2123,7 @@ io.on('connection', (socket) => {
     const allowed = ['👍','❤️','😂','🎉','👏'];
     if (!allowed.includes(emoji)) return;
     io.to(currentMeetingId).emit('react', { participantId: currentParticipantId, emoji });
+    trackEvent(currentUserId, currentCompanyId, 'feature.reaction', { emoji });
   });
 
   socket.on('recording:broadcast-started', ({ hostName }) => {
@@ -2006,6 +2134,7 @@ io.on('connection', (socket) => {
     meeting.recordingHostName = safeHost;
     meeting.recordingParticipantId = currentParticipantId;
     socket.to(currentMeetingId).emit('recording:started', { hostName: safeHost });
+    trackEvent(currentUserId, currentCompanyId, 'feature.recording', { action: 'start' });
   });
 
   socket.on('recording:broadcast-stopped', () => {
@@ -2015,6 +2144,7 @@ io.on('connection', (socket) => {
     meeting.recordingHostName = '';
     meeting.recordingParticipantId = null;
     socket.to(currentMeetingId).emit('recording:stopped');
+    trackEvent(currentUserId, currentCompanyId, 'feature.recording', { action: 'stop' });
   });
 
   socket.on('chat:message', ({ text }) => {
@@ -2029,6 +2159,7 @@ io.on('connection', (socket) => {
       from: currentParticipantId, name: p.name, text: trimmed,
       timestamp: Date.now(), msgId: crypto.randomUUID(),
     });
+    trackEvent(currentUserId, currentCompanyId, 'feature.chat', { length: trimmed.length });
   });
 
   socket.on('chat:react', ({ msgId, emoji }) => {
@@ -2036,6 +2167,7 @@ io.on('connection', (socket) => {
     const safeEmoji = emoji.trim().slice(0, 4);
     if (!safeEmoji) return;
     socket.to(currentMeetingId).emit('chat:react', { pid: currentParticipantId, msgId, emoji: safeEmoji });
+    trackEvent(currentUserId, currentCompanyId, 'feature.chat_reaction', { emoji: safeEmoji });
   });
 
   socket.on('captions:update', ({ pid, text, final }) => {
@@ -2043,6 +2175,7 @@ io.on('connection', (socket) => {
     socket.to(currentMeetingId).emit('captions:update', {
       pid, text: text.slice(0, 300), final: !!final,
     });
+    trackEvent(currentUserId, currentCompanyId, 'feature.captions', {});
   });
 
   socket.on('disconnect', async () => {

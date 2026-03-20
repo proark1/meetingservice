@@ -221,6 +221,33 @@
     .an-trend-bar:hover { opacity:1; }
     .an-period.active { background:var(--primary); color:#fff; border-color:var(--primary); }
     @media(max-width:700px) { .an-grid-2 { grid-template-columns:1fr !important; } }
+
+    /* Analytics sub-tabs */
+    .an-subtabs { display:flex; gap:2px; margin-bottom:20px; background:var(--surface2); padding:3px; border-radius:10px; overflow-x:auto; }
+    .an-subtab { padding:8px 16px; font-size:12px; font-weight:600; border-radius:8px; cursor:pointer; white-space:nowrap; color:var(--text-muted); border:none; background:none; transition:all .15s; }
+    .an-subtab:hover { color:var(--text); }
+    .an-subtab.active { background:var(--bg); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .an-tab-content { display:none; }
+    .an-tab-content.active { display:block; }
+    /* Realtime banner */
+    .an-realtime { display:flex; gap:16px; padding:14px 20px; background:linear-gradient(135deg,rgba(5,150,105,.06),rgba(14,165,233,.06)); border:1px solid rgba(5,150,105,.15); border-radius:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+    .an-realtime-dot { width:8px; height:8px; border-radius:50%; background:#059669; animation:an-pulse 2s infinite; flex-shrink:0; }
+    @keyframes an-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .an-realtime-stat { font-size:13px; color:var(--text); font-weight:600; }
+    .an-realtime-label { font-size:11px; color:var(--text-muted); font-weight:400; }
+    /* Heatmap */
+    .an-heatmap { display:grid; grid-template-columns:40px repeat(24,1fr); gap:2px; font-size:10px; }
+    .an-hm-cell { aspect-ratio:1; border-radius:3px; min-width:12px; cursor:pointer; transition:transform .1s; }
+    .an-hm-cell:hover { transform:scale(1.3); z-index:1; }
+    .an-hm-label { display:flex; align-items:center; color:var(--text-muted); font-size:10px; padding-right:4px; }
+    .an-hm-hour { text-align:center; color:var(--text-xmuted); font-size:9px; padding:2px 0; }
+    /* Health status */
+    .an-health-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+    .an-health-card { background:var(--surface2); border-radius:10px; padding:14px; text-align:center; }
+    .an-health-val { font-size:22px; font-weight:700; color:var(--text); }
+    .an-health-lbl { font-size:11px; color:var(--text-muted); margin-top:2px; }
+    /* Live meetings table */
+    .an-live-dot { width:6px; height:6px; border-radius:50%; background:#059669; display:inline-block; margin-right:6px; animation:an-pulse 2s infinite; }
   </style>
 </head>
 <body>
@@ -581,10 +608,10 @@
 
     <!-- Analytics Section -->
     <div class="section" id="section-analytics">
-      <div class="page-title">📈 Analytics</div>
+      <div class="page-title">Analytics</div>
 
-      <!-- Period selector -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+      <!-- Period selector + refresh -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <span style="font-size:13px;color:var(--text-muted);font-weight:600;">Period:</span>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-ghost btn-sm an-period active" data-days="7">7d</button>
@@ -594,86 +621,178 @@
         <button class="btn btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;" onclick="loadAnalytics()">↻ Refresh</button>
       </div>
 
-      <!-- KPI cards -->
-      <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:28px;" id="an-kpis">
-        <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value blue" id="an-total-users">—</div></div>
-        <div class="stat-card"><div class="stat-label">New Users (7d)</div><div class="stat-value green" id="an-new-users">—</div></div>
-        <div class="stat-card"><div class="stat-label">Meetings (period)</div><div class="stat-value blue" id="an-meetings-period">—</div></div>
-        <div class="stat-card"><div class="stat-label">All-time Meetings</div><div class="stat-value" id="an-meetings-total">—</div></div>
-        <div class="stat-card"><div class="stat-label">Revenue (period)</div><div class="stat-value green" id="an-revenue-period">—</div></div>
-        <div class="stat-card"><div class="stat-label">Active API Keys</div><div class="stat-value" id="an-api-keys">—</div></div>
-        <div class="stat-card"><div class="stat-label">Active Webhooks</div><div class="stat-value" id="an-webhooks">—</div></div>
-        <div class="stat-card"><div class="stat-label">Companies</div><div class="stat-value" id="an-companies">—</div></div>
+      <!-- Sub-tabs -->
+      <div class="an-subtabs">
+        <button class="an-subtab active" data-tab="an-overview">Overview</button>
+        <button class="an-subtab" data-tab="an-features">Features</button>
+        <button class="an-subtab" data-tab="an-users-tab">Users</button>
+        <button class="an-subtab" data-tab="an-meetings-tab">Meetings</button>
+        <button class="an-subtab" data-tab="an-ai-tab">AI Usage</button>
+        <button class="an-subtab" data-tab="an-health-tab">Health</button>
       </div>
 
-      <!-- Two-column layout -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;" class="an-grid-2">
-
-        <!-- Feature usage chart -->
-        <div class="stat-card" style="grid-column:1;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Feature Usage <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-events-period-label"></span></div>
-          <div id="an-feature-chart" style="display:flex;flex-direction:column;gap:8px;min-height:120px;"></div>
+      <!-- ═══ Tab 1: Overview ═══ -->
+      <div class="an-tab-content active" id="an-overview">
+        <!-- Realtime banner -->
+        <div class="an-realtime" id="an-realtime-banner">
+          <div class="an-realtime-dot"></div>
+          <div><span class="an-realtime-stat" id="an-rt-meetings">0</span> <span class="an-realtime-label">active meetings</span></div>
+          <div><span class="an-realtime-stat" id="an-rt-participants">0</span> <span class="an-realtime-label">participants</span></div>
+          <div><span class="an-realtime-stat" id="an-rt-recordings">0</span> <span class="an-realtime-label">recordings</span></div>
+          <div><span class="an-realtime-stat" id="an-rt-screenshares">0</span> <span class="an-realtime-label">screen shares</span></div>
         </div>
 
-        <!-- Meeting trends chart -->
-        <div class="stat-card" style="grid-column:2;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Daily Meetings <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-trend-label"></span></div>
-          <div id="an-trend-chart" style="height:140px;display:flex;align-items:flex-end;gap:3px;overflow:hidden;"></div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-xmuted);margin-top:6px;" id="an-trend-labels"></div>
+        <!-- KPI cards -->
+        <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:24px;" id="an-kpis">
+          <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value blue" id="an-total-users">—</div></div>
+          <div class="stat-card"><div class="stat-label">New Users (7d)</div><div class="stat-value green" id="an-new-users">—</div></div>
+          <div class="stat-card"><div class="stat-label">Meetings (period)</div><div class="stat-value blue" id="an-meetings-period">—</div></div>
+          <div class="stat-card"><div class="stat-label">All-time Meetings</div><div class="stat-value" id="an-meetings-total">—</div></div>
+          <div class="stat-card"><div class="stat-label">Revenue (period)</div><div class="stat-value green" id="an-revenue-period">—</div></div>
+          <div class="stat-card"><div class="stat-label">Active API Keys</div><div class="stat-value" id="an-api-keys">—</div></div>
+          <div class="stat-card"><div class="stat-label">Events Today</div><div class="stat-value" id="an-events-today">—</div></div>
+          <div class="stat-card"><div class="stat-label">Companies</div><div class="stat-value" id="an-companies">—</div></div>
         </div>
-      </div>
 
-      <!-- User activity table -->
-      <div class="stat-card" style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">User Activity <span style="font-size:11px;color:var(--text-muted);font-weight:500;">(no private content — aggregate counts only)</span></div>
-        <div style="overflow-x:auto;">
-          <table style="font-size:13px;">
-            <thead><tr>
-              <th>Email</th><th>Type</th><th>Meetings</th><th>Total Mins</th><th>Credits Spent</th><th>API Keys</th><th>Webhooks</th><th>Last Active</th>
-            </tr></thead>
-            <tbody id="an-users-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- AI Usage section -->
-      <div class="stat-card" style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);">AI Usage</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Token consumption and estimated cost by model and module. Track AI calls here by calling <code>trackAiUsage()</code> in server.js.</div>
-        <div id="an-ai-empty" style="color:var(--text-xmuted);font-size:13px;padding:20px 0;text-align:center;">No AI usage recorded yet. Instrument your AI calls with <code>trackAiUsage(model, module, endpoint, promptTokens, completionTokens, costUsd)</code>.</div>
-        <div id="an-ai-content" style="display:none;">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" class="an-grid-2">
-            <div>
-              <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">By Model</div>
-              <table style="font-size:12px;">
-                <thead><tr><th>Model</th><th>Calls</th><th>Prompt Tokens</th><th>Completion</th><th>Total</th><th>Cost</th></tr></thead>
-                <tbody id="an-ai-model-tbody"></tbody>
-              </table>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">By Module</div>
-              <table style="font-size:12px;">
-                <thead><tr><th>Module</th><th>Endpoint</th><th>Total Tokens</th><th>Cost</th></tr></thead>
-                <tbody id="an-ai-module-tbody"></tbody>
-              </table>
-            </div>
+        <!-- Event breakdown + trend side by side -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;" class="an-grid-2">
+          <div class="stat-card">
+            <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Event Breakdown <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-events-period-label"></span></div>
+            <div id="an-feature-chart" style="display:flex;flex-direction:column;gap:8px;min-height:120px;"></div>
           </div>
-          <div style="margin-top:16px;">
-            <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Total AI Cost Tracker</div>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;" id="an-ai-totals"></div>
+          <div class="stat-card">
+            <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Daily Meetings <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-trend-label"></span></div>
+            <div id="an-trend-chart" style="height:140px;display:flex;align-items:flex-end;gap:3px;overflow:hidden;"></div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-xmuted);margin-top:6px;" id="an-trend-labels"></div>
+          </div>
+        </div>
+
+        <!-- Live meetings table -->
+        <div class="stat-card" id="an-live-meetings-card" style="display:none;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);"><span class="an-live-dot"></span>Live Meetings</div>
+          <div style="overflow-x:auto;">
+            <table style="font-size:12px;">
+              <thead><tr><th>Meeting ID</th><th>Title</th><th>Participants</th><th>Duration</th><th>Recording</th></tr></thead>
+              <tbody id="an-live-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- Support Key Access -->
-      <div class="stat-card">
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);">🔑 Support Access</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">A user must generate a support key from their profile and share it with you. The key is valid for 24 hours and can only be used once. Without it, you cannot view private user data.</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="an-support-key-input" placeholder="Paste user support key (32 chars)…" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;">
-          <button class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;" onclick="verifySupportKey()">Unlock User Data</button>
+      <!-- ═══ Tab 2: Features ═══ -->
+      <div class="an-tab-content" id="an-features">
+        <div class="stat-card" style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Feature Adoption <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-feat-period"></span></div>
+          <div id="an-feat-chart" style="display:flex;flex-direction:column;gap:10px;min-height:100px;"></div>
         </div>
-        <div id="an-support-result" style="margin-top:16px;"></div>
+        <div class="stat-card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">Feature Detail</div>
+          <div style="overflow-x:auto;">
+            <table style="font-size:12px;">
+              <thead><tr><th>Feature</th><th>Total Uses</th><th>Unique Users</th><th>Active Days</th><th>Avg/Day</th></tr></thead>
+              <tbody id="an-feat-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Tab 3: Users ═══ -->
+      <div class="an-tab-content" id="an-users-tab">
+        <div class="stat-card" style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">User Activity <span style="font-size:11px;color:var(--text-muted);font-weight:500;">(aggregate counts, no private data)</span></div>
+          <div style="overflow-x:auto;">
+            <table style="font-size:12px;">
+              <thead><tr><th>Email</th><th>Type</th><th>Meetings</th><th>Total Mins</th><th>Credits Spent</th><th>API Keys</th><th>Webhooks</th><th>Last Active</th></tr></thead>
+              <tbody id="an-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="stat-card" style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">Week-over-Week Retention</div>
+          <div id="an-retention-chart" style="min-height:100px;"></div>
+        </div>
+        <!-- Support key -->
+        <div class="stat-card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);">Support Access</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">User generates a support key from their profile. Valid 24h, single use.</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="an-support-key-input" placeholder="Paste support key (32 chars)…" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;">
+            <button class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;" onclick="verifySupportKey()">Unlock</button>
+          </div>
+          <div id="an-support-result" style="margin-top:16px;"></div>
+        </div>
+      </div>
+
+      <!-- ═══ Tab 4: Meetings ═══ -->
+      <div class="an-tab-content" id="an-meetings-tab">
+        <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:20px;" id="an-mtg-kpis">
+          <div class="stat-card"><div class="stat-label">Total Meetings</div><div class="stat-value blue" id="an-mtg-total">—</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value" id="an-mtg-avg-dur">—</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Participants</div><div class="stat-value" id="an-mtg-avg-part">—</div></div>
+          <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value green" id="an-mtg-revenue">—</div></div>
+        </div>
+        <div class="stat-card" style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Meeting Volume <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-mtg-trend-label"></span></div>
+          <div id="an-mtg-trend-chart" style="height:140px;display:flex;align-items:flex-end;gap:3px;overflow:hidden;"></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-xmuted);margin-top:6px;" id="an-mtg-trend-labels"></div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">Peak Hours Heatmap <span style="font-size:11px;color:var(--text-muted);font-weight:500;">(meetings by day &amp; hour)</span></div>
+          <div id="an-heatmap" class="an-heatmap" style="min-height:100px;"></div>
+        </div>
+      </div>
+
+      <!-- ═══ Tab 5: AI Usage ═══ -->
+      <div class="an-tab-content" id="an-ai-tab">
+        <div class="stat-card" style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);">AI Usage</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Token consumption and cost by model/module. Instrument AI calls with <code>trackAiUsage()</code>.</div>
+          <div id="an-ai-empty" style="color:var(--text-xmuted);font-size:13px;padding:20px 0;text-align:center;">No AI usage recorded yet.</div>
+          <div id="an-ai-content" style="display:none;">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;" id="an-ai-totals"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" class="an-grid-2">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">By Model</div>
+                <table style="font-size:12px;">
+                  <thead><tr><th>Model</th><th>Calls</th><th>Prompt</th><th>Completion</th><th>Total</th><th>Cost</th></tr></thead>
+                  <tbody id="an-ai-model-tbody"></tbody>
+                </table>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">By Module</div>
+                <table style="font-size:12px;">
+                  <thead><tr><th>Module</th><th>Endpoint</th><th>Total Tokens</th><th>Cost</th></tr></thead>
+                  <tbody id="an-ai-module-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Tab 6: Health ═══ -->
+      <div class="an-tab-content" id="an-health-tab">
+        <div class="stat-card" style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--text);">System Health</div>
+          <div class="an-health-grid" id="an-health-grid">
+            <div class="an-health-card"><div class="an-health-val" id="an-h-uptime">—</div><div class="an-health-lbl">Uptime</div></div>
+            <div class="an-health-card"><div class="an-health-val" id="an-h-memory">—</div><div class="an-health-lbl">Memory (RSS)</div></div>
+            <div class="an-health-card"><div class="an-health-val" id="an-h-heap">—</div><div class="an-health-lbl">Heap Used</div></div>
+            <div class="an-health-card"><div class="an-health-val" id="an-h-db-pool">—</div><div class="an-health-lbl">DB Pool</div></div>
+            <div class="an-health-card"><div class="an-health-val" id="an-h-meetings">—</div><div class="an-health-lbl">Active Meetings</div></div>
+            <div class="an-health-card"><div class="an-health-val" id="an-h-scheduled">—</div><div class="an-health-lbl">Scheduled</div></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">Error Log <span style="font-size:11px;color:var(--text-muted);font-weight:500;" id="an-err-period"></span></div>
+          <div style="overflow-x:auto;">
+            <table style="font-size:12px;">
+              <thead><tr><th>Type</th><th>Route</th><th>Message</th><th>Count</th><th>Last Seen</th></tr></thead>
+              <tbody id="an-err-tbody"></tbody>
+            </table>
+          </div>
+          <div id="an-err-empty" style="color:var(--text-xmuted);font-size:12px;text-align:center;padding:16px;">No errors recorded</div>
+        </div>
       </div>
     </div>
 
@@ -1183,6 +1302,17 @@ loadOverview();
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 let anDays = 7;
+let anRealtimeInterval = null;
+
+// Sub-tab switching
+document.querySelectorAll('.an-subtab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.an-subtab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.an-tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
 
 document.querySelectorAll('.an-period').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1194,9 +1324,34 @@ document.querySelectorAll('.an-period').forEach(btn => {
 });
 
 async function loadAnalytics() {
-  await Promise.all([loadAnOverview(), loadAnEvents(), loadAnTrends(), loadAnUsers(), loadAnAi()]);
+  await Promise.all([loadAnOverview(), loadAnEvents(), loadAnTrends(), loadAnUsers(), loadAnAi(),
+    loadAnRealtime(), loadAnFeatures(), loadAnRetention(), loadAnMeetings(), loadAnHealth(), loadAnErrors(), loadAnPeakHours()]);
 }
 
+// ── Realtime ──
+async function loadAnRealtime() {
+  try {
+    const d = await fetch('/admin/api/analytics/realtime').then(r => r.json());
+    document.getElementById('an-rt-meetings').textContent = d.activeMeetings;
+    document.getElementById('an-rt-participants').textContent = d.totalParticipants;
+    document.getElementById('an-rt-recordings').textContent = d.activeRecordings;
+    document.getElementById('an-rt-screenshares').textContent = d.activeScreenShares;
+    const card = document.getElementById('an-live-meetings-card');
+    const tbody = document.getElementById('an-live-tbody');
+    if (d.meetingList.length) {
+      card.style.display = '';
+      tbody.innerHTML = d.meetingList.map(m => `<tr>
+        <td style="font-family:monospace;font-size:11px;">${esc(m.id)}</td>
+        <td>${esc(m.title)}</td>
+        <td style="text-align:center;font-weight:600;">${m.participantCount}</td>
+        <td style="text-align:center;">${m.duration}m</td>
+        <td style="text-align:center;">${m.isRecording ? '<span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444;">REC</span>' : '—'}</td>
+      </tr>`).join('');
+    } else { card.style.display = 'none'; }
+  } catch(e) { console.error('an realtime', e); }
+}
+
+// ── Overview ──
 async function loadAnOverview() {
   try {
     const d = await fetch('/admin/api/analytics/overview').then(r => r.json());
@@ -1206,10 +1361,27 @@ async function loadAnOverview() {
     document.getElementById('an-meetings-period').textContent = anDays <= 7 ? fmt2(d.meetings_7d) : fmt2(d.meetings_30d);
     document.getElementById('an-revenue-period').textContent = '$' + parseFloat(anDays <= 7 ? d.total_revenue : d.revenue_30d).toFixed(2);
     document.getElementById('an-api-keys').textContent       = fmt2(d.active_keys);
-    document.getElementById('an-webhooks').textContent       = fmt2(d.active_webhooks);
+    document.getElementById('an-events-today').textContent   = fmt2(d.events_1d);
     document.getElementById('an-companies').textContent      = fmt2(d.total_companies);
   } catch(e) { console.error('an overview', e); }
 }
+
+// ── Events breakdown ──
+const EVENT_LABELS = {
+  'meeting.created':'Meetings Created','meeting.ended':'Meetings Ended',
+  'meeting.participant_joined':'Participants Joined','guest_meeting.created':'Guest Meetings',
+  'user.registered':'Registrations','user.login':'Logins',
+  'api_key.created':'API Keys Created','api_key.revoked':'API Keys Revoked',
+  'webhook.created':'Webhooks Created','webhook.deleted':'Webhooks Deleted',
+  'company.joined':'Company Joins','billing.topup':'Credit Top-ups',
+  'billing.stripe_initiated':'Stripe Initiated',
+  'feature.screen_share':'Screen Share','feature.recording':'Recording',
+  'feature.chat':'Chat Messages','feature.chat_reaction':'Chat Reactions',
+  'feature.reaction':'Reactions','feature.hand_raise':'Hand Raise',
+  'feature.captions':'Captions','feature.waiting_room':'Waiting Room',
+  'feature.blur':'Background Effects',
+};
+const AN_COLORS = ['#4361ee','#7b2fff','#059669','#d97706','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f59e0b'];
 
 async function loadAnEvents() {
   try {
@@ -1218,63 +1390,58 @@ async function loadAnEvents() {
     const el = document.getElementById('an-feature-chart');
     if (!d.events.length) { el.innerHTML = '<div style="color:var(--text-xmuted);font-size:12px;padding:20px 0;text-align:center;">No events yet</div>'; return; }
     const max = Math.max(...d.events.map(e => parseInt(e.count)));
-    const LABELS = {
-      'meeting.created':'Meetings Created','meeting.ended':'Meetings Ended',
-      'guest_meeting.created':'Guest Meetings','user.registered':'Registrations',
-      'user.login':'Logins','api_key.created':'API Keys Created',
-      'api_key.revoked':'API Keys Revoked','webhook.created':'Webhooks Created',
-      'webhook.deleted':'Webhooks Deleted','company.joined':'Company Joins',
-      'billing.topup':'Credit Top-ups','billing.stripe_initiated':'Stripe Initiated',
-    };
-    const COLORS = ['#4361ee','#7b2fff','#059669','#d97706','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f59e0b'];
-    el.innerHTML = d.events.map((ev, i) => `
+    el.innerHTML = d.events.slice(0,15).map((ev, i) => `
       <div class="an-bar-row">
-        <div class="an-bar-label" title="${ev.event_type}">${LABELS[ev.event_type] || ev.event_type}</div>
-        <div class="an-bar-track"><div class="an-bar-fill" style="width:${Math.round(parseInt(ev.count)/max*100)}%;background:${COLORS[i%COLORS.length]}"></div></div>
+        <div class="an-bar-label" title="${ev.event_type}">${EVENT_LABELS[ev.event_type] || ev.event_type}</div>
+        <div class="an-bar-track"><div class="an-bar-fill" style="width:${Math.round(parseInt(ev.count)/max*100)}%;background:${AN_COLORS[i%AN_COLORS.length]}"></div></div>
         <div class="an-bar-count">${fmt2(ev.count)}</div>
         <div style="font-size:11px;color:var(--text-xmuted);width:60px;text-align:right;">${ev.unique_users} users</div>
       </div>`).join('');
   } catch(e) { console.error('an events', e); }
 }
 
+// ── Trends ──
+function renderTrendChart(trends, chartId, labelsId, labelId) {
+  const el = document.getElementById(chartId);
+  const lblEl = document.getElementById(labelsId);
+  if (!trends.length) { el.innerHTML = '<div style="color:var(--text-xmuted);font-size:12px;padding:20px 0;text-align:center;width:100%;">No meetings in period</div>'; return; }
+  const max = Math.max(...trends.map(t => parseInt(t.meetings)), 1);
+  el.innerHTML = trends.map(t => {
+    const h = Math.max(4, Math.round(parseInt(t.meetings)/max * 130));
+    const rev = parseFloat(t.revenue).toFixed(4);
+    return `<div class="an-trend-bar" style="height:${h}px;" title="${t.day}: ${t.meetings} mtgs, ${t.participants} ppl, $${rev}"></div>`;
+  }).join('');
+  if (trends.length > 1 && lblEl) lblEl.innerHTML = `<span>${trends[0].day}</span><span>${trends[trends.length-1].day}</span>`;
+  if (labelId) document.getElementById(labelId).textContent = `(last ${anDays}d)`;
+}
+
 async function loadAnTrends() {
   try {
     const d = await fetch(`/admin/api/analytics/trends?days=${anDays}`).then(r => r.json());
-    const el = document.getElementById('an-trend-chart');
-    const lblEl = document.getElementById('an-trend-labels');
-    if (!d.trends.length) { el.innerHTML = '<div style="color:var(--text-xmuted);font-size:12px;padding:20px 0;text-align:center;width:100%;">No meetings in period</div>'; return; }
-    const max = Math.max(...d.trends.map(t => parseInt(t.meetings)), 1);
-    el.innerHTML = d.trends.map(t => {
-      const h = Math.max(4, Math.round(parseInt(t.meetings)/max * 130));
-      const rev = parseFloat(t.revenue).toFixed(4);
-      return `<div class="an-trend-bar" style="height:${h}px;" title="${t.day}: ${t.meetings} meetings, $${rev} revenue"></div>`;
-    }).join('');
-    if (d.trends.length > 1) {
-      lblEl.innerHTML = `<span>${d.trends[0].day}</span><span>${d.trends[d.trends.length-1].day}</span>`;
-    }
-    document.getElementById('an-trend-label').textContent = `(last ${anDays}d)`;
+    renderTrendChart(d.trends, 'an-trend-chart', 'an-trend-labels', 'an-trend-label');
   } catch(e) { console.error('an trends', e); }
 }
 
+// ── Users ──
 async function loadAnUsers() {
   try {
     const d = await fetch('/admin/api/analytics/users').then(r => r.json());
     const tbody = document.getElementById('an-users-tbody');
     if (!d.users.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-xmuted);padding:16px;">No users yet</td></tr>'; return; }
-    tbody.innerHTML = d.users.map(u => `
-      <tr>
-        <td style="font-weight:500;">${esc(u.email)}</td>
-        <td><span class="badge ${u.account_type === 'company' ? 'blue' : 'orange'}">${u.account_type}</span></td>
-        <td style="text-align:center;">${fmt2(u.meeting_count)}</td>
-        <td style="text-align:center;">${parseFloat(u.total_minutes).toFixed(0)}</td>
-        <td style="text-align:center;">$${parseFloat(u.credits_spent).toFixed(4)}</td>
-        <td style="text-align:center;">${u.api_key_count}</td>
-        <td style="text-align:center;">${u.webhook_count}</td>
-        <td style="font-size:11px;color:var(--text-muted);">${u.last_active ? new Date(u.last_active).toLocaleDateString() : '—'}</td>
-      </tr>`).join('');
+    tbody.innerHTML = d.users.map(u => `<tr>
+      <td style="font-weight:500;">${esc(u.email)}</td>
+      <td><span class="badge ${u.account_type === 'company' ? 'blue' : 'orange'}">${u.account_type}</span></td>
+      <td style="text-align:center;">${fmt2(u.meeting_count)}</td>
+      <td style="text-align:center;">${parseFloat(u.total_minutes).toFixed(0)}</td>
+      <td style="text-align:center;">$${parseFloat(u.credits_spent).toFixed(4)}</td>
+      <td style="text-align:center;">${u.api_key_count}</td>
+      <td style="text-align:center;">${u.webhook_count}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${u.last_active ? new Date(u.last_active).toLocaleDateString() : '—'}</td>
+    </tr>`).join('');
   } catch(e) { console.error('an users', e); }
 }
 
+// ── AI ──
 async function loadAnAi() {
   try {
     const d = await fetch('/admin/api/analytics/ai').then(r => r.json());
@@ -1282,65 +1449,205 @@ async function loadAnAi() {
     const content = document.getElementById('an-ai-content');
     if (!d.byModel.length) { empty.style.display = ''; content.style.display = 'none'; return; }
     empty.style.display = 'none'; content.style.display = '';
-    document.getElementById('an-ai-model-tbody').innerHTML = d.byModel.map(r => `
-      <tr>
-        <td style="font-weight:600;">${esc(r.model)}</td>
-        <td>${fmt2(r.calls)}</td>
-        <td>${fmt2(r.prompt_tokens)}</td>
-        <td>${fmt2(r.completion_tokens)}</td>
-        <td style="font-weight:700;">${fmt2(r.total_tokens)}</td>
-        <td style="color:var(--danger);">$${parseFloat(r.cost_usd).toFixed(6)}</td>
-      </tr>`).join('');
-    document.getElementById('an-ai-module-tbody').innerHTML = d.byModule.map(r => `
-      <tr>
-        <td style="font-weight:600;">${esc(r.module)}</td>
-        <td style="font-size:11px;color:var(--text-muted);">${r.endpoint ? esc(r.endpoint) : '—'}</td>
-        <td>${fmt2(r.total_tokens)}</td>
-        <td style="color:var(--danger);">$${parseFloat(r.cost_usd).toFixed(6)}</td>
-      </tr>`).join('');
+    document.getElementById('an-ai-model-tbody').innerHTML = d.byModel.map(r => `<tr>
+      <td style="font-weight:600;">${esc(r.model)}</td><td>${fmt2(r.calls)}</td>
+      <td>${fmt2(r.prompt_tokens)}</td><td>${fmt2(r.completion_tokens)}</td>
+      <td style="font-weight:700;">${fmt2(r.total_tokens)}</td>
+      <td style="color:var(--danger);">$${parseFloat(r.cost_usd).toFixed(6)}</td>
+    </tr>`).join('');
+    document.getElementById('an-ai-module-tbody').innerHTML = d.byModule.map(r => `<tr>
+      <td style="font-weight:600;">${esc(r.module)}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${r.endpoint ? esc(r.endpoint) : '—'}</td>
+      <td>${fmt2(r.total_tokens)}</td>
+      <td style="color:var(--danger);">$${parseFloat(r.cost_usd).toFixed(6)}</td>
+    </tr>`).join('');
     const totalTokens = d.byModel.reduce((s,r) => s + parseInt(r.total_tokens), 0);
-    const totalCost   = d.byModel.reduce((s,r) => s + parseFloat(r.cost_usd), 0);
+    const totalCost = d.byModel.reduce((s,r) => s + parseFloat(r.cost_usd), 0);
     document.getElementById('an-ai-totals').innerHTML = `
       <div class="stat-card" style="padding:12px 16px;min-width:120px;"><div class="stat-label">Total Tokens</div><div class="stat-value blue" style="font-size:20px;">${fmt2(totalTokens)}</div></div>
       <div class="stat-card" style="padding:12px 16px;min-width:120px;"><div class="stat-label">Total Cost</div><div class="stat-value" style="font-size:20px;color:var(--danger);">$${totalCost.toFixed(4)}</div></div>
-      <div class="stat-card" style="padding:12px 16px;min-width:120px;"><div class="stat-label">Models Used</div><div class="stat-value" style="font-size:20px;">${d.byModel.length}</div></div>`;
+      <div class="stat-card" style="padding:12px 16px;min-width:120px;"><div class="stat-label">Models</div><div class="stat-value" style="font-size:20px;">${d.byModel.length}</div></div>`;
   } catch(e) { console.error('an ai', e); }
 }
 
+// ── Features tab ──
+async function loadAnFeatures() {
+  try {
+    const d = await fetch(`/admin/api/analytics/features?days=${anDays}`).then(r => r.json());
+    document.getElementById('an-feat-period').textContent = `(last ${anDays}d)`;
+    const el = document.getElementById('an-feat-chart');
+    const tbody = document.getElementById('an-feat-tbody');
+    if (!d.features.length) {
+      el.innerHTML = '<div style="color:var(--text-xmuted);font-size:12px;padding:20px 0;text-align:center;">No feature usage recorded yet</div>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-xmuted);padding:16px;">—</td></tr>';
+      return;
+    }
+    const max = Math.max(...d.features.map(f => parseInt(f.total_uses)));
+    el.innerHTML = d.features.map((f, i) => {
+      const label = EVENT_LABELS[f.feature] || f.feature.replace('feature.','').replace(/_/g,' ');
+      return `<div class="an-bar-row">
+        <div class="an-bar-label" title="${f.feature}">${label}</div>
+        <div class="an-bar-track"><div class="an-bar-fill" style="width:${Math.round(parseInt(f.total_uses)/max*100)}%;background:${AN_COLORS[i%AN_COLORS.length]}"></div></div>
+        <div class="an-bar-count">${fmt2(f.total_uses)}</div>
+        <div style="font-size:11px;color:var(--text-xmuted);width:70px;text-align:right;">${f.unique_users} users</div>
+      </div>`;
+    }).join('');
+    tbody.innerHTML = d.features.map(f => {
+      const label = EVENT_LABELS[f.feature] || f.feature.replace('feature.','').replace(/_/g,' ');
+      const avgDay = f.active_days > 0 ? (parseInt(f.total_uses) / parseInt(f.active_days)).toFixed(1) : '0';
+      return `<tr>
+        <td style="font-weight:500;">${label}</td>
+        <td style="text-align:center;">${fmt2(f.total_uses)}</td>
+        <td style="text-align:center;">${f.unique_users}</td>
+        <td style="text-align:center;">${f.active_days}</td>
+        <td style="text-align:center;">${avgDay}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error('an features', e); }
+}
+
+// ── Retention ──
+async function loadAnRetention() {
+  try {
+    const d = await fetch('/admin/api/analytics/retention').then(r => r.json());
+    const el = document.getElementById('an-retention-chart');
+    if (!d.retention.length) { el.innerHTML = '<div style="color:var(--text-xmuted);font-size:12px;text-align:center;padding:16px;">Not enough data for retention analysis</div>'; return; }
+    el.innerHTML = `<table style="font-size:12px;width:100%;"><thead><tr>
+      <th>Week</th><th>Users</th><th>Retained Next Week</th><th>Rate</th><th></th>
+    </tr></thead><tbody>${d.retention.map(r => {
+      const rate = parseInt(r.users) > 0 ? Math.round(parseInt(r.retained) / parseInt(r.users) * 100) : 0;
+      return `<tr>
+        <td style="font-size:11px;">${new Date(r.week).toLocaleDateString()}</td>
+        <td style="text-align:center;">${r.users}</td>
+        <td style="text-align:center;">${r.retained}</td>
+        <td style="text-align:center;font-weight:600;color:${rate >= 50 ? '#059669' : rate >= 25 ? '#d97706' : '#ef4444'};">${rate}%</td>
+        <td><div style="background:var(--surface2);border-radius:3px;height:6px;width:100px;"><div style="height:100%;border-radius:3px;background:${rate >= 50 ? '#059669' : rate >= 25 ? '#d97706' : '#ef4444'};width:${rate}%;"></div></div></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  } catch(e) { console.error('an retention', e); }
+}
+
+// ── Meetings tab ──
+async function loadAnMeetings() {
+  try {
+    const d = await fetch(`/admin/api/analytics/trends?days=${anDays}`).then(r => r.json());
+    const trends = d.trends;
+    // KPIs
+    const totalMtgs = trends.reduce((s,t) => s + parseInt(t.meetings), 0);
+    const totalMins = trends.reduce((s,t) => s + parseFloat(t.total_minutes), 0);
+    const totalPart = trends.reduce((s,t) => s + parseInt(t.participants), 0);
+    const totalRev  = trends.reduce((s,t) => s + parseFloat(t.revenue), 0);
+    document.getElementById('an-mtg-total').textContent = fmt2(totalMtgs);
+    document.getElementById('an-mtg-avg-dur').textContent = totalMtgs > 0 ? (totalMins / totalMtgs).toFixed(1) + 'm' : '—';
+    document.getElementById('an-mtg-avg-part').textContent = totalMtgs > 0 ? (totalPart / totalMtgs).toFixed(1) : '—';
+    document.getElementById('an-mtg-revenue').textContent = '$' + totalRev.toFixed(2);
+    // Trend chart
+    renderTrendChart(trends, 'an-mtg-trend-chart', 'an-mtg-trend-labels', 'an-mtg-trend-label');
+  } catch(e) { console.error('an meetings', e); }
+}
+
+// ── Peak hours heatmap ──
+async function loadAnPeakHours() {
+  try {
+    const d = await fetch(`/admin/api/analytics/peak-hours?days=${anDays}`).then(r => r.json());
+    const el = document.getElementById('an-heatmap');
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    // Build lookup
+    const lookup = {};
+    let maxCount = 1;
+    for (const r of d.peakHours) {
+      const key = `${parseInt(r.dow)}-${parseInt(r.hour)}`;
+      lookup[key] = parseInt(r.count);
+      if (parseInt(r.count) > maxCount) maxCount = parseInt(r.count);
+    }
+    // Header row
+    let html = '<div class="an-hm-label"></div>';
+    for (let h = 0; h < 24; h++) html += `<div class="an-hm-hour">${h}</div>`;
+    // Data rows
+    for (let dow = 0; dow < 7; dow++) {
+      html += `<div class="an-hm-label">${DAYS[dow]}</div>`;
+      for (let h = 0; h < 24; h++) {
+        const count = lookup[`${dow}-${h}`] || 0;
+        const intensity = count / maxCount;
+        const bg = count === 0 ? 'var(--surface2)' : `rgba(67, 97, 238, ${0.15 + intensity * 0.85})`;
+        html += `<div class="an-hm-cell" style="background:${bg};" title="${DAYS[dow]} ${h}:00 — ${count} meetings"></div>`;
+      }
+    }
+    el.innerHTML = html;
+  } catch(e) { console.error('an peak hours', e); }
+}
+
+// ── Health ──
+async function loadAnHealth() {
+  try {
+    const d = await fetch('/admin/api/analytics/health').then(r => r.json());
+    const hrs = Math.floor(d.uptimeSeconds / 3600);
+    const mins = Math.floor((d.uptimeSeconds % 3600) / 60);
+    document.getElementById('an-h-uptime').textContent = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+    document.getElementById('an-h-memory').textContent = `${d.memoryMB} MB`;
+    document.getElementById('an-h-heap').textContent = `${d.heapUsedMB} MB`;
+    document.getElementById('an-h-db-pool').textContent = `${d.dbPoolIdle}/${d.dbPoolTotal}`;
+    document.getElementById('an-h-meetings').textContent = d.activeMeetings;
+    document.getElementById('an-h-scheduled').textContent = d.scheduledMeetings;
+  } catch(e) { console.error('an health', e); }
+}
+
+// ── Errors ──
+async function loadAnErrors() {
+  try {
+    const d = await fetch(`/admin/api/analytics/errors?days=${anDays}`).then(r => r.json());
+    document.getElementById('an-err-period').textContent = `(last ${anDays}d)`;
+    const tbody = document.getElementById('an-err-tbody');
+    const empty = document.getElementById('an-err-empty');
+    if (!d.errors.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = d.errors.map(e => `<tr>
+      <td style="font-weight:500;">${esc(e.event_type)}</td>
+      <td style="font-size:11px;">${e.route ? esc(e.route) : '—'}</td>
+      <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.message ? esc(e.message) : ''}">${e.message ? esc(e.message) : '—'}</td>
+      <td style="text-align:center;font-weight:600;">${e.count}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${e.last_seen ? new Date(e.last_seen).toLocaleString() : '—'}</td>
+    </tr>`).join('');
+  } catch(e) { console.error('an errors', e); }
+}
+
+// ── Support key ──
 async function verifySupportKey() {
   const key = document.getElementById('an-support-key-input').value.trim();
   const resultEl = document.getElementById('an-support-result');
   if (key.length !== 32) { resultEl.innerHTML = '<div style="color:var(--danger);font-size:13px;">Key must be exactly 32 characters.</div>'; return; }
-  resultEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Verifying…</div>';
+  resultEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Verifying...</div>';
   try {
-    const res  = await fetch('/admin/api/analytics/support-key', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key }) });
+    const res = await fetch('/admin/api/analytics/support-key', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key }) });
     const data = await res.json();
-    if (!res.ok) { resultEl.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ ${esc(data.error)}</div>`; return; }
+    if (!res.ok) { resultEl.innerHTML = `<div style="color:var(--danger);font-size:13px;">${esc(data.error)}</div>`; return; }
     const u = data.user;
-    resultEl.innerHTML = `
-      <div style="background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text);">✅ Access granted — ${esc(u.email)}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Account type: ${u.accountType} · Joined: ${new Date(u.createdAt).toLocaleDateString()}</div>
-        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">Meeting History (${data.meetings.length})</div>
-        <div style="overflow-x:auto;max-height:240px;overflow-y:auto;">
-          <table style="font-size:12px;width:100%;">
-            <thead><tr><th>Date</th><th>Title</th><th>Duration</th><th>Participants</th><th>Cost</th></tr></thead>
-            <tbody>${data.meetings.map(m => `
-              <tr>
-                <td>${new Date(m.started_at).toLocaleString()}</td>
-                <td>${esc(m.title || '—')}</td>
-                <td>${m.duration_minutes ? parseFloat(m.duration_minutes).toFixed(1)+'m' : '—'}</td>
-                <td style="text-align:center;">${m.peak_participants || 0}</td>
-                <td>$${parseFloat(m.cost_usd||0).toFixed(4)}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-        <div style="font-size:11px;color:var(--text-xmuted);margin-top:10px;">⚠️ This key has been consumed and is now invalid. Request a new one if needed.</div>
-      </div>`;
+    resultEl.innerHTML = `<div style="background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text);">Access granted — ${esc(u.email)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Type: ${u.accountType} · Joined: ${new Date(u.createdAt).toLocaleDateString()}</div>
+      <div style="overflow-x:auto;max-height:240px;overflow-y:auto;">
+        <table style="font-size:12px;width:100%;"><thead><tr><th>Date</th><th>Title</th><th>Duration</th><th>Participants</th><th>Cost</th></tr></thead>
+        <tbody>${data.meetings.map(m => `<tr>
+          <td>${new Date(m.started_at).toLocaleString()}</td><td>${esc(m.title || '—')}</td>
+          <td>${m.duration_minutes ? parseFloat(m.duration_minutes).toFixed(1)+'m' : '—'}</td>
+          <td style="text-align:center;">${m.peak_participants || 0}</td>
+          <td>$${parseFloat(m.cost_usd||0).toFixed(4)}</td>
+        </tr>`).join('')}</tbody></table>
+      </div>
+      <div style="font-size:11px;color:var(--text-xmuted);margin-top:10px;">Key consumed — request a new one if needed.</div>
+    </div>`;
     document.getElementById('an-support-key-input').value = '';
   } catch(e) { resultEl.innerHTML = '<div style="color:var(--danger);font-size:13px;">Request failed.</div>'; }
 }
+
+// Auto-refresh realtime every 30s when analytics section is visible
+function startAnRealtimeRefresh() {
+  if (anRealtimeInterval) clearInterval(anRealtimeInterval);
+  anRealtimeInterval = setInterval(() => {
+    if (document.getElementById('section-analytics').style.display !== 'none') loadAnRealtime();
+  }, 30000);
+}
+startAnRealtimeRefresh();
 
 function fmt2(n) { return Number(n).toLocaleString(); }
 </script>
