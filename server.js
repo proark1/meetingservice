@@ -219,6 +219,7 @@ app.use(session({
     maxAge:   7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
   },
 }));
 
@@ -595,7 +596,10 @@ app.post('/admin/login', authLimiter, async (req, res) => {
     req.session.userId  = user.id;
     req.session.email   = user.email;
     req.session.isAdmin = true;
-    res.json({ message: 'Logged in' });
+    req.session.save(err => {
+      if (err) { console.error('Admin session save error:', err); return res.status(500).json({ error: 'Login failed' }); }
+      res.json({ message: 'Logged in' });
+    });
   } catch (err) {
     console.error('Admin login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -717,19 +721,30 @@ app.get('/admin/api/settings', requireAdminSession, async (_req, res) => {
 });
 
 app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
-  const allowed = [
+  const booleanSettings = new Set([
     'recording_enabled','screen_share_enabled','blur_enabled',
-    'registration_enabled','max_participants_default','meeting_auto_delete_minutes',
-    'stripe_enabled','crypto_enabled',
-  ];
-  const entries = Object.entries(req.body).filter(([k]) => allowed.includes(k));
+    'registration_enabled','stripe_enabled','crypto_enabled',
+  ]);
+  const numericSettings = new Set([
+    'max_participants_default','meeting_auto_delete_minutes',
+  ]);
+  const allowed = new Set([...booleanSettings, ...numericSettings]);
+  const entries = Object.entries(req.body).filter(([k]) => allowed.has(k));
   if (entries.length === 0) return res.status(400).json({ error: 'No valid settings provided' });
 
   for (const [key, value] of entries) {
+    let safeValue = String(value);
+    if (booleanSettings.has(key)) {
+      if (safeValue !== 'true' && safeValue !== 'false') return res.status(400).json({ error: `${key} must be true or false` });
+    } else if (numericSettings.has(key)) {
+      const num = Number(safeValue);
+      if (!Number.isFinite(num) || num < 0) return res.status(400).json({ error: `${key} must be a non-negative number` });
+      safeValue = String(num);
+    }
     await pool.query(
       `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-      [key, String(value)]
+      [key, safeValue]
     );
   }
   invalidateSettingsCache();
@@ -1111,7 +1126,9 @@ async function removeParticipantFromMeeting(meeting, participantId, io) {
 
   // If room is empty, schedule charge and cleanup after 60s grace period
   if (meeting.participants.size === 0) {
-    setTimeout(() => {
+    if (meeting.gracePeriodTimer) clearTimeout(meeting.gracePeriodTimer);
+    meeting.gracePeriodTimer = setTimeout(() => {
+      meeting.gracePeriodTimer = null;
       const m = meetings.get(meeting.id);
       if (m && m.participants.size === 0) {
         meetings.delete(meeting.id);
@@ -1129,56 +1146,60 @@ function calculateMeetingCost(durationMinutes, peakParticipants, rate) {
 }
 
 async function chargeMeeting(meeting) {
+  const client = await pool.connect();
   try {
-    if (!meeting.logId) return; // not persisted
+    if (!meeting.logId) { client.release(); return; }
     const mins = (Date.now() - meeting.createdAt) / 60000;
     const s = await getSettings();
     const rate = parseFloat(s.meeting_cost_per_participant_minute) || 0.01;
     const cost = calculateMeetingCost(mins, meeting.peakParticipants || 1, rate);
-    if (cost < 0.0001) return;
+    if (cost < 0.0001) { client.release(); return; }
 
     // Look up who created the meeting to find user/company
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
     );
-    if (!rows.length) return;
+    if (!rows.length) { client.release(); return; }
     const { user_id, company_id } = rows[0];
 
+    await client.query('BEGIN');
+
+    let newBal = 0, notifyEmail = null;
     if (company_id) {
-      const { rows: bRows } = await pool.query(
+      const { rows: bRows } = await client.query(
         `UPDATE companies SET credits_usd = GREATEST(credits_usd - $1, 0) WHERE id = $2 RETURNING credits_usd`,
         [cost, company_id]
       );
-      const newBal = parseFloat(bRows[0]?.credits_usd || 0);
-      const { rows: uRows } = await pool.query(`SELECT email FROM users WHERE id = $1`, [user_id]);
+      newBal = parseFloat(bRows[0]?.credits_usd || 0);
+      const { rows: uRows } = await client.query(`SELECT email FROM users WHERE id = $1`, [user_id]);
       const thresh = parseFloat(s.low_balance_threshold_usd) || 2.0;
-      const prevBal = newBal + cost;
-      if (prevBal >= thresh && newBal < thresh && uRows[0]?.email) {
-        sendEmail({ to: uRows[0].email, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, uRows[0].email) }).catch(() => {});
-      }
+      if ((newBal + cost) >= thresh && newBal < thresh && uRows[0]?.email) notifyEmail = uRows[0].email;
     } else if (user_id) {
-      const { rows: bRows } = await pool.query(
+      const { rows: bRows } = await client.query(
         `UPDATE users SET credits_usd = GREATEST(credits_usd - $1, 0) WHERE id = $2 RETURNING credits_usd, email`,
         [cost, user_id]
       );
-      const newBal = parseFloat(bRows[0]?.credits_usd || 0);
+      newBal = parseFloat(bRows[0]?.credits_usd || 0);
       const thresh = parseFloat(s.low_balance_threshold_usd) || 2.0;
-      if ((newBal + cost) >= thresh && newBal < thresh && bRows[0]?.email) {
-        sendEmail({ to: bRows[0].email, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, bRows[0].email) }).catch(() => {});
-      }
+      if ((newBal + cost) >= thresh && newBal < thresh && bRows[0]?.email) notifyEmail = bRows[0].email;
     }
 
-    await pool.query(
+    await client.query(
       `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, reference_id, description) VALUES ($1,$2,$3,'meeting_usage',$4,$5)`,
       [user_id, company_id, -cost, meeting.id, `Meeting ${meeting.id} — ${Math.round(mins)}m × ${meeting.peakParticipants || 1} participants`]
     );
 
-    await pool.query(
+    await client.query(
       `UPDATE meetings_log SET ended_at = NOW(), peak_participants = $1, duration_minutes = $2, cost_usd = $3 WHERE id = $4`,
       [meeting.peakParticipants || 1, parseFloat(mins.toFixed(2)), cost, meeting.logId]
     );
 
-    // Fire webhook
+    await client.query('COMMIT');
+
+    // Non-transactional: email, webhook, analytics (fire-and-forget)
+    if (notifyEmail) {
+      sendEmail({ to: notifyEmail, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, notifyEmail) }).catch(() => {});
+    }
     deliverWebhook(meeting.logId, user_id, company_id, 'meeting.ended', {
       meetingId: meeting.id, title: meeting.title,
       durationMinutes: parseFloat(mins.toFixed(2)),
@@ -1189,8 +1210,11 @@ async function chargeMeeting(meeting) {
     trackEvent(user_id, company_id, 'meeting.ended', { durationMinutes: parseFloat(mins.toFixed(2)), peakParticipants: meeting.peakParticipants || 1, costUsd: parseFloat(cost) });
 
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('chargeMeeting error (revenue may be lost):', err);
     throw err;
+  } finally {
+    client.release();
   }
 }
 
@@ -1543,7 +1567,19 @@ app.get('/api/webhooks', requireUserSession, async (req, res) => {
 app.post('/api/webhooks', requireUserSession, async (req, res) => {
   const { url, events } = req.body;
   if (!url) return res.status(400).json({ error: 'url required' });
-  try { new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  let parsedUrl;
+  try { parsedUrl = new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  // Block SSRF: reject private/loopback/link-local hostnames
+  const host = parsedUrl.hostname.toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0' ||
+      host.endsWith('.local') || host.endsWith('.internal') ||
+      /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/.test(host) ||
+      host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
+    return res.status(400).json({ error: 'Webhook URL must not point to private/internal addresses' });
+  }
+  if (!['https:', 'http:'].includes(parsedUrl.protocol)) {
+    return res.status(400).json({ error: 'Webhook URL must use http or https' });
+  }
   const allowed = ['meeting.started','meeting.ended','participant.joined','participant.left'];
   const safeEvents = (Array.isArray(events) ? events : []).filter(e => allowed.includes(e));
   if (!safeEvents.length) return res.status(400).json({ error: 'At least one valid event required' });
@@ -1818,6 +1854,8 @@ io.on('connection', (socket) => {
     };
 
     meeting.participants.set(participantId, participant);
+    // Cancel grace-period timer if someone rejoins within 60s
+    if (meeting.gracePeriodTimer) { clearTimeout(meeting.gracePeriodTimer); meeting.gracePeriodTimer = null; }
     if (meeting.participants.size > (meeting.peakParticipants || 0)) {
       meeting.peakParticipants = meeting.participants.size;
     }

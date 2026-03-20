@@ -507,6 +507,8 @@ function getAvatarColor(pid) {
 }
 
 function showToast(msg, type = '') {
+  const existing = document.querySelectorAll('.toast');
+  if (existing.length >= 5) existing[0].remove();
   const t = document.createElement('div');
   t.className = 'toast' + (type ? ' toast-' + type : '');
   t.textContent = msg;
@@ -1218,7 +1220,7 @@ async function startRecording() {
 
 function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  socket.emit('recording:broadcast-stopped');
+  if (isRecording) socket.emit('recording:broadcast-stopped');
 }
 
 function addRecAudioSource(pid) {
@@ -1241,6 +1243,7 @@ function removeRecAudioSource(pid) {
 
 // ─── Background blur (MediaPipe SelfieSegmentation) ───────────────────────────
 function startBlur() {
+  if (!localStream || !localStream.getVideoTracks()[0]) { showToast('Camera required for background effects', 'error'); return; }
   const track = localStream.getVideoTracks()[0];
   const settings = track.getSettings();
   const w = settings.width || 640, h = settings.height || 480;
@@ -1595,10 +1598,15 @@ async function switchCamera(deviceId) {
     const oldTrack  = localStream?.getVideoTracks()[0];
     if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
     if (localStream) localStream.addTrack(newTrack);
-    for (const pid of Object.keys(peers)) {
-      const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-      if (s) await s.replaceTrack(newTrack);
+    // Only replace peer video senders if not screen sharing (screen share track must stay)
+    if (!isScreenSharing) {
+      for (const pid of Object.keys(peers)) {
+        if (!peers[pid]) continue;
+        const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+        if (s) await s.replaceTrack(newTrack);
+      }
     }
+    if (isBlurOn) { await stopBlur(); startBlur(); }
     syncParticipantTile(myParticipantId);
     $('#deviceSelector').classList.add('hidden');
   } catch(err) { console.error('Switch camera error:', err); }
@@ -1613,6 +1621,7 @@ async function switchMic(deviceId) {
     if (localStream) localStream.addTrack(newTrack);
     if (isMuted) newTrack.enabled = false;
     for (const pid of Object.keys(peers)) {
+      if (!peers[pid]) continue;
       const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
       if (s) await s.replaceTrack(newTrack);
     }
@@ -1650,11 +1659,15 @@ async function switchVideoQuality(quality) {
     const oldTrack  = localStream?.getVideoTracks()[0];
     if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
     if (localStream) localStream.addTrack(newTrack);
-    for (const pid of Object.keys(peers)) {
-      const sender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-      if (sender) { await sender.replaceTrack(newTrack); applyVideoQuality(peers[pid].pc); }
+    // Only replace peer video senders if not screen sharing (screen share track must stay)
+    if (!isScreenSharing) {
+      for (const pid of Object.keys(peers)) {
+        if (!peers[pid]) continue;
+        const sender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) { await sender.replaceTrack(newTrack); applyVideoQuality(peers[pid].pc); }
+      }
     }
-    if (isBlurOn) { stopBlur(); startBlur(); }
+    if (isBlurOn) { await stopBlur(); startBlur(); }
     syncParticipantTile(myParticipantId);
     showToast(`Quality: ${QUALITY_LABELS[quality]}`);
   } catch(err) {
@@ -1781,12 +1794,10 @@ socket.on('chat:react', ({ pid, msgId, emoji }) => {
 });
 
 function updateReactionChip(chip, isSelf) {
-  const count = parseInt(chip.dataset.count || '0') + (isSelf ? 0 : 1);
-  chip.dataset.count = isSelf ? chip.dataset.count : count;
-  chip.textContent = `${chip.dataset.emoji} ${isSelf ? parseInt(chip.dataset.count)+1 : count}`;
-  if (isSelf) chip.dataset.count = parseInt(chip.dataset.count) + 1;
-  chip.textContent = `${chip.dataset.emoji} ${chip.dataset.count}`;
-  chip.classList.toggle('reacted', isSelf);
+  const newCount = parseInt(chip.dataset.count || '0') + 1;
+  chip.dataset.count = newCount;
+  chip.textContent = `${chip.dataset.emoji} ${newCount}`;
+  if (isSelf) chip.classList.add('reacted');
 }
 
 function openChatReactPicker(msgId, anchor) {
@@ -1846,15 +1857,24 @@ socket.on('captions:update', ({ pid, text, final }) => {
 });
 
 // ─── Leave ────────────────────────────────────────────────────────────────────
+function cleanupMeeting() {
+  if (isRecording) stopRecording();
+  if (localStream)  { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
+  if (blurStream)   { blurStream.getTracks().forEach(t => t.stop()); blurStream = null; }
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (speakAudioCtx) { speakAudioCtx.close().catch(() => {}); speakAudioCtx = null; }
+  if (recAudioCtx)   { recAudioCtx.close().catch(() => {}); recAudioCtx = null; }
+  socket.disconnect();
+}
+
 $('#leaveBtn').addEventListener('click', () => {
   if (!confirm('Leave this meeting?')) return;
-  if (isRecording) stopRecording();
-  if (localStream)  localStream.getTracks().forEach(t => t.stop());
-  if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-  if (timerInterval) clearInterval(timerInterval);
-  socket.disconnect();
+  cleanupMeeting();
   window.location.href = '/';
 });
+
+window.addEventListener('beforeunload', () => { cleanupMeeting(); });
 
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
@@ -1981,6 +2001,9 @@ function updateControlButtons() {
   // Empty state
   const onlyMe = Object.keys(participants).length <= 1;
   $('#emptyState')?.classList.toggle('hidden', !onlyMe || !myParticipantId);
+
+  // Sync bg panel selection state
+  if (typeof syncBgPanel === 'function') syncBgPanel();
 }
 
 // Full grid re-render (diff-based to prevent flicker)
