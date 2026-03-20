@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)",
@@ -10,6 +11,19 @@
       "Bash(cmd /c \"cd /d c:\\\\Users\\\\assad\\\\Documents\\\\GitHub\\\\meetingservice && npm install\")",
       "Bash(cmd /c \"cd /d c:\\\\Users\\\\assad\\\\Documents\\\\GitHub\\\\meetingservice && npm install 2>&1\")",
       "Bash(powershell -Command \"Set-Location ''c:\\\\Users\\\\assad\\\\Documents\\\\GitHub\\\\meetingservice''; npm install\")"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "If the bash command is a git commit, check: has CHANGELOG.md been updated in this session with the current changes and today's date? If not, respond with: {\"decision\": \"block\", \"reason\": \"Update CHANGELOG.md with a summary of changes and current date/time before committing.\"}. If CHANGELOG.md was already updated, allow the commit."
+          }
+        ]
+      }
     ]
   }
 }

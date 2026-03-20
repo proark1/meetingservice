@@ -112,6 +112,12 @@ meetings = Map<meetingId, {
 - **Meeting IDs**: generated with `crypto.randomBytes` (not `Math.random`)
 - **Rate limiting**: auth/reset/guest endpoints are rate-limited; do not remove these
 
+### Before every commit
+- **Always** update `CHANGELOG.md` with a summary of changes under the current version heading
+- Update the date in the `## [version] — date` heading to the current date and time
+- If the version number in `package.json` changes, update the heading in `CHANGELOG.md` to match
+- Group entries under `### Added`, `### Changed`, `### Fixed`, or `### Security` as appropriate
+
 ### Frontend (`public/*.html`)
 - All frontend code is **inline JS in single HTML files** — no separate `.js` files, no bundler
 - The `$()` helper is `document.querySelector` (defined at top of each file)
