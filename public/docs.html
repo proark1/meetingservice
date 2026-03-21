@@ -123,8 +123,9 @@
   <a href="#billing">15. Billing</a>
   <a href="#errors">16. Errors &amp; Rate Limits</a>
   <a href="#envvars">17. Environment Variables</a>
-  <a href="#quickstart">18. Quick Start</a>
-  <a href="#features">19. Features Overview</a>
+  <a href="#admin-analytics">18. Admin Analytics API</a>
+  <a href="#quickstart">19. Quick Start</a>
+  <a href="#features">20. Features Overview</a>
 </div>
 
 <!-- ─── Account & Auth ───────────────────────────────────────────────── -->
@@ -786,8 +787,124 @@ Supported media tracks:
   <tr><td><code>CRYPTO_MNEMONIC</code></td><td>No</td><td>BIP-39 mnemonic for HD wallet (USDC deposits) — 12-word phrase</td></tr>
 </table>
 
+<!-- ─── Admin Analytics ─────────────────────────────────────────────── -->
+<h2 id="admin-analytics">18. Admin Analytics API</h2>
+
+<p>Server-side analytics endpoints for platform administrators. All endpoints require an active admin session (cookie-based).</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /admin/api/analytics/features <span class="badge admin">Admin</span></div>
+  <p>Feature usage breakdown for tracked events (screen share, recording, chat, reactions, etc.).</p>
+  <table>
+    <tr><th>Query Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>days</code></td><td>number</td><td>30</td><td>Lookback window in days</td></tr>
+  </table>
+<pre><code># Response
+{
+  "features": [
+    { "feature": "screen_share", "total_uses": 142, "unique_users": 38, "active_days": 22 },
+    { "feature": "recording", "total_uses": 67, "unique_users": 15, "active_days": 18 }
+  ],
+  "days": 30
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /admin/api/analytics/errors <span class="badge admin">Admin</span></div>
+  <p>Aggregated error log grouped by event type, route, and message.</p>
+  <table>
+    <tr><th>Query Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>days</code></td><td>number</td><td>30</td><td>Lookback window in days</td></tr>
+  </table>
+<pre><code># Response
+{
+  "errors": [
+    { "event_type": "error.webrtc", "route": "/join", "message": "ICE connection failed", "count": 12, "last_seen": "2026-03-20T14:30:00Z" }
+  ],
+  "days": 30
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /admin/api/analytics/realtime <span class="badge admin">Admin</span></div>
+  <p>Live meeting state from server memory (no DB query). Shows all currently active meetings and aggregate counts.</p>
+<pre><code># Response
+{
+  "activeMeetings": 3,
+  "totalParticipants": 14,
+  "activeRecordings": 1,
+  "activeScreenShares": 2,
+  "meetingList": [
+    { "id": "abc-defg-hij", "title": "Team Standup", "participantCount": 5, "duration": 1200, "isRecording": true }
+  ]
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /admin/api/analytics/retention <span class="badge admin">Admin</span></div>
+  <p>Week-over-week user retention for the last 12 weeks.</p>
+<pre><code># Response
+{
+  "retention": [
+    { "week": "2026-03-10", "users": 120, "retained": 84 },
+    { "week": "2026-03-03", "users": 115, "retained": 79 }
+  ]
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /admin/api/analytics/health <span class="badge admin">Admin</span></div>
+  <p>Server health metrics including memory usage, DB pool stats, and active meeting counts.</p>
+<pre><code># Response
+{
+  "uptimeSeconds": 86400,
+  "memoryMB": 128.5,
+  "heapUsedMB": 95.2,
+  "heapTotalMB": 140.0,
+  "dbPoolTotal": 20,
+  "dbPoolIdle": 15,
+  "dbPoolWaiting": 0,
+  "activeMeetings": 3,
+  "scheduledMeetings": 1
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /admin/api/analytics/peak-hours <span class="badge admin">Admin</span></div>
+  <p>Meeting distribution by day-of-week and hour. Useful for capacity planning.</p>
+  <table>
+    <tr><th>Query Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>days</code></td><td>number</td><td>90</td><td>Lookback window in days</td></tr>
+  </table>
+<pre><code># Response
+{
+  "peakHours": [
+    { "dow": 1, "hour": 10, "count": 45 },
+    { "dow": 3, "hour": 14, "count": 38 }
+  ],
+  "days": 90
+}</code></pre>
+</div>
+
+<h3>Tracked Event Types</h3>
+<p>The analytics system tracks the following event types. These are stored in the <code>analytics_events</code> table and queried by the endpoints above.</p>
+<table>
+  <tr><th>Event Type</th><th>Trigger</th><th>Meta Fields</th></tr>
+  <tr><td><code>feature.screen_share</code></td><td>Screen share start/stop</td><td><code>{ action: 'start'/'stop' }</code></td></tr>
+  <tr><td><code>feature.recording</code></td><td>Recording start/stop</td><td><code>{ action: 'start'/'stop' }</code></td></tr>
+  <tr><td><code>feature.chat</code></td><td>Chat message sent</td><td><code>{ length }</code></td></tr>
+  <tr><td><code>feature.chat_reaction</code></td><td>Chat message reaction</td><td><code>{ emoji }</code></td></tr>
+  <tr><td><code>feature.reaction</code></td><td>Floating emoji reaction</td><td><code>{ emoji }</code></td></tr>
+  <tr><td><code>feature.hand_raise</code></td><td>Hand raise toggled</td><td><code>{ raised: true/false }</code></td></tr>
+  <tr><td><code>feature.captions</code></td><td>Captions used</td><td><code>{}</code></td></tr>
+  <tr><td><code>feature.waiting_room</code></td><td>Waiting room admit/deny</td><td><code>{ action: 'admit'/'deny' }</code></td></tr>
+  <tr><td><code>meeting.participant_joined</code></td><td>Participant joins meeting</td><td><code>{ meetingId, participantCount }</code></td></tr>
+  <tr><td><code>meeting.created</code></td><td>Meeting created</td><td><code>{ scheduled, muteOnJoin, waitingRoom }</code></td></tr>
+  <tr><td><code>meeting.ended</code></td><td>Meeting ended</td><td><code>{ durationMinutes, peakParticipants, costUsd }</code></td></tr>
+</table>
+
 <!-- ─── Quick Start ────────────────────────────────────────────────── -->
-<h2 id="quickstart">18. Quick Start</h2>
+<h2 id="quickstart">19. Quick Start</h2>
 
 <h3>1. Start a guest meeting (no account needed)</h3>
 <pre><code>curl -X POST https://onepizza.io/api/meetings/guest \
@@ -863,7 +980,7 @@ socket.emit("raise-hand", { isHandRaised: true });
 socket.emit("react", { emoji: "👍" });</code></pre>
 
 <!-- ─── Features ────────────────────────────────────────────────────── -->
-<h2 id="features">19. Features Overview</h2>
+<h2 id="features">20. Features Overview</h2>
 <table>
   <tr><th>Category</th><th>Feature</th><th>Description</th></tr>
   <tr><td>Video</td><td>WebRTC video calls</td><td>Full mesh peer-to-peer video; camera device selection</td></tr>

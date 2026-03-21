@@ -2,7 +2,14 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-20T22:15:00+01:00
+## [1.0.0] — 2026-03-21T00:30:00+01:00
+
+### Added
+- Bot & Agent Integration guide on dashboard with 3-step flow and Node.js code example
+- API Docs section in admin panel with endpoint table, bot quick-start, Socket.IO reference
+- AI bots & agents bullet point on landing page API section
+- New analytics endpoints documented in /docs: features, errors, realtime, retention, health, peak-hours
+- Tracked event types documented in /docs (feature.screen_share, feature.recording, etc.)
 
 ### Changed
 - Complete UI overhaul: modern light theme across all pages (white backgrounds, subtle shadows)

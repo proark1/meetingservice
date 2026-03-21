@@ -296,6 +296,10 @@
       <button class="nav-item" data-section="analytics">
         <span class="icon">📈</span><span class="label">Analytics</span>
       </button>
+      <div class="nav-section-lbl">Developer</div>
+      <button class="nav-item" data-section="apidocs">
+        <span class="icon">📘</span><span class="label">API Docs</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <a href="/dashboard" class="nav-item" style="margin-bottom:2px;">
@@ -793,6 +797,91 @@
           </div>
           <div id="an-err-empty" style="color:var(--text-xmuted);font-size:12px;text-align:center;padding:16px;">No errors recorded</div>
         </div>
+      </div>
+    </div>
+
+    <!-- API Docs Section -->
+    <div class="section" id="section-apidocs">
+      <div class="page-title">API Reference</div>
+
+      <div class="stat-card" style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);">Quick Links</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Full interactive documentation is available at <a href="/docs" target="_blank" style="color:var(--primary);font-weight:600;">/docs</a></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="/docs" target="_blank" class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;text-decoration:none;">Open full API docs</a>
+          <a href="/docs#quickstart" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Quick Start guide</a>
+          <a href="/docs#socketio" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Socket.IO events</a>
+        </div>
+      </div>
+
+      <!-- Key endpoints table -->
+      <div class="stat-card" style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">Key API Endpoints</div>
+        <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge green">POST</span></td><td style="font-family:monospace;">/api/meetings</td><td>API Key</td><td>Create a meeting</td></tr>
+              <tr><td><span class="badge blue">GET</span></td><td style="font-family:monospace;">/api/meetings</td><td>API Key</td><td>List active meetings</td></tr>
+              <tr><td><span class="badge blue">GET</span></td><td style="font-family:monospace;">/api/meetings/:id</td><td>API Key</td><td>Get meeting details</td></tr>
+              <tr><td><span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444;">DEL</span></td><td style="font-family:monospace;">/api/meetings/:id</td><td>API Key + Admin Token</td><td>End meeting</td></tr>
+              <tr><td><span class="badge green">POST</span></td><td style="font-family:monospace;">/api/meetings/guest</td><td>None (rate limited)</td><td>Create guest meeting</td></tr>
+              <tr><td><span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;">PATCH</span></td><td style="font-family:monospace;">/api/meetings/:id/settings</td><td>API Key + Admin Token</td><td>Update meeting settings</td></tr>
+              <tr><td><span class="badge green">POST</span></td><td style="font-family:monospace;">/api/meetings/:id/lock</td><td>API Key + Admin Token</td><td>Lock meeting</td></tr>
+              <tr><td><span class="badge green">POST</span></td><td style="font-family:monospace;">/api/meetings/:id/mute-all</td><td>API Key + Admin Token</td><td>Mute all participants</td></tr>
+              <tr><td><span class="badge green">POST</span></td><td style="font-family:monospace;">/api/webhooks</td><td>Session</td><td>Register webhook</td></tr>
+              <tr><td><span class="badge blue">GET</span></td><td style="font-family:monospace;">/api/billing/history</td><td>Session</td><td>Billing history</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bot quick start -->
+      <div class="stat-card" style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);">Bot &amp; Agent Quick Start</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Connect an AI bot or agent to any meeting in 3 steps: create API key, create meeting via REST, join via Socket.IO.</div>
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;overflow-x:auto;">
+          <pre style="font-size:12px;font-family:'Fira Code',monospace;line-height:1.6;margin:0;white-space:pre;color:var(--text);"><code>import { io } from "socket.io-client";
+
+// 1. Create meeting
+const res = await fetch("/api/meetings", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "x-api-key": "mk_..." },
+  body: JSON.stringify({ title: "Bot Meeting" })
+});
+const { meetingId, adminToken } = await res.json();
+
+// 2. Connect &amp; join
+const socket = io("https://onepizza.io");
+socket.emit("join-meeting", { meetingId, name: "My Bot", isAdmin: true, adminToken });
+
+// 3. Listen &amp; interact
+socket.on("joined", ({ participantId }) =&gt; console.log("Joined:", participantId));
+socket.on("chat:message", ({ name, text }) =&gt; console.log(`${name}: ${text}`));
+socket.emit("chat:message", { text: "Hello from the bot!" });</code></pre>
+        </div>
+      </div>
+
+      <!-- Socket.IO events summary -->
+      <div class="stat-card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text);">Socket.IO Events (Client &rarr; Server)</div>
+        <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <thead><tr><th>Event</th><th>Payload</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:monospace;font-weight:600;">join-meeting</td><td>{ meetingId, name, isAdmin, adminToken }</td><td>Join a meeting</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">chat:message</td><td>{ text }</td><td>Send chat message</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">react</td><td>{ emoji }</td><td>Send floating reaction</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">raise-hand</td><td>{ isHandRaised }</td><td>Toggle hand raise</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">media:toggle-audio</td><td>{ isMuted }</td><td>Mute/unmute mic</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">media:toggle-video</td><td>{ isVideoOff }</td><td>Toggle camera</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">signal:offer</td><td>{ to, offer }</td><td>WebRTC SDP offer</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">signal:answer</td><td>{ to, answer }</td><td>WebRTC SDP answer</td></tr>
+              <tr><td style="font-family:monospace;font-weight:600;">signal:ice-candidate</td><td>{ to, candidate }</td><td>WebRTC ICE candidate</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">See <a href="/docs#socketio" target="_blank" style="color:var(--primary);">full Socket.IO reference</a> for all server&rarr;client events.</div>
       </div>
     </div>
 
