@@ -2,9 +2,20 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-21T00:30:00+01:00
+## [1.0.0] — 2026-03-22T12:00:00+01:00
 
 ### Added
+- Landing page mode switcher: "For Teams" (UI-focused) and "For Developers" (API/Agent-focused)
+- Developer-mode hero with terminal preview showing API + bot workflow
+- Developer-mode features grid (REST API, Socket.IO, Agent support, Webhooks, Billing API, etc.)
+- Developer-mode "Integrate in 4 steps" quick-start section
+- Developer-mode stats row (REST, WS, API keys, latency)
+- Developer-mode CTA banner focused on API key signup
+- Mode preference persisted in localStorage, also activatable via #developers URL hash
+- Smooth fade transition animation when switching between modes
+
+### Changed
+- Footer copyright updated to 2026
 - Bot & Agent Integration guide on dashboard with 3-step flow and Node.js code example
 - API Docs section in admin panel with endpoint table, bot quick-start, Socket.IO reference
 - AI bots & agents bullet point on landing page API section
