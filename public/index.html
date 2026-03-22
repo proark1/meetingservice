@@ -437,6 +437,98 @@
     .footer-badges { display: flex; gap: 10px; flex-wrap: wrap; }
     .footer-badge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 99px; font-size: 12px; color: var(--text-muted); }
     .footer-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+    /* ─── Mode Switcher ─── */
+    .mode-switcher {
+      display: inline-flex; align-items: center;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 99px; padding: 4px;
+      margin-bottom: 36px; animation: fadeUp 0.5s 0.02s ease both;
+      box-shadow: var(--shadow-sm);
+    }
+    .mode-btn {
+      padding: 9px 24px; border-radius: 99px;
+      font-size: 14px; font-weight: 600; color: var(--text-muted);
+      background: transparent; transition: all 0.25s ease;
+      display: flex; align-items: center; gap: 8px;
+      position: relative; z-index: 1;
+    }
+    .mode-btn:hover { color: var(--text); }
+    .mode-btn.active {
+      background: var(--primary); color: white;
+      box-shadow: 0 2px 12px rgba(79,70,229,0.35);
+    }
+    .mode-btn svg { width: 16px; height: 16px; }
+
+    /* Mode content visibility */
+    .mode-content { display: none; }
+    .mode-content.active { display: block; }
+    .mode-content-flex { display: none; }
+    .mode-content-flex.active { display: flex; }
+    .mode-content-grid { display: none; }
+    .mode-content-grid.active { display: grid; }
+
+    /* Fade transition for mode switch */
+    .mode-fade { transition: opacity 0.3s ease, transform 0.3s ease; }
+    .mode-fade.switching { opacity: 0; transform: translateY(8px); }
+
+    /* ─── Developer terminal preview ─── */
+    .terminal-preview {
+      max-width: 860px; margin: 0 auto;
+      animation: fadeUp 0.6s 0.2s ease both;
+      position: relative;
+    }
+    .terminal-card {
+      background: #0d1117; border-radius: 18px; overflow: hidden;
+      box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.06) inset;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .terminal-body { padding: 28px 24px; font-family: 'SF Mono','Fira Code','Cascadia Code',monospace; font-size: 13px; line-height: 1.9; }
+    .terminal-line { display: flex; gap: 8px; }
+    .terminal-prompt { color: #7c3aed; font-weight: 600; user-select: none; }
+    .terminal-cmd { color: #c9d1d9; }
+    .terminal-output { color: #8b949e; padding-left: 18px; }
+    .terminal-success { color: #3fb950; }
+    .terminal-key { color: #79b8ff; }
+    .terminal-str { color: #a5d6ff; }
+    .terminal-comment { color: #6e7681; }
+    .terminal-cursor { display: inline-block; width: 8px; height: 16px; background: #c9d1d9; animation: blink 1.2s step-end infinite; vertical-align: text-bottom; margin-left: 2px; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+
+    /* Developer features grid highlight */
+    .dev-feat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+    .dev-feat-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: rgba(124,58,237,0.25); }
+    .dev-feat-card .feat-icon { margin-bottom: 16px; }
+    .dev-feat-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .dev-feat-card p { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+    .dev-feat-card code { font-size: 12px; background: var(--surface2); padding: 2px 7px; border-radius: 4px; font-family: 'SF Mono','Fira Code',monospace; color: var(--primary); }
+
+    /* Developer how-it-works steps */
+    .dev-steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 56px; }
+    @media (max-width: 900px) { .dev-steps-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .dev-steps-grid { grid-template-columns: 1fr; } }
+    .dev-step-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      text-align: left; box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .dev-step-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+    .dev-step-num {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      color: white; font-size: 14px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px;
+    }
+    .dev-step-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .dev-step-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .dev-step-card code { display: block; margin-top: 10px; background: #0d1117; color: #a5d6ff; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-family: 'SF Mono','Fira Code',monospace; overflow-x: auto; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -467,24 +559,63 @@
 <div class="hero-section">
   <div class="hero-bg"></div>
   <div class="container" style="position:relative;z-index:1;">
-    <div class="hero-badge">
-      <div class="hero-badge-dot"></div>
-      Now with company accounts, team billing &amp; USDC payments
-    </div>
-    <h1 class="hero">Video meetings built<br>for <span class="grad">modern teams</span></h1>
-    <p class="hero-sub">Crystal-clear WebRTC video, screen sharing, live chat, and a full developer API. Self-hosted or cloud — yours to own.</p>
-    <div class="hero-actions">
-      <button class="btn-hero-primary" onclick="document.getElementById('start-form').scrollIntoView({behavior:'smooth'})">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-        Start a meeting now
+    <!-- Mode Switcher -->
+    <div class="mode-switcher" id="modeSwitcher">
+      <button class="mode-btn active" data-mode="users" id="modeUsers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        For Teams
       </button>
-      <button class="btn-hero-secondary" onclick="location.href='/register'">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-        Create free account
+      <button class="mode-btn" data-mode="developers" id="modeDevelopers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        For Developers
       </button>
     </div>
 
-    <!-- Meeting preview -->
+    <!-- USERS MODE: Hero -->
+    <div class="mode-fade" id="heroContent">
+    <div class="mode-content active" data-mode="users">
+      <div class="hero-badge">
+        <div class="hero-badge-dot"></div>
+        Now with company accounts, team billing &amp; USDC payments
+      </div>
+      <h1 class="hero">Video meetings built<br>for <span class="grad">modern teams</span></h1>
+      <p class="hero-sub">Crystal-clear WebRTC video, screen sharing, live chat, and a full developer API. Self-hosted or cloud — yours to own.</p>
+      <div class="hero-actions">
+        <button class="btn-hero-primary" onclick="document.getElementById('start-form').scrollIntoView({behavior:'smooth'})">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          Start a meeting now
+        </button>
+        <button class="btn-hero-secondary" onclick="location.href='/register'">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          Create free account
+        </button>
+      </div>
+    </div>
+
+    <!-- DEVELOPERS MODE: Hero -->
+    <div class="mode-content" data-mode="developers">
+      <div class="hero-badge" style="background:rgba(124,58,237,0.1);color:#7c3aed;border-color:rgba(124,58,237,0.25);">
+        <div class="hero-badge-dot" style="background:#7c3aed;"></div>
+        REST API + Socket.IO + Agent-ready
+      </div>
+      <h1 class="hero">Build on <span class="grad" style="background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);-webkit-background-clip:text;background-clip:text;">video meetings</span><br>with a single API call</h1>
+      <p class="hero-sub">Create meetings, join as a bot, send messages, react, and listen — all programmatically. Perfect for AI agents, automations, and custom integrations.</p>
+      <div class="hero-actions">
+        <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#7c3aed;box-shadow:0 4px 20px rgba(124,58,237,0.45);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Read API docs
+        </button>
+        <button class="btn-hero-secondary" onclick="location.href='/register'">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          Get your API key
+        </button>
+      </div>
+    </div>
+    </div>
+
+    <!-- USERS MODE: Meeting preview -->
+    <div class="mode-fade" id="previewContent">
+    <div class="mode-content active" data-mode="users">
     <div class="preview-wrap">
       <div class="preview-glow"></div>
       <div class="preview-card">
@@ -553,13 +684,49 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- DEVELOPERS MODE: Terminal preview -->
+    <div class="mode-content" data-mode="developers">
+    <div class="terminal-preview">
+      <div class="preview-glow" style="background:rgba(124,58,237,0.25);"></div>
+      <div class="terminal-card">
+        <div class="preview-topbar">
+          <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+          <div class="preview-url-bar">Terminal — onepizza.io API</div>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-comment"># Create a meeting via API</div>
+          <div class="terminal-line"><span class="terminal-prompt">$</span> <span class="terminal-cmd">curl -X POST https://onepizza.io/api/meetings \</span></div>
+          <div class="terminal-output">-H <span class="terminal-str">"x-api-key: mk_live_a1b2c3"</span> \</div>
+          <div class="terminal-output">-d <span class="terminal-str">'{"title": "Agent Standup"}'</span></div>
+          <div style="height:8px;"></div>
+          <div class="terminal-success">{"meetingId":"agent-standup-k9x","adminToken":"eyJh...","joinUrl":"/join/agent-standup-k9x"}</div>
+          <div style="height:16px;"></div>
+          <div class="terminal-comment"># Connect your agent via Socket.IO</div>
+          <div class="terminal-line"><span class="terminal-prompt">$</span> <span class="terminal-cmd">node agent.js --meeting agent-standup-k9x</span></div>
+          <div style="height:8px;"></div>
+          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Connected to meeting <span class="terminal-key">agent-standup-k9x</span></div>
+          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Joined as <span class="terminal-key">"Meeting Bot"</span> (bot mode)</div>
+          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Listening for events... <span class="terminal-comment">chat:message, participant:joined, signal:offer</span></div>
+          <div style="height:8px;"></div>
+          <div class="terminal-output">&#8594; <span class="terminal-key">chat:message</span> from Alex: <span class="terminal-str">"Hey bot, summarize the last meeting"</span></div>
+          <div class="terminal-output">&#8592; <span class="terminal-key">chat:send</span> <span class="terminal-str">"Here's your summary: Q4 metrics up 18%..."</span></div>
+          <div class="terminal-output">&#8592; <span class="terminal-key">reaction</span> <span class="terminal-str">"thumbsup"</span><span class="terminal-cursor"></span></div>
+        </div>
+      </div>
+    </div>
+    </div>
+    </div>
+
   </div>
 </div>
 
 <!-- Stats -->
 <section class="stats-section">
-  <div class="container">
-    <div class="stats-inner">
+  <div class="container mode-fade" id="statsContent">
+    <!-- USERS MODE: Stats -->
+    <div class="mode-content-grid active stats-inner" data-mode="users">
       <div class="stat-item">
         <div class="stat-num">50</div>
         <div class="stat-label">Participants per meeting</div>
@@ -577,12 +744,34 @@
         <div class="stat-label">Full API + Socket.IO events</div>
       </div>
     </div>
+    <!-- DEVELOPERS MODE: Stats -->
+    <div class="mode-content-grid stats-inner" data-mode="developers">
+      <div class="stat-item">
+        <div class="stat-num">REST</div>
+        <div class="stat-label">Full CRUD API for meetings</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">WS</div>
+        <div class="stat-label">Real-time Socket.IO events</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">5</div>
+        <div class="stat-label">API keys per company</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">&lt;1s</div>
+        <div class="stat-label">Meeting creation latency</div>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- Features -->
 <section class="section section-bg" id="features">
   <div class="container">
+    <div class="mode-fade" id="featuresContent">
+    <!-- USERS MODE: Features header + grid -->
+    <div class="mode-content active" data-mode="users">
     <div class="section-center">
       <div class="section-label">Everything you need</div>
       <h2 class="section-title">Built for real work</h2>
@@ -667,12 +856,111 @@
       </div>
 
     </div>
+    </div>
+
+    <!-- DEVELOPERS MODE: Features -->
+    <div class="mode-content" data-mode="developers">
+    <div class="section-center">
+      <div class="section-label" style="color:#7c3aed;">Developer toolkit</div>
+      <h2 class="section-title">Everything you need to integrate</h2>
+      <p class="section-sub">A complete API for building meeting bots, AI agents, workflow automations, and custom video experiences.</p>
+    </div>
+    <div class="features-grid" style="margin-top:56px;">
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <h3>REST API</h3>
+        <p>Create, list, and manage meetings with standard HTTP endpoints. JSON request/response, API key auth.</p>
+        <span class="feat-tag" style="background:rgba(124,58,237,0.1);color:#7c3aed;">POST /api/meetings</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        </div>
+        <h3>Socket.IO Events</h3>
+        <p>Real-time participant, chat, and signaling events. Join as a bot and interact live with meeting participants.</p>
+        <span class="feat-tag" style="background:rgba(16,185,129,0.1);color:#059669;">Real-time WS</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <h3>AI Agent Support</h3>
+        <p>Join meetings as a bot participant. Listen to chat, send messages, react, and automate workflows — all server-side.</p>
+        <span class="feat-tag" style="background:rgba(245,158,11,0.1);color:#b45309;">Agent-ready</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(79,70,229,0.1);color:#4f46e5;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        </div>
+        <h3>API Key Management</h3>
+        <p>Generate up to 5 keys per company. Track usage, rotate keys, and label them for different environments.</p>
+        <span class="feat-tag" style="background:rgba(79,70,229,0.1);color:#4f46e5;">x-api-key</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Admin Token Auth</h3>
+        <p>Per-meeting admin tokens for host controls. Mute, kick, lock meetings, and manage the waiting room via API.</p>
+        <span class="feat-tag" style="background:rgba(239,68,68,0.1);color:#b91c1c;">Timing-safe</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(14,165,233,0.1);color:#0ea5e9;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <h3>Billing API</h3>
+        <p>Check credit balances, view billing history, and top up via Stripe or USDC — all through the API.</p>
+        <span class="feat-tag" style="background:rgba(14,165,233,0.1);color:#0284c7;">Stripe + USDC</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(168,85,247,0.1);color:#a855f7;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>Webhooks</h3>
+        <p>Get notified when meetings start, end, or participants join. Integrate with Slack, Zapier, or your own backend.</p>
+        <span class="feat-tag" style="background:rgba(168,85,247,0.1);color:#7c3aed;">Event-driven</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Company &amp; Team API</h3>
+        <p>Create companies, invite members, manage shared credit pools, and organize API keys — all via REST.</p>
+        <span class="feat-tag" style="background:rgba(16,185,129,0.1);color:#059669;">Multi-tenant</span>
+      </div>
+
+      <div class="dev-feat-card">
+        <div class="feat-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3>Self-Hosted Option</h3>
+        <p>Deploy on your own infrastructure with Docker. Full control over data, no vendor lock-in, same API surface.</p>
+        <span class="feat-tag" style="background:rgba(124,58,237,0.1);color:#7c3aed;">Docker</span>
+      </div>
+
+    </div>
+    </div>
+    </div>
+
   </div>
 </section>
 
 <!-- How it works -->
 <section class="section">
   <div class="container">
+    <div class="mode-fade" id="stepsContent">
+    <!-- USERS MODE: How it works -->
+    <div class="mode-content active" data-mode="users">
     <div class="section-center">
       <div class="section-label">How it works</div>
       <h2 class="section-title">Up and running in seconds</h2>
@@ -694,6 +982,43 @@
         <h3>Meet in one click</h3>
         <p>Participants click the link and join directly in their browser. Camera preview, mic test, and lobby — all built in.</p>
       </div>
+    </div>
+    </div>
+
+    <!-- DEVELOPERS MODE: How it works -->
+    <div class="mode-content" data-mode="developers">
+    <div class="section-center">
+      <div class="section-label" style="color:#7c3aed;">Quick start</div>
+      <h2 class="section-title">Integrate in 4 steps</h2>
+      <p class="section-sub">From zero to a working meeting bot in under 5 minutes. No SDKs to install — just HTTP and WebSockets.</p>
+    </div>
+    <div class="dev-steps-grid">
+      <div class="dev-step-card">
+        <div class="dev-step-num">1</div>
+        <h3>Get an API key</h3>
+        <p>Register and generate your key from the dashboard.</p>
+        <code>mk_live_a1b2c3d4...</code>
+      </div>
+      <div class="dev-step-card">
+        <div class="dev-step-num">2</div>
+        <h3>Create a meeting</h3>
+        <p>One POST request returns the meeting ID and admin token.</p>
+        <code>POST /api/meetings</code>
+      </div>
+      <div class="dev-step-card">
+        <div class="dev-step-num">3</div>
+        <h3>Connect via Socket.IO</h3>
+        <p>Join the meeting room and start listening for events.</p>
+        <code>io("wss://onepizza.io")</code>
+      </div>
+      <div class="dev-step-card">
+        <div class="dev-step-num">4</div>
+        <h3>Interact live</h3>
+        <p>Send chat, react, manage participants — all in real time.</p>
+        <code>emit("chat:send", {...})</code>
+      </div>
+    </div>
+    </div>
     </div>
   </div>
 </section>
@@ -992,12 +1317,24 @@
 <!-- CTA -->
 <section class="cta-section">
   <div class="container">
-    <div class="cta-inner">
-      <h2>Ready to upgrade your team's meetings?</h2>
-      <p>Create a company account and collaborate with centralized billing, shared API keys, and full developer access.</p>
-      <div class="cta-actions">
-        <button class="btn-cta-white" onclick="location.href='/register?type=company'">Create company account →</button>
-        <button class="btn-cta-ghost" onclick="location.href='/docs'">Read the API docs</button>
+    <div class="cta-inner mode-fade" id="ctaContent">
+      <!-- USERS MODE: CTA -->
+      <div class="mode-content active" data-mode="users">
+        <h2>Ready to upgrade your team's meetings?</h2>
+        <p>Create a company account and collaborate with centralized billing, shared API keys, and full developer access.</p>
+        <div class="cta-actions">
+          <button class="btn-cta-white" onclick="location.href='/register?type=company'">Create company account →</button>
+          <button class="btn-cta-ghost" onclick="location.href='/docs'">Read the API docs</button>
+        </div>
+      </div>
+      <!-- DEVELOPERS MODE: CTA -->
+      <div class="mode-content" data-mode="developers">
+        <h2>Start building with the API today</h2>
+        <p>Get your API key in seconds. Full REST + Socket.IO documentation, code examples in cURL, Node.js, and Python.</p>
+        <div class="cta-actions">
+          <button class="btn-cta-white" onclick="location.href='/register'">Get your API key →</button>
+          <button class="btn-cta-ghost" onclick="location.href='/docs'">Explore API docs</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1039,7 +1376,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <div class="footer-copy">© 2025 onepizza.io. All rights reserved.</div>
+      <div class="footer-copy">© 2026 onepizza.io. All rights reserved.</div>
       <div class="footer-badges">
         <div class="footer-badge"><div class="footer-badge-dot"></div> Stripe payments</div>
         <div class="footer-badge"><div class="footer-badge-dot"></div> USDC on-chain</div>
@@ -1051,6 +1388,49 @@
 
 <div id="toastContainer" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
 <script>
+// ─── Mode Switcher ───
+(function() {
+  const fadeContainers = document.querySelectorAll('.mode-fade');
+  const modeBtns = document.querySelectorAll('.mode-btn');
+
+  function switchMode(mode) {
+    // Update toggle buttons
+    modeBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    // Animate out
+    fadeContainers.forEach(c => c.classList.add('switching'));
+
+    setTimeout(() => {
+      // Toggle content visibility
+      document.querySelectorAll('.mode-content, .mode-content-flex, .mode-content-grid').forEach(el => {
+        el.classList.toggle('active', el.dataset.mode === mode);
+      });
+      // Animate in
+      fadeContainers.forEach(c => c.classList.remove('switching'));
+    }, 250);
+
+    // Persist preference
+    try { localStorage.setItem('onepizza_mode', mode); } catch(e) {}
+  }
+
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+  });
+
+  // Restore preference or detect from URL hash
+  const hash = window.location.hash;
+  if (hash === '#developers' || hash === '#api') {
+    switchMode('developers');
+  } else {
+    try {
+      const saved = localStorage.getItem('onepizza_mode');
+      if (saved === 'developers') switchMode('developers');
+    } catch(e) {}
+  }
+})();
+
 function showToast(msg, type) {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
