@@ -156,17 +156,44 @@ async function doRegister() {
   document.getElementById('submitBtn').style.display = 'none';
   document.getElementById('successBox').style.display = 'block';
 
-  let html = `<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Your API key — save this, it won't be shown again:</p>
-    <div class="key-display">${data.apiKey}</div>
-    <button class="copy-btn" onclick="navigator.clipboard.writeText('${data.apiKey}').then(()=>this.textContent='Copied!')">Copy key</button>`;
+  function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+  const successBody = document.getElementById('successBody');
+  successBody.textContent = ''; // clear
+
+  const keyLabel = document.createElement('p');
+  keyLabel.style.cssText = 'font-size:13px;color:var(--text-muted);margin-bottom:8px;';
+  keyLabel.textContent = 'Your API key — save this, it won\'t be shown again:';
+  successBody.appendChild(keyLabel);
+
+  const keyDisplay = document.createElement('div');
+  keyDisplay.className = 'key-display';
+  keyDisplay.textContent = data.apiKey;
+  successBody.appendChild(keyDisplay);
+
+  const copyKeyBtn = document.createElement('button');
+  copyKeyBtn.className = 'copy-btn';
+  copyKeyBtn.textContent = 'Copy key';
+  copyKeyBtn.addEventListener('click', () => { navigator.clipboard.writeText(data.apiKey).then(() => { copyKeyBtn.textContent = 'Copied!'; }); });
+  successBody.appendChild(copyKeyBtn);
 
   if (data.inviteCode) {
-    html += `<p style="font-size:13px;color:var(--text-muted);margin:14px 0 8px;">Company invite code — share with your team:</p>
-      <div class="key-display">${data.inviteCode}</div>
-      <button class="copy-btn" onclick="navigator.clipboard.writeText('${data.inviteCode}').then(()=>this.textContent='Copied!')">Copy invite code</button>`;
-  }
+    const invLabel = document.createElement('p');
+    invLabel.style.cssText = 'font-size:13px;color:var(--text-muted);margin:14px 0 8px;';
+    invLabel.textContent = 'Company invite code — share with your team:';
+    successBody.appendChild(invLabel);
 
-  document.getElementById('successBody').innerHTML = html;
+    const invDisplay = document.createElement('div');
+    invDisplay.className = 'key-display';
+    invDisplay.textContent = data.inviteCode;
+    successBody.appendChild(invDisplay);
+
+    const copyInvBtn = document.createElement('button');
+    copyInvBtn.className = 'copy-btn';
+    copyInvBtn.textContent = 'Copy invite code';
+    copyInvBtn.addEventListener('click', () => { navigator.clipboard.writeText(data.inviteCode).then(() => { copyInvBtn.textContent = 'Copied!'; }); });
+    successBody.appendChild(copyInvBtn);
+  }
 }
 
 function showErr(msg) {

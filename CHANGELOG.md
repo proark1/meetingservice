@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-22T20:00:00+01:00
+## [1.0.0] — 2026-03-22T22:00:00+01:00
 
 ### Added
 - MCP server (`mcp-server.js`) for AI agent integration via Model Context Protocol
@@ -39,6 +39,29 @@ All notable changes to onepizza.io are documented in this file.
 
 ### Security
 - Socket.IO event spam protection prevents DoS via rapid-fire chat/reaction events
+- Fixed XSS vulnerabilities in `register.html` (API key/invite code display) and `billing.html` (transaction descriptions)
+  - Replaced unsafe `innerHTML` interpolation with DOM API (`textContent`, `createElement`) and `esc()` helper
+- Enabled Content Security Policy (CSP) via Helmet with allowlist for CDN dependencies
+  - `script-src`: self, unsafe-inline, cdn.socket.io, cdn.jsdelivr.net
+  - `style-src`: self, unsafe-inline, fonts.googleapis.com
+  - `connect-src`: self, wss:, ws:
+- Added security-focused tests: XSS escaping, input sanitization, emoji whitelist validation
+
+### Added (UI/UX)
+- Dark mode support via `prefers-color-scheme: dark` media query in `styles.css`
+  - Full CSS custom property overrides for dark theme (backgrounds, text, borders, shadows)
+- Mobile safe area padding for notched devices (iPhone 14+)
+  - Controls bar and body respect `env(safe-area-inset-*)` values
+- Accessibility improvements in `meeting.html`:
+  - ARIA labels on all control buttons (mic, camera, screen share, chat, reactions, etc.)
+  - `role="toolbar"` on controls bar, `role="dialog"` on shortcuts modal
+  - `role="alert"` and `aria-live="polite"` on toast notifications and chat badge
+  - `role="complementary"` on side panel, `role="menu"` on reactions tray
+  - `aria-label` on chat input field
+- Meeting receipt emails sent after billing via `meetingReceiptEmail()` template
+- Recordings & Transcripts tab in dashboard with search-by-meeting-ID, download links
+- API docs updated with 5 new endpoint sections: transcripts (2 endpoints) and recordings (3 endpoints)
+- `authApiOrSession` middleware: transcript and recording endpoints accept both API key and session auth
 
 - Landing page mode switcher: "For Teams" (UI-focused) and "For Developers" (API/Agent-focused)
 - Developer-mode hero with terminal preview showing API + bot workflow

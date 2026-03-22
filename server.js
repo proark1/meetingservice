@@ -12,7 +12,7 @@ const rateLimit  = require('express-rate-limit');
 const compression = require('compression');
 const morgan     = require('morgan');
 const { pool, initDB, getSettings, invalidateSettingsCache } = require('./db');
-const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail } = require('./email');
+const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail, meetingReceiptEmail } = require('./email');
 const crypto = require('crypto');
 const multer = require('multer');
 const fs     = require('fs');
@@ -115,14 +115,24 @@ app.use(cors({
 }));
 
 // ─── Security, compression, logging ──────────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false, frameguard: false, crossOriginEmbedderPolicy: false }));
-// Allow iframe embedding. Defaults to * (any domain) so API customers can embed meetings
-// on their own domains. Set ALLOWED_FRAME_ANCESTORS env var to restrict (e.g. "https://app.example.com").
-app.use((_req, res, next) => {
-  const frameAncestors = process.env.ALLOWED_FRAME_ANCESTORS || '*';
-  res.setHeader('Content-Security-Policy', `frame-ancestors ${frameAncestors}`);
-  next();
-});
+const frameAncestors = process.env.ALLOWED_FRAME_ANCESTORS || '*';
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.socket.io", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      mediaSrc: ["'self'", "blob:"],
+      connectSrc: ["'self'", "wss:", "ws:"],
+      workerSrc: ["'self'", "blob:"],
+      frameAncestors: [frameAncestors],
+    },
+  },
+  frameguard: false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
@@ -1217,6 +1227,15 @@ async function chargeMeeting(meeting) {
     if (notifyEmail) {
       sendEmail({ to: notifyEmail, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, notifyEmail) }).catch(() => {});
     }
+    // Send meeting receipt email
+    const receiptEmail = notifyEmail || (await pool.query('SELECT email FROM users WHERE id = $1', [user_id]).catch(() => ({ rows: [] }))).rows[0]?.email;
+    if (receiptEmail && cost >= 0.01) {
+      sendEmail({
+        to: receiptEmail,
+        subject: `Meeting receipt — ${meeting.title || meeting.id}`,
+        html: meetingReceiptEmail({ to: receiptEmail, meetingId: meeting.id, title: meeting.title, durationMinutes: parseFloat(mins.toFixed(2)), cost }),
+      }).catch(() => {});
+    }
     deliverWebhook(meeting.logId, user_id, company_id, 'meeting.ended', {
       meetingId: meeting.id, title: meeting.title,
       durationMinutes: parseFloat(mins.toFixed(2)),
@@ -1572,8 +1591,14 @@ app.get('/admin/api/meetings/history', requireAdminSession, async (_req, res) =>
   res.json({ meetings: rows });
 });
 
+// ─── Auth: API key or session ────────────────────────────────────────────────
+function authApiOrSession(req, res, next) {
+  if (req.session?.userId) return next();
+  return authApi(req, res, next);
+}
+
 // ─── Chat transcript ─────────────────────────────────────────────────────────
-app.get('/api/meetings/:meetingId/transcript', authApi, async (req, res) => {
+app.get('/api/meetings/:meetingId/transcript', authApiOrSession, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
@@ -1586,7 +1611,7 @@ app.get('/api/meetings/:meetingId/transcript', authApi, async (req, res) => {
   }
 });
 
-app.get('/api/meetings/:meetingId/transcript/download', authApi, async (req, res) => {
+app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
@@ -1607,7 +1632,7 @@ app.get('/api/meetings/:meetingId/transcript/download', authApi, async (req, res
 });
 
 // ─── Recording upload & download ─────────────────────────────────────────────
-app.post('/api/meetings/:meetingId/recordings', authApi, (req, res) => {
+app.post('/api/meetings/:meetingId/recordings', authApiOrSession, (req, res) => {
   upload.single('recording')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -1615,7 +1640,7 @@ app.post('/api/meetings/:meetingId/recordings', authApi, (req, res) => {
       const { rows } = await pool.query(
         `INSERT INTO recordings (meeting_id, user_id, filename, size_bytes, storage_path)
          VALUES ($1,$2,$3,$4,$5) RETURNING id, filename, size_bytes, created_at`,
-        [req.params.meetingId, req.apiUser.userId, req.file.originalname.slice(0, 255),
+        [req.params.meetingId, req.apiUser?.userId || req.session?.userId || null, req.file.originalname.slice(0, 255),
          req.file.size, req.file.filename]
       );
       res.status(201).json(rows[0]);
@@ -1626,7 +1651,7 @@ app.post('/api/meetings/:meetingId/recordings', authApi, (req, res) => {
   });
 });
 
-app.get('/api/meetings/:meetingId/recordings', authApi, async (req, res) => {
+app.get('/api/meetings/:meetingId/recordings', authApiOrSession, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT id, filename, size_bytes, created_at FROM recordings WHERE meeting_id = $1 ORDER BY created_at DESC',
@@ -1638,7 +1663,7 @@ app.get('/api/meetings/:meetingId/recordings', authApi, async (req, res) => {
   }
 });
 
-app.get('/api/recordings/:id/download', authApi, async (req, res) => {
+app.get('/api/recordings/:id/download', authApiOrSession, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT filename, storage_path FROM recordings WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });

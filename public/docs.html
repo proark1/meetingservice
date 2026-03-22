@@ -124,8 +124,10 @@
   <a href="#errors">16. Errors &amp; Rate Limits</a>
   <a href="#envvars">17. Environment Variables</a>
   <a href="#admin-analytics">18. Admin Analytics API</a>
-  <a href="#quickstart">19. Quick Start</a>
-  <a href="#features">20. Features Overview</a>
+  <a href="#transcripts">19. Meeting Transcripts</a>
+  <a href="#recordings">20. Meeting Recordings</a>
+  <a href="#quickstart">21. Quick Start</a>
+  <a href="#features">22. Features Overview</a>
 </div>
 
 <!-- ─── Account & Auth ───────────────────────────────────────────────── -->
@@ -903,8 +905,83 @@ Supported media tracks:
   <tr><td><code>meeting.ended</code></td><td>Meeting ended</td><td><code>{ durationMinutes, peakParticipants, costUsd }</code></td></tr>
 </table>
 
+<!-- ─── Meeting Transcripts ────────────────────────────────────────── -->
+<h2 id="transcripts">19. Meeting Transcripts</h2>
+<p>Chat messages are persisted to the database during meetings. You can retrieve them as JSON or download as a text file after the meeting.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/meetings/:meetingId/transcript</div>
+  <p>Get the full chat transcript for a meeting as JSON.</p>
+  <pre><code>curl https://onepizza.io/api/meetings/abc-defg-hij/transcript \
+  -H "x-api-key: YOUR_KEY"
+
+# Response:
+{
+  "messages": [
+    { "participant_name": "Alice", "text": "Hello everyone!", "created_at": "2026-03-22T14:30:00Z" },
+    { "participant_name": "Bob", "text": "Hi Alice!", "created_at": "2026-03-22T14:30:05Z" }
+  ]
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/meetings/:meetingId/transcript/download</div>
+  <p>Download the chat transcript as a plain text file. Returns <code>Content-Disposition: attachment</code>.</p>
+  <pre><code>curl -O https://onepizza.io/api/meetings/abc-defg-hij/transcript/download \
+  -H "x-api-key: YOUR_KEY"
+
+# Downloaded file format:
+# [14:30:00] Alice: Hello everyone!
+# [14:30:05] Bob: Hi Alice!</code></pre>
+</div>
+
+<!-- ─── Meeting Recordings ────────────────────────────────────────── -->
+<h2 id="recordings">20. Meeting Recordings</h2>
+<p>Upload browser-recorded meeting files to the server for storage and later retrieval.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method post">POST</span> /api/meetings/:meetingId/recordings</div>
+  <p>Upload a recording file (multipart/form-data). Max file size: 500 MB. Accepts video/* and audio/* MIME types.</p>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>recording</code></td><td>File</td><td><span class="badge required">REQUIRED</span></td><td>The recording file (video/webm, etc.)</td></tr>
+  </table>
+  <pre><code>curl -X POST https://onepizza.io/api/meetings/abc-defg-hij/recordings \
+  -H "x-api-key: YOUR_KEY" \
+  -F "recording=@meeting-recording.webm"
+
+# Response (201):
+{
+  "id": 1,
+  "filename": "meeting-recording.webm",
+  "size_bytes": 15728640,
+  "created_at": "2026-03-22T15:00:00Z"
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/meetings/:meetingId/recordings</div>
+  <p>List all recordings for a meeting.</p>
+  <pre><code>curl https://onepizza.io/api/meetings/abc-defg-hij/recordings \
+  -H "x-api-key: YOUR_KEY"
+
+# Response:
+{
+  "recordings": [
+    { "id": 1, "filename": "meeting-recording.webm", "size_bytes": 15728640, "created_at": "2026-03-22T15:00:00Z" }
+  ]
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /api/recordings/:id/download</div>
+  <p>Download a recording file by ID. Returns the file with <code>Content-Disposition: attachment</code>.</p>
+  <pre><code>curl -O https://onepizza.io/api/recordings/1/download \
+  -H "x-api-key: YOUR_KEY"</code></pre>
+</div>
+
 <!-- ─── Quick Start ────────────────────────────────────────────────── -->
-<h2 id="quickstart">19. Quick Start</h2>
+<h2 id="quickstart">21. Quick Start</h2>
 
 <h3>1. Start a guest meeting (no account needed)</h3>
 <pre><code>curl -X POST https://onepizza.io/api/meetings/guest \
@@ -980,7 +1057,7 @@ socket.emit("raise-hand", { isHandRaised: true });
 socket.emit("react", { emoji: "👍" });</code></pre>
 
 <!-- ─── Features ────────────────────────────────────────────────────── -->
-<h2 id="features">20. Features Overview</h2>
+<h2 id="features">22. Features Overview</h2>
 <table>
   <tr><th>Category</th><th>Feature</th><th>Description</th></tr>
   <tr><td>Video</td><td>WebRTC video calls</td><td>Full mesh peer-to-peer video; camera device selection</td></tr>
