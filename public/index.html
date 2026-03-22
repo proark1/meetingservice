@@ -576,10 +576,10 @@
     <div class="mode-content active" data-mode="users">
       <div class="hero-badge">
         <div class="hero-badge-dot"></div>
-        Now with company accounts, team billing &amp; USDC payments
+        Now with dark mode, cloud recordings &amp; chat transcripts
       </div>
       <h1 class="hero">Video meetings built<br>for <span class="grad">modern teams</span></h1>
-      <p class="hero-sub">Crystal-clear WebRTC video, screen sharing, live chat, and a full developer API. Self-hosted or cloud — yours to own.</p>
+      <p class="hero-sub">HD video, screen sharing, cloud recordings, searchable transcripts, and dark mode — all without per-seat pricing. Self-hosted or cloud, yours to own.</p>
       <div class="hero-actions">
         <button class="btn-hero-primary" onclick="document.getElementById('start-form').scrollIntoView({behavior:'smooth'})">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
@@ -596,10 +596,10 @@
     <div class="mode-content" data-mode="developers">
       <div class="hero-badge" style="background:rgba(124,58,237,0.1);color:#7c3aed;border-color:rgba(124,58,237,0.25);">
         <div class="hero-badge-dot" style="background:#7c3aed;"></div>
-        REST API + Socket.IO + Agent-ready
+        MCP Server + REST API + Socket.IO
       </div>
       <h1 class="hero">Build on <span class="grad" style="background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);-webkit-background-clip:text;background-clip:text;">video meetings</span><br>with a single API call</h1>
-      <p class="hero-sub">Create meetings, join as a bot, send messages, react, and listen — all programmatically. Perfect for AI agents, automations, and custom integrations.</p>
+      <p class="hero-sub">13 MCP tools for Claude &amp; AI agents. REST API for meeting CRUD. Socket.IO for real-time bots. Cloud recordings &amp; transcript API. CI/CD-tested, Docker-ready.</p>
       <div class="hero-actions">
         <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#7c3aed;box-shadow:0 4px 20px rgba(124,58,237,0.45);">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -696,23 +696,20 @@
           <div class="preview-url-bar">Terminal — onepizza.io API</div>
         </div>
         <div class="terminal-body">
-          <div class="terminal-comment"># Create a meeting via API</div>
-          <div class="terminal-line"><span class="terminal-prompt">$</span> <span class="terminal-cmd">curl -X POST https://onepizza.io/api/meetings \</span></div>
-          <div class="terminal-output">-H <span class="terminal-str">"x-api-key: mk_live_a1b2c3"</span> \</div>
-          <div class="terminal-output">-d <span class="terminal-str">'{"title": "Agent Standup"}'</span></div>
+          <div class="terminal-comment"># Add to your Claude Code / MCP config</div>
+          <div class="terminal-line"><span class="terminal-prompt">$</span> <span class="terminal-cmd">ONEPIZZA_API_KEY=mk_live_a1b2c3 npm run mcp</span></div>
           <div style="height:8px;"></div>
-          <div class="terminal-success">{"meetingId":"agent-standup-k9x","adminToken":"eyJh...","joinUrl":"/join/agent-standup-k9x"}</div>
-          <div style="height:16px;"></div>
-          <div class="terminal-comment"># Connect your agent via Socket.IO</div>
-          <div class="terminal-line"><span class="terminal-prompt">$</span> <span class="terminal-cmd">node agent.js --meeting agent-standup-k9x</span></div>
+          <div class="terminal-output"><span class="terminal-success">&#10003;</span> MCP server (stdio) started — <span class="terminal-key">13 tools</span> available</div>
+          <div style="height:12px;"></div>
+          <div class="terminal-comment"># Claude can now create meetings, join as bot, chat, react</div>
+          <div class="terminal-output">&#8594; <span class="terminal-key">create_meeting</span> <span class="terminal-str">{"title": "Agent Standup"}</span></div>
+          <div class="terminal-output"><span class="terminal-success">&#10003;</span> <span class="terminal-str">{"meetingId":"agent-standup-k9x","adminToken":"eyJh..."}</span></div>
           <div style="height:8px;"></div>
-          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Connected to meeting <span class="terminal-key">agent-standup-k9x</span></div>
-          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Joined as <span class="terminal-key">"Meeting Bot"</span> (bot mode)</div>
-          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Listening for events... <span class="terminal-comment">chat:message, participant:joined, signal:offer</span></div>
+          <div class="terminal-output">&#8594; <span class="terminal-key">join_meeting</span> <span class="terminal-str">{"meetingId":"agent-standup-k9x","name":"Claude"}</span></div>
+          <div class="terminal-output"><span class="terminal-success">&#10003;</span> Joined as <span class="terminal-key">"Claude"</span> — 3 participants online</div>
           <div style="height:8px;"></div>
-          <div class="terminal-output">&#8594; <span class="terminal-key">chat:message</span> from Alex: <span class="terminal-str">"Hey bot, summarize the last meeting"</span></div>
-          <div class="terminal-output">&#8592; <span class="terminal-key">chat:send</span> <span class="terminal-str">"Here's your summary: Q4 metrics up 18%..."</span></div>
-          <div class="terminal-output">&#8592; <span class="terminal-key">reaction</span> <span class="terminal-str">"thumbsup"</span><span class="terminal-cursor"></span></div>
+          <div class="terminal-output">&#8594; <span class="terminal-key">send_chat_message</span> <span class="terminal-str">{"text":"Here's your Q4 summary..."}</span></div>
+          <div class="terminal-output">&#8594; <span class="terminal-key">send_reaction</span> <span class="terminal-str">{"emoji":"🎉"}</span><span class="terminal-cursor"></span></div>
         </div>
       </div>
     </div>
@@ -747,16 +744,16 @@
     <!-- DEVELOPERS MODE: Stats -->
     <div class="mode-content-grid stats-inner" data-mode="developers">
       <div class="stat-item">
-        <div class="stat-num">REST</div>
-        <div class="stat-label">Full CRUD API for meetings</div>
+        <div class="stat-num">13</div>
+        <div class="stat-label">MCP tools for AI agents</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">WS</div>
-        <div class="stat-label">Real-time Socket.IO events</div>
+        <div class="stat-num">38</div>
+        <div class="stat-label">Automated tests (CI/CD)</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">5</div>
-        <div class="stat-label">API keys per company</div>
+        <div class="stat-num">22</div>
+        <div class="stat-label">Documented API sections</div>
       </div>
       <div class="stat-item">
         <div class="stat-num">&lt;1s</div>
@@ -799,17 +796,17 @@
         <div class="feat-icon" style="background:#fef3c7;color:#f59e0b;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
         </div>
-        <h3>Meeting Recording</h3>
-        <p>Record locally to your device with no cloud storage required. Recordings save directly as .webm files with full audio and video.</p>
-        <span class="feat-tag" style="background:#fef3c7;color:#b45309;">Local only</span>
+        <h3>Cloud Recordings</h3>
+        <p>Record meetings and upload to the cloud. Browse, download, and share recordings from your dashboard. Local download also available.</p>
+        <span class="feat-tag" style="background:#fef3c7;color:#b45309;">Upload &amp; download</span>
       </div>
 
       <div class="feat-card">
         <div class="feat-icon" style="background:#fdf4ff;color:#a855f7;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <h3>Live Chat &amp; Reactions</h3>
-        <p>In-meeting text chat, emoji reactions (👍 ❤️ 😂 🎉 🙋), and raise-hand notifications keep collaboration flowing without interrupting speakers.</p>
+        <h3>Chat &amp; Transcripts</h3>
+        <p>Live chat with emoji reactions and raise-hand. All messages are saved — download full transcripts after the meeting from your dashboard.</p>
       </div>
 
       <div class="feat-card">
@@ -844,6 +841,15 @@
         <h3>Company Accounts</h3>
         <p>Create a workspace and invite your whole team. Manage shared credits, centralized billing, and API keys from one dashboard.</p>
         <span class="feat-tag" style="background:#eef0fd;color:#4f46e5;">Team billing</span>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#f0f0ff;color:#6366f1;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </div>
+        <h3>Dark Mode</h3>
+        <p>Automatic dark theme that follows your system preference. Easier on the eyes for late-night calls and long sessions.</p>
+        <span class="feat-tag" style="background:#f0f0ff;color:#6366f1;">Automatic</span>
       </div>
 
       <div class="feat-card">
@@ -889,9 +895,9 @@
         <div class="feat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </div>
-        <h3>AI Agent Support</h3>
-        <p>Join meetings as a bot participant. Listen to chat, send messages, react, and automate workflows — all server-side.</p>
-        <span class="feat-tag" style="background:rgba(245,158,11,0.1);color:#b45309;">Agent-ready</span>
+        <h3>MCP Server</h3>
+        <p>13 Model Context Protocol tools for Claude, Cursor, and AI agents. Create meetings, join as a bot, chat, react — all via MCP. Stdio + HTTP transport.</p>
+        <span class="feat-tag" style="background:rgba(245,158,11,0.1);color:#b45309;">Claude-ready</span>
       </div>
 
       <div class="dev-feat-card">
@@ -916,9 +922,9 @@
         <div class="feat-icon" style="background:rgba(14,165,233,0.1);color:#0ea5e9;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
-        <h3>Billing API</h3>
-        <p>Check credit balances, view billing history, and top up via Stripe or USDC — all through the API.</p>
-        <span class="feat-tag" style="background:rgba(14,165,233,0.1);color:#0284c7;">Stripe + USDC</span>
+        <h3>Transcripts &amp; Recordings API</h3>
+        <p>Retrieve chat transcripts as JSON, download as text files, upload and manage recordings — all via REST endpoints.</p>
+        <span class="feat-tag" style="background:rgba(14,165,233,0.1);color:#0284c7;">5 endpoints</span>
       </div>
 
       <div class="dev-feat-card">
@@ -943,9 +949,9 @@
         <div class="feat-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </div>
-        <h3>Self-Hosted Option</h3>
-        <p>Deploy on your own infrastructure with Docker. Full control over data, no vendor lock-in, same API surface.</p>
-        <span class="feat-tag" style="background:rgba(124,58,237,0.1);color:#7c3aed;">Docker</span>
+        <h3>Self-Hosted &amp; CI/CD</h3>
+        <p>One-command local dev with docker-compose. GitHub Actions CI pipeline included. Deploy anywhere with Docker — same API surface.</p>
+        <span class="feat-tag" style="background:rgba(124,58,237,0.1);color:#7c3aed;">Docker + CI/CD</span>
       </div>
 
     </div>
@@ -1089,15 +1095,15 @@
       <div>
         <div class="section-label">Developer-first</div>
         <h2 class="section-title">A full API for everything</h2>
-        <p class="section-sub" style="margin-bottom:24px;">Create meetings, manage participants, track billing, and build automation with a clean REST API and real-time Socket.IO events.</p>
+        <p class="section-sub" style="margin-bottom:24px;">REST API, real-time Socket.IO, MCP server for AI agents, transcript &amp; recording endpoints — all production-tested with CI/CD.</p>
         <ul class="split-bullets">
-          <li>Create, list, and delete meetings via REST</li>
-          <li>Real-time participant events via Socket.IO</li>
-          <li><strong>AI bots &amp; agents</strong> — join meetings programmatically, send chat, react, listen</li>
-          <li>Per-meeting admin tokens for host controls</li>
-          <li>Webhooks for meeting &amp; participant events</li>
-          <li>Credit balance, billing history, Stripe &amp; USDC top-up</li>
-          <li>Company and team management API</li>
+          <li><strong>MCP Server</strong> — 13 tools for Claude, Cursor, and AI agents (stdio + HTTP)</li>
+          <li>Create, list, and manage meetings via REST API</li>
+          <li>Real-time Socket.IO — join as a bot, chat, react, listen</li>
+          <li><strong>Transcript API</strong> — retrieve chat history as JSON or download as text</li>
+          <li><strong>Recording API</strong> — upload, list, and download meeting recordings</li>
+          <li>Webhooks with HMAC-SHA256 signing and retry logic</li>
+          <li>Docker Compose for local dev, GitHub Actions CI/CD included</li>
         </ul>
         <div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap;">
           <button class="btn-hero-secondary" onclick="location.href='/docs'" style="display:inline-flex;font-size:14px;padding:11px 22px;">
@@ -1130,13 +1136,14 @@
   <span class="c-prop">"createdAt"</span>: <span class="c-str">"2025-03-19T10:00:00Z"</span>
 }
 
-<span class="c-comment"># List your meetings</span>
-<span class="c-key">curl</span> https://onepizza.io/api/meetings \
+<span class="c-comment"># Download chat transcript</span>
+<span class="c-key">curl</span> -O https://onepizza.io/api/meetings/team-standup-qk7/transcript/download \
   -H <span class="c-str">"x-api-key: mk_your_key_here"</span>
 
-<span class="c-comment"># Get credit balance</span>
-<span class="c-key">curl</span> https://onepizza.io/api/billing/history \
-  -H <span class="c-str">"x-api-key: mk_your_key_here"</span></pre>
+<span class="c-comment"># Upload a recording</span>
+<span class="c-key">curl</span> -X POST https://onepizza.io/api/meetings/team-standup-qk7/recordings \
+  -H <span class="c-str">"x-api-key: mk_your_key_here"</span> \
+  -F <span class="c-str">"recording=@meeting.webm"</span></pre>
         </div>
       </div>
     </div>
@@ -1162,8 +1169,8 @@
           <li><div class="check-icon">✓</div> Unlimited meetings</li>
           <li><div class="check-icon">✓</div> Up to 50 participants</li>
           <li><div class="check-icon">✓</div> HD video &amp; audio</li>
-          <li><div class="check-icon">✓</div> Screen sharing &amp; recording</li>
-          <li><div class="check-icon">✓</div> Chat, reactions &amp; raise hand</li>
+          <li><div class="check-icon">✓</div> Cloud recordings &amp; transcripts</li>
+          <li><div class="check-icon">✓</div> Chat, reactions &amp; dark mode</li>
           <li><div class="check-icon">✓</div> 1 API key</li>
           <li><div class="x-icon">✗</div> <span style="color:var(--text-muted);">Company workspace</span></li>
         </ul>
@@ -1194,15 +1201,15 @@
         <div class="pricing-desc">For developers building bots and automating meetings at scale.</div>
         <div class="pricing-divider"></div>
         <ul class="pricing-features-list">
-          <li><div class="check-icon">✓</div> Full REST API access</li>
-          <li><div class="check-icon">✓</div> Real-time Socket.IO events</li>
-          <li><div class="check-icon">✓</div> Meeting bot capabilities</li>
-          <li><div class="check-icon">✓</div> Stripe &amp; USDC top-up</li>
-          <li><div class="check-icon">✓</div> Credit balance API</li>
-          <li><div class="check-icon">✓</div> Company billing API</li>
-          <li><div class="check-icon">✓</div> Webhook events</li>
+          <li><div class="check-icon">✓</div> Full REST API + Socket.IO</li>
+          <li><div class="check-icon">✓</div> MCP server (13 AI tools)</li>
+          <li><div class="check-icon">✓</div> Transcript &amp; Recording API</li>
+          <li><div class="check-icon">✓</div> Webhook events (HMAC signed)</li>
+          <li><div class="check-icon">✓</div> Docker + CI/CD pipeline</li>
+          <li><div class="check-icon">✓</div> 22 API doc sections</li>
+          <li><div class="check-icon">✓</div> 38 automated tests</li>
         </ul>
-        <button class="pricing-btn p-outline" onclick="location.href='/docs'">View API docs</button>
+        <button class="pricing-btn p-primary" onclick="location.href='/register'" style="background:#7c3aed;">Get API key free →</button>
       </div>
 
     </div>
@@ -1320,20 +1327,20 @@
     <div class="cta-inner mode-fade" id="ctaContent">
       <!-- USERS MODE: CTA -->
       <div class="mode-content active" data-mode="users">
-        <h2>Ready to upgrade your team's meetings?</h2>
-        <p>Create a company account and collaborate with centralized billing, shared API keys, and full developer access.</p>
+        <h2>Stop paying per seat. Start meeting for free.</h2>
+        <p>HD video, cloud recordings, chat transcripts, dark mode — no per-user pricing. Create a free account in 30 seconds.</p>
         <div class="cta-actions">
-          <button class="btn-cta-white" onclick="location.href='/register?type=company'">Create company account →</button>
-          <button class="btn-cta-ghost" onclick="location.href='/docs'">Read the API docs</button>
+          <button class="btn-cta-white" onclick="location.href='/register'">Create free account →</button>
+          <button class="btn-cta-ghost" onclick="location.href='/register?type=company'">Or start a company workspace</button>
         </div>
       </div>
       <!-- DEVELOPERS MODE: CTA -->
       <div class="mode-content" data-mode="developers">
-        <h2>Start building with the API today</h2>
-        <p>Get your API key in seconds. Full REST + Socket.IO documentation, code examples in cURL, Node.js, and Python.</p>
+        <h2>Ship your meeting integration tonight</h2>
+        <p>13 MCP tools, full REST API, real-time Socket.IO, transcript &amp; recording endpoints. API key in 30 seconds. No credit card required.</p>
         <div class="cta-actions">
-          <button class="btn-cta-white" onclick="location.href='/register'">Get your API key →</button>
-          <button class="btn-cta-ghost" onclick="location.href='/docs'">Explore API docs</button>
+          <button class="btn-cta-white" onclick="location.href='/register'">Get your API key free →</button>
+          <button class="btn-cta-ghost" onclick="location.href='/docs'">Read the docs (22 sections)</button>
         </div>
       </div>
     </div>
@@ -1363,9 +1370,9 @@
       <div class="footer-col">
         <h4>Developers</h4>
         <a href="/docs">API Documentation</a>
-        <a href="/docs#rest">REST Reference</a>
-        <a href="/docs#websocket">Socket.IO Events</a>
-        <a href="/dashboard">Dashboard</a>
+        <a href="/docs#transcripts">Transcripts API</a>
+        <a href="/docs#recordings">Recordings API</a>
+        <a href="/docs#quickstart">MCP Server Setup</a>
       </div>
       <div class="footer-col">
         <h4>Account</h4>

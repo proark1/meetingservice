@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-22T22:00:00+01:00
+## [1.0.0] — 2026-03-22T23:00:00+01:00
 
 ### Added
 - MCP server (`mcp-server.js`) for AI agent integration via Model Context Protocol
@@ -62,6 +62,19 @@ All notable changes to onepizza.io are documented in this file.
 - Recordings & Transcripts tab in dashboard with search-by-meeting-ID, download links
 - API docs updated with 5 new endpoint sections: transcripts (2 endpoints) and recordings (3 endpoints)
 - `authApiOrSession` middleware: transcript and recording endpoints accept both API key and session auth
+
+### Changed (Landing Page)
+- Landing page updated with all new features, conversion-optimized for registration
+  - Hero: updated badges and subheadlines highlighting dark mode, cloud recordings, MCP server
+  - Users features grid: "Cloud Recordings" (replaces "Local only"), "Chat & Transcripts", "Dark Mode" card added
+  - Developers features grid: "MCP Server" card (replaces "AI Agent Support"), "Transcripts & Recordings API" (replaces "Billing API"), "Self-Hosted & CI/CD" updated
+  - Terminal preview: MCP server workflow (13 tools, join as Claude, send chat/reactions)
+  - Stats: developers mode shows 13 MCP tools, 38 tests, 22 doc sections
+  - Pricing: updated Personal (cloud recordings, dark mode), API Usage (MCP, transcripts, CI/CD) with primary CTA
+  - API section bullets: MCP Server, Transcript API, Recording API, Docker Compose + CI/CD
+  - Code example: transcript download and recording upload (replaces billing/list)
+  - CTA banners: conversion-focused copy ("Stop paying per seat", "Ship your meeting integration tonight")
+  - Footer: developer links updated to Transcripts API, Recordings API, MCP Server Setup
 
 - Landing page mode switcher: "For Teams" (UI-focused) and "For Developers" (API/Agent-focused)
 - Developer-mode hero with terminal preview showing API + bot workflow
