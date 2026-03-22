@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "lint": "npx eslint . --ext .js --ignore-pattern public/",
+    "test": "jest --forceExit --detectOpenHandles",
+    "lint": "npx eslint . --ext .js --ignore-pattern public/ --ignore-pattern tests/",
     "mcp": "node mcp-server.js",
     "mcp:http": "node mcp-server.js --transport http"
   },
@@ -27,7 +28,11 @@
     "compression": "^1.7.4",
     "morgan": "^1.10.0",
     "resend": "^3.0.0",
+    "multer": "^1.4.5-lts.1",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "socket.io-client": "^4.7.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

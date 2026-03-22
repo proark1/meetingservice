@@ -238,6 +238,7 @@
   <!-- Hidden button proxies kept for their event handlers & updateControlButtons() -->
   <div style="display:none" aria-hidden="true">
     <button id="recordBtn"><span id="recordIcon"></span><span id="recordLabel"></span></button>
+    <button id="uploadRecordingBtn" class="hidden" style="display:none"></button>
     <button id="captionsBtn"></button>
     <button id="blurBtn"><span id="bgLabel"></span></button>
     <button id="lockBtn"><span id="lockIcon"></span><span id="lockLabel"></span></button>
@@ -406,6 +407,8 @@ let pinnedParticipant = null;
 let mediaRecorder   = null;
 let recordingChunks = [];
 let isRecording     = false;
+let lastRecordingBlob     = null;
+let lastRecordingFilename = '';
 let recAudioCtx     = null;
 let recAudioDest    = null;
 let recAudioSources = {};
@@ -1192,12 +1195,17 @@ async function startRecording() {
       a.href = url;
       a.download = `meeting-${meetingId}-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
       if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
       isRecording = false; updateControlButtons();
       $('#recordingIndicator').classList.add('hidden');
       $('#recTimerText').textContent = '0:00';
       showToast('Recording saved — check your downloads');
+      // Offer cloud upload
+      lastRecordingBlob = blob;
+      lastRecordingFilename = a.download;
+      const uploadBtn = $('#uploadRecordingBtn');
+      if (uploadBtn) { uploadBtn.classList.remove('hidden'); uploadBtn.onclick = () => uploadRecording(); }
     };
     mediaRecorder.start(1000);
     isRecording = true; updateControlButtons();
@@ -1520,6 +1528,21 @@ function downloadTranscript() {
   a.download = `chat-${meetingId}-${new Date().toISOString().slice(0,10)}.txt`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+// ─── Recording upload ────────────────────────────────────────────────────────
+async function uploadRecording() {
+  if (!lastRecordingBlob) { showToast('No recording to upload'); return; }
+  showToast('Uploading recording…');
+  const form = new FormData();
+  form.append('recording', lastRecordingBlob, lastRecordingFilename);
+  try {
+    const res = await fetch(`/api/meetings/${meetingId}/recordings`, {
+      method: 'POST', body: form, credentials: 'include',
+    });
+    if (res.ok) { showToast('Recording uploaded'); lastRecordingBlob = null; }
+    else { const d = await res.json().catch(() => ({})); showToast(d.error || 'Upload failed'); }
+  } catch { showToast('Upload failed — network error'); }
 }
 
 // ─── Device selection ─────────────────────────────────────────────────────────
