@@ -2,9 +2,15 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-22T12:00:00+01:00
+## [1.0.0] — 2026-03-22T18:00:00+01:00
 
 ### Added
+- MCP server (`mcp-server.js`) for AI agent integration via Model Context Protocol
+  - 13 tools: meeting CRUD, participant management, and real-time bot interaction (join, chat, react)
+  - Dual transport support: stdio (local/Claude Code) and HTTP/SSE (remote)
+  - Socket.IO connection manager for persistent bot sessions with event buffering
+  - `meetings://active` dynamic resource for listing active meetings
+  - New npm scripts: `npm run mcp` (stdio) and `npm run mcp:http` (HTTP on port 3100)
 - Landing page mode switcher: "For Teams" (UI-focused) and "For Developers" (API/Agent-focused)
 - Developer-mode hero with terminal preview showing API + bot workflow
 - Developer-mode features grid (REST API, Socket.IO, Agent support, Webhooks, Billing API, etc.)
