@@ -364,6 +364,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Meeting History
       </div>
+      <div class="nav-item" data-section="recordings" onclick="goTo('recordings')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        Recordings
+      </div>
       <div class="nav-item" data-section="webhooks" onclick="goTo('webhooks')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         Webhooks
@@ -876,6 +880,42 @@ curl https://onepizza.io/api/meetings \
         </div>
       </div>
 
+      <!-- ─── Recordings & Transcripts ─── -->
+      <div class="section" id="sec-recordings">
+        <div class="card section-gap">
+          <div class="card-header">
+            <h2>Recordings & Transcripts</h2>
+            <div>
+              <input type="text" id="rec-meeting-id" placeholder="Meeting ID" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:180px;margin-right:6px;">
+              <button class="btn btn-primary btn-sm" onclick="loadRecordings()">Search</button>
+            </div>
+          </div>
+
+          <h3 style="margin:16px 0 8px;font-size:14px;font-weight:600;">Recordings</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Filename</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+              <tbody id="rec-tbody">
+                <tr><td colspan="4" class="empty-state">Enter a meeting ID to search</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="margin:24px 0 8px;font-size:14px;font-weight:600;">Chat Transcript</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Participant</th><th>Message</th></tr></thead>
+              <tbody id="transcript-tbody">
+                <tr><td colspan="3" class="empty-state">Enter a meeting ID to search</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" id="download-transcript-btn" style="display:none;" onclick="downloadTranscriptDash()">Download transcript</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ─── Webhooks ─── -->
       <div class="section" id="sec-webhooks">
         <div class="card section-gap">
@@ -1031,7 +1071,7 @@ function fmtUsd(v) { return '$' + parseFloat(v || 0).toFixed(2); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
-const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', history: 'Meeting History', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
+const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', history: 'Meeting History', recordings: 'Recordings & Transcripts', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
 
 function goTo(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -1049,6 +1089,7 @@ function goTo(name) {
   if (name === 'company')  loadCompanySection();
   if (name === 'history')  loadHistory();
   if (name === 'webhooks') loadWebhooks();
+  if (name === 'recordings') {}
 }
 
 function toggleSidebar() {
@@ -1407,6 +1448,61 @@ async function loadHistory() {
       <td style="color:var(--text-muted);">${m.cost_usd > 0 ? fmtUsd(m.cost_usd) : '—'}</td>
     </tr>`;
   }).join('');
+}
+
+// ─── Recordings & Transcripts ─────────────────────────────────────────────────
+let currentTranscriptMeetingId = '';
+
+async function loadRecordings() {
+  const mid = document.getElementById('rec-meeting-id').value.trim();
+  if (!mid) return;
+  currentTranscriptMeetingId = mid;
+
+  // Load recordings
+  const recRes = await fetch(`/api/meetings/${encodeURIComponent(mid)}/recordings`).catch(() => null);
+  const recTbody = document.getElementById('rec-tbody');
+  if (recRes && recRes.ok) {
+    const { recordings } = await recRes.json();
+    if (!recordings || !recordings.length) {
+      recTbody.innerHTML = '<tr><td colspan="4" class="empty-state">No recordings for this meeting</td></tr>';
+    } else {
+      recTbody.innerHTML = recordings.map(r => `<tr>
+        <td>${esc(r.filename)}</td>
+        <td>${r.size_bytes ? (r.size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
+        <td class="text-muted">${fmtFull(r.created_at)}</td>
+        <td><a href="/api/recordings/${r.id}/download" class="btn btn-ghost btn-sm" target="_blank">Download</a></td>
+      </tr>`).join('');
+    }
+  } else {
+    recTbody.innerHTML = '<tr><td colspan="4" class="empty-state">Could not load recordings</td></tr>';
+  }
+
+  // Load transcript
+  const txRes = await fetch(`/api/meetings/${encodeURIComponent(mid)}/transcript`).catch(() => null);
+  const txTbody = document.getElementById('transcript-tbody');
+  const dlBtn = document.getElementById('download-transcript-btn');
+  if (txRes && txRes.ok) {
+    const { messages } = await txRes.json();
+    if (!messages || !messages.length) {
+      txTbody.innerHTML = '<tr><td colspan="3" class="empty-state">No chat messages for this meeting</td></tr>';
+      dlBtn.style.display = 'none';
+    } else {
+      txTbody.innerHTML = messages.map(m => `<tr>
+        <td class="text-muted" style="white-space:nowrap;">${fmtFull(m.created_at)}</td>
+        <td style="font-weight:600;">${esc(m.participant_name)}</td>
+        <td>${esc(m.text)}</td>
+      </tr>`).join('');
+      dlBtn.style.display = 'inline-flex';
+    }
+  } else {
+    txTbody.innerHTML = '<tr><td colspan="3" class="empty-state">Could not load transcript</td></tr>';
+    dlBtn.style.display = 'none';
+  }
+}
+
+function downloadTranscriptDash() {
+  if (!currentTranscriptMeetingId) return;
+  window.open(`/api/meetings/${encodeURIComponent(currentTranscriptMeetingId)}/transcript/download`, '_blank');
 }
 
 // ─── Company Members ──────────────────────────────────────────────────────────

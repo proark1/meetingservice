@@ -12,8 +12,25 @@ const rateLimit  = require('express-rate-limit');
 const compression = require('compression');
 const morgan     = require('morgan');
 const { pool, initDB, getSettings, invalidateSettingsCache } = require('./db');
-const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail } = require('./email');
+const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordChangedEmail, meetingReceiptEmail } = require('./email');
 const crypto = require('crypto');
+const multer = require('multer');
+const fs     = require('fs');
+
+// ─── Recording upload storage ────────────────────────────────────────────────
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+    filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}-${file.originalname.slice(0, 100)}`),
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB max
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) cb(null, true);
+    else cb(new Error('Only video/audio files are allowed'));
+  },
+});
 
 // ─── Environment validation ───────────────────────────────────────────────────
 if (!process.env.DATABASE_PUBLIC_URL) {
@@ -98,14 +115,24 @@ app.use(cors({
 }));
 
 // ─── Security, compression, logging ──────────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false, frameguard: false, crossOriginEmbedderPolicy: false }));
-// Allow iframe embedding. Defaults to * (any domain) so API customers can embed meetings
-// on their own domains. Set ALLOWED_FRAME_ANCESTORS env var to restrict (e.g. "https://app.example.com").
-app.use((_req, res, next) => {
-  const frameAncestors = process.env.ALLOWED_FRAME_ANCESTORS || '*';
-  res.setHeader('Content-Security-Policy', `frame-ancestors ${frameAncestors}`);
-  next();
-});
+const frameAncestors = process.env.ALLOWED_FRAME_ANCESTORS || '*';
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.socket.io", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      mediaSrc: ["'self'", "blob:"],
+      connectSrc: ["'self'", "wss:", "ws:"],
+      workerSrc: ["'self'", "blob:"],
+      frameAncestors: [frameAncestors],
+    },
+  },
+  frameguard: false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
@@ -1200,6 +1227,15 @@ async function chargeMeeting(meeting) {
     if (notifyEmail) {
       sendEmail({ to: notifyEmail, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, notifyEmail) }).catch(() => {});
     }
+    // Send meeting receipt email
+    const receiptEmail = notifyEmail || (await pool.query('SELECT email FROM users WHERE id = $1', [user_id]).catch(() => ({ rows: [] }))).rows[0]?.email;
+    if (receiptEmail && cost >= 0.01) {
+      sendEmail({
+        to: receiptEmail,
+        subject: `Meeting receipt — ${meeting.title || meeting.id}`,
+        html: meetingReceiptEmail({ to: receiptEmail, meetingId: meeting.id, title: meeting.title, durationMinutes: parseFloat(mins.toFixed(2)), cost }),
+      }).catch(() => {});
+    }
     deliverWebhook(meeting.logId, user_id, company_id, 'meeting.ended', {
       meetingId: meeting.id, title: meeting.title,
       durationMinutes: parseFloat(mins.toFixed(2)),
@@ -1553,6 +1589,91 @@ app.get('/admin/api/meetings/history', requireAdminSession, async (_req, res) =>
     ORDER BY ml.started_at DESC LIMIT 100
   `);
   res.json({ meetings: rows });
+});
+
+// ─── Auth: API key or session ────────────────────────────────────────────────
+function authApiOrSession(req, res, next) {
+  if (req.session?.userId) return next();
+  return authApi(req, res, next);
+}
+
+// ─── Chat transcript ─────────────────────────────────────────────────────────
+app.get('/api/meetings/:meetingId/transcript', authApiOrSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
+      [req.params.meetingId]
+    );
+    res.json({ messages: rows });
+  } catch (err) {
+    console.error('Transcript fetch error:', err);
+    res.status(500).json({ error: 'Failed to load transcript' });
+  }
+});
+
+app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
+      [req.params.meetingId]
+    );
+    const lines = rows.map(r => {
+      const t = new Date(r.created_at);
+      const ts = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+      return `[${ts}] ${r.participant_name}: ${r.text}`;
+    });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="transcript-${req.params.meetingId}.txt"`);
+    res.send(lines.join('\n'));
+  } catch (err) {
+    console.error('Transcript download error:', err);
+    res.status(500).json({ error: 'Failed to download transcript' });
+  }
+});
+
+// ─── Recording upload & download ─────────────────────────────────────────────
+app.post('/api/meetings/:meetingId/recordings', authApiOrSession, (req, res) => {
+  upload.single('recording')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO recordings (meeting_id, user_id, filename, size_bytes, storage_path)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id, filename, size_bytes, created_at`,
+        [req.params.meetingId, req.apiUser?.userId || req.session?.userId || null, req.file.originalname.slice(0, 255),
+         req.file.size, req.file.filename]
+      );
+      res.status(201).json(rows[0]);
+    } catch (dbErr) {
+      console.error('Recording save error:', dbErr);
+      res.status(500).json({ error: 'Failed to save recording' });
+    }
+  });
+});
+
+app.get('/api/meetings/:meetingId/recordings', authApiOrSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, filename, size_bytes, created_at FROM recordings WHERE meeting_id = $1 ORDER BY created_at DESC',
+      [req.params.meetingId]
+    );
+    res.json({ recordings: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to list recordings' });
+  }
+});
+
+app.get('/api/recordings/:id/download', authApiOrSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT filename, storage_path FROM recordings WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+    const filePath = path.join(UPLOADS_DIR, rows[0].storage_path);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
+    res.setHeader('Content-Disposition', `attachment; filename="${rows[0].filename}"`);
+    res.sendFile(filePath);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to download recording' });
+  }
 });
 
 // ─── Webhooks ─────────────────────────────────────────────────────────────────
@@ -1935,6 +2056,30 @@ app.get('/admin/dashboard', requireAdminSession, (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// ─── Socket.IO rate limiting ─────────────────────────────────────────────────
+function createSocketRateLimiter(maxEvents, windowMs) {
+  const buckets = new Map(); // socketId → [timestamps]
+  return {
+    check(socketId) {
+      const now = Date.now();
+      let timestamps = buckets.get(socketId);
+      if (!timestamps) { timestamps = []; buckets.set(socketId, timestamps); }
+      // Remove expired timestamps
+      while (timestamps.length && timestamps[0] <= now - windowMs) timestamps.shift();
+      if (timestamps.length >= maxEvents) return false;
+      timestamps.push(now);
+      return true;
+    },
+    cleanup(socketId) { buckets.delete(socketId); },
+  };
+}
+
+const chatLimiter     = createSocketRateLimiter(10, 10000); // 10 msgs / 10s
+const reactLimiter    = createSocketRateLimiter(5,  10000); // 5 reactions / 10s
+const chatReactLimiter = createSocketRateLimiter(10, 10000);
+const captionLimiter  = createSocketRateLimiter(20, 10000); // 20 updates / 10s
+const handLimiter     = createSocketRateLimiter(5,  10000);
+
 // ─── Socket.IO signaling ──────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   let currentMeetingId      = null;
@@ -2109,6 +2254,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('raise-hand', ({ isHandRaised }) => {
+    if (!handLimiter.check(socket.id)) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
@@ -2117,6 +2263,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('react', ({ emoji }) => {
+    if (!reactLimiter.check(socket.id)) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     // Sanitize: only allow known emoji values
@@ -2148,6 +2295,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat:message', ({ text }) => {
+    if (!chatLimiter.check(socket.id)) return socket.emit('error', { message: 'Rate limited — too many messages' });
     if (!text || typeof text !== 'string') return;
     const trimmed = text.trim().slice(0, 500);
     if (!trimmed) return;
@@ -2159,10 +2307,13 @@ io.on('connection', (socket) => {
       from: currentParticipantId, name: p.name, text: trimmed,
       timestamp: Date.now(), msgId: crypto.randomUUID(),
     });
+    pool.query('INSERT INTO chat_messages (meeting_id, participant_name, text) VALUES ($1,$2,$3)',
+      [currentMeetingId, p.name, trimmed]).catch(() => {});
     trackEvent(currentUserId, currentCompanyId, 'feature.chat', { length: trimmed.length });
   });
 
   socket.on('chat:react', ({ msgId, emoji }) => {
+    if (!chatReactLimiter.check(socket.id)) return;
     if (!currentMeetingId || !msgId || typeof emoji !== 'string') return;
     const safeEmoji = emoji.trim().slice(0, 4);
     if (!safeEmoji) return;
@@ -2171,6 +2322,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('captions:update', ({ pid, text, final }) => {
+    if (!captionLimiter.check(socket.id)) return;
     if (!currentMeetingId || typeof text !== 'string') return;
     socket.to(currentMeetingId).emit('captions:update', {
       pid, text: text.slice(0, 300), final: !!final,
@@ -2179,6 +2331,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
+    // Clean up rate limiter state
+    chatLimiter.cleanup(socket.id);
+    reactLimiter.cleanup(socket.id);
+    chatReactLimiter.cleanup(socket.id);
+    captionLimiter.cleanup(socket.id);
+    handLimiter.cleanup(socket.id);
+
     // Clean up waiting room entry if the socket disconnected while waiting
     if (currentWaitingRoomId) {
       const waitMeeting = meetings.get(currentWaitingRoomId);
@@ -2214,21 +2373,50 @@ initDB()
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 function gracefulShutdown(signal) {
   console.log(`${signal} received — shutting down gracefully`);
-  server.close(async () => {
-    console.log('HTTP server closed');
-    try {
-      await pool.end();
-      console.log('Database pool closed');
-    } catch (err) {
-      console.error('Pool close error:', err);
+
+  // 1. Charge all active meetings before closing
+  const chargePromises = [];
+  for (const meeting of meetings.values()) {
+    if (meeting.gracePeriodTimer) clearTimeout(meeting.gracePeriodTimer);
+    io.to(meeting.id).emit('meeting:ended', { reason: 'Server shutting down' });
+    if (meeting.logId) {
+      chargePromises.push(
+        chargeMeeting(meeting).catch(err => console.error('Shutdown charge failed for', meeting.id, err))
+      );
     }
-    process.exit(0);
+  }
+  meetings.clear();
+
+  // Clear scheduled meeting timers
+  for (const s of scheduledMeetings.values()) {
+    if (s.timerId) clearTimeout(s.timerId);
+  }
+  scheduledMeetings.clear();
+
+  Promise.allSettled(chargePromises).then(() => {
+    if (chargePromises.length) console.log(`Charged ${chargePromises.length} active meeting(s) before shutdown`);
+    server.close(async () => {
+      console.log('HTTP server closed');
+      try {
+        await pool.end();
+        console.log('Database pool closed');
+      } catch (err) {
+        console.error('Pool close error:', err);
+      }
+      process.exit(0);
+    });
   });
-  // Force-exit after 10s if not done
+
+  // Force-exit after 30s if not done
   setTimeout(() => {
     console.error('Forced exit after shutdown timeout');
     process.exit(1);
-  }, 10000).unref();
+  }, 30000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+// ─── Exports for testing ─────────────────────────────────────────────────────
+if (process.env.NODE_ENV === 'test') {
+  module.exports = { app, server, io, meetings, scheduledMeetings, calculateMeetingCost };
+}

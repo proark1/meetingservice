@@ -210,6 +210,29 @@ async function initDB() {
       );
     `);
 
+    // ─── Chat messages & recordings tables ────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id              BIGSERIAL PRIMARY KEY,
+        meeting_id      VARCHAR(50) NOT NULL,
+        participant_name VARCHAR(60),
+        text            TEXT NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_meeting ON chat_messages(meeting_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS recordings (
+        id              SERIAL PRIMARY KEY,
+        meeting_id      VARCHAR(50) NOT NULL,
+        user_id         INTEGER REFERENCES users(id),
+        filename        VARCHAR(255) NOT NULL,
+        size_bytes      BIGINT,
+        storage_path    VARCHAR(500) NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_recordings_meeting ON recordings(meeting_id);
+    `);
+
     // Seed platform_config defaults
     for (const [key, value] of [['platform_wallet', ''], ['rpc_url', '']]) {
       await client.query(

@@ -2,9 +2,67 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-22T12:00:00+01:00
+## [1.0.0] — 2026-03-22T22:00:00+01:00
 
 ### Added
+- MCP server (`mcp-server.js`) for AI agent integration via Model Context Protocol
+  - 13 tools: meeting CRUD, participant management, and real-time bot interaction (join, chat, react)
+  - Dual transport support: stdio (local/Claude Code) and HTTP/SSE (remote)
+  - Socket.IO connection manager for persistent bot sessions with event buffering
+  - `meetings://active` dynamic resource for listing active meetings
+  - New npm scripts: `npm run mcp` (stdio) and `npm run mcp:http` (HTTP on port 3100)
+- Chat persistence: messages stored in `chat_messages` DB table with transcript API endpoints
+  - `GET /api/meetings/:id/transcript` — JSON transcript
+  - `GET /api/meetings/:id/transcript/download` — plain text file download
+- Recording upload & storage: server-side recording management
+  - `POST /api/meetings/:id/recordings` — upload recording (multipart, max 500MB)
+  - `GET /api/meetings/:id/recordings` — list recordings for a meeting
+  - `GET /api/recordings/:id/download` — download recording file
+  - "Upload recording" button in meeting UI after recording stops
+- Automated test suite with Jest (`npm test`)
+  - Unit tests: billing cost calculation, socket rate limiter logic
+  - Integration tests: REST API endpoints (skipped without DB)
+- CI/CD pipeline via GitHub Actions (`.github/workflows/ci.yml`)
+  - Runs lint and tests on push/PR to main with PostgreSQL service container
+- Docker Compose for local development (`docker-compose.yml`)
+  - PostgreSQL 16 + app with healthcheck, auto-configured env vars
+- `.dockerignore` to reduce Docker image size
+
+### Changed
+- Graceful shutdown now charges all active meetings before exiting
+  - Emits `meeting:ended` to all rooms, runs `chargeMeeting()` via `Promise.allSettled`
+  - Force-exit timeout increased from 10s to 30s
+- Socket.IO rate limiting on high-frequency events
+  - `chat:message` (10/10s), `react` (5/10s), `chat:react` (10/10s), `captions:update` (20/10s), `raise-hand` (5/10s)
+  - Rate limiter state cleaned up on socket disconnect
+- ESLint config added (`eslint.config.js`) for ESLint v10 compatibility
+
+### Security
+- Socket.IO event spam protection prevents DoS via rapid-fire chat/reaction events
+- Fixed XSS vulnerabilities in `register.html` (API key/invite code display) and `billing.html` (transaction descriptions)
+  - Replaced unsafe `innerHTML` interpolation with DOM API (`textContent`, `createElement`) and `esc()` helper
+- Enabled Content Security Policy (CSP) via Helmet with allowlist for CDN dependencies
+  - `script-src`: self, unsafe-inline, cdn.socket.io, cdn.jsdelivr.net
+  - `style-src`: self, unsafe-inline, fonts.googleapis.com
+  - `connect-src`: self, wss:, ws:
+- Added security-focused tests: XSS escaping, input sanitization, emoji whitelist validation
+
+### Added (UI/UX)
+- Dark mode support via `prefers-color-scheme: dark` media query in `styles.css`
+  - Full CSS custom property overrides for dark theme (backgrounds, text, borders, shadows)
+- Mobile safe area padding for notched devices (iPhone 14+)
+  - Controls bar and body respect `env(safe-area-inset-*)` values
+- Accessibility improvements in `meeting.html`:
+  - ARIA labels on all control buttons (mic, camera, screen share, chat, reactions, etc.)
+  - `role="toolbar"` on controls bar, `role="dialog"` on shortcuts modal
+  - `role="alert"` and `aria-live="polite"` on toast notifications and chat badge
+  - `role="complementary"` on side panel, `role="menu"` on reactions tray
+  - `aria-label` on chat input field
+- Meeting receipt emails sent after billing via `meetingReceiptEmail()` template
+- Recordings & Transcripts tab in dashboard with search-by-meeting-ID, download links
+- API docs updated with 5 new endpoint sections: transcripts (2 endpoints) and recordings (3 endpoints)
+- `authApiOrSession` middleware: transcript and recording endpoints accept both API key and session auth
+
 - Landing page mode switcher: "For Teams" (UI-focused) and "For Developers" (API/Agent-focused)
 - Developer-mode hero with terminal preview showing API + bot workflow
 - Developer-mode features grid (REST API, Socket.IO, Agent support, Webhooks, Billing API, etc.)
