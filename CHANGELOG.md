@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-22T23:30:00+01:00
+## [1.0.0] — 2026-03-23T00:15:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -18,6 +18,18 @@ All notable changes to onepizza.io are documented in this file.
 - **Performance**: Admin analytics uses Promise.allSettled (one failed tab doesn't block all)
 - **Performance**: Added compound indexes on credit_transactions(user_id,type) and (type,created_at)
 - **Performance**: trackEvent/trackAiUsage now log errors instead of silently swallowing
+- **Performance**: escapeHtml() now uses regex instead of creating a DOM element per call
+- **Performance**: showToast() uses counter instead of querySelectorAll to track active toasts
+- **Performance**: unpinBtn only rebuilds innerHTML when focus state actually changes
+- **Performance**: Static files served with 1-day cache headers and ETags
+- **Performance**: express.static() moved before express.json() — static files skip JSON parsing
+- **Performance**: Scheduled meeting polling interval skips iteration when Map is empty
+- **Performance**: Dashboard recordings+transcripts loaded in parallel (Promise.allSettled)
+- **Performance**: CSS will-change on toast and reaction-float animations for GPU acceleration
+
+### Fixed
+- Memory leak: qualityState, _avatarColorCache, _tileCache cleaned up on participant leave
+- Graceful shutdown now clears scheduled meeting polling interval and all scheduled timers
 
 - **Performance**: Cache DOM element refs in meeting page — eliminates 30+ getElementById calls per updateControlButtons()
 - **Performance**: Cache video tile refs by PID — speaking detection drops from 67 DOM queries/sec to ~0 with 10 participants

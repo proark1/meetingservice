@@ -419,6 +419,7 @@ input, select { font-family: inherit; }
   font-size: 14px; z-index: 200;
   box-shadow: var(--shadow);
   animation: slideIn 0.3s ease;
+  will-change: transform, opacity;
 }
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
@@ -684,6 +685,7 @@ input, select { font-family: inherit; }
 .reaction-float {
   position: absolute; font-size: 26px;
   pointer-events: none; animation: reactionFloat 2.2s ease-out forwards; z-index: 10;
+  will-change: transform, opacity;
 }
 @keyframes reactionFloat {
   0%   { opacity: 1; transform: translateY(0) scale(0.9); }

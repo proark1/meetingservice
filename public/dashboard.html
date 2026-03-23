@@ -1458,11 +1458,16 @@ async function loadRecordings() {
   if (!mid) return;
   currentTranscriptMeetingId = mid;
 
-  // Load recordings
-  const recRes = await fetch(`/api/meetings/${encodeURIComponent(mid)}/recordings`).catch(() => null);
+  // Load recordings + transcript in parallel
+  const encodedMid = encodeURIComponent(mid);
+  const [recRes, txRes] = await Promise.allSettled([
+    fetch(`/api/meetings/${encodedMid}/recordings`),
+    fetch(`/api/meetings/${encodedMid}/transcript`),
+  ]);
+
   const recTbody = document.getElementById('rec-tbody');
-  if (recRes && recRes.ok) {
-    const { recordings } = await recRes.json();
+  if (recRes.status === 'fulfilled' && recRes.value.ok) {
+    const { recordings } = await recRes.value.json();
     if (!recordings || !recordings.length) {
       recTbody.innerHTML = '<tr><td colspan="4" class="empty-state">No recordings for this meeting</td></tr>';
     } else {
@@ -1477,12 +1482,10 @@ async function loadRecordings() {
     recTbody.innerHTML = '<tr><td colspan="4" class="empty-state">Could not load recordings</td></tr>';
   }
 
-  // Load transcript
-  const txRes = await fetch(`/api/meetings/${encodeURIComponent(mid)}/transcript`).catch(() => null);
   const txTbody = document.getElementById('transcript-tbody');
   const dlBtn = document.getElementById('download-transcript-btn');
-  if (txRes && txRes.ok) {
-    const { messages } = await txRes.json();
+  if (txRes.status === 'fulfilled' && txRes.value.ok) {
+    const { messages } = await txRes.value.json();
     if (!messages || !messages.length) {
       txTbody.innerHTML = '<tr><td colspan="3" class="empty-state">No chat messages for this meeting</td></tr>';
       dlBtn.style.display = 'none';

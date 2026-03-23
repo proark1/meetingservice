@@ -217,8 +217,8 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
   res.json({ received: true });
 });
 
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
@@ -275,7 +275,8 @@ function activateScheduledMeeting(scheduled) {
 }
 
 // Check every 15s for scheduled meetings that need activating
-setInterval(() => {
+const scheduledMeetingPoller = setInterval(() => {
+  if (scheduledMeetings.size === 0) return; // skip iteration when empty
   const now = Date.now();
   for (const [id, s] of scheduledMeetings) {
     if (s.status === 'scheduled' && s.scheduledAt <= now) {
@@ -2382,6 +2383,8 @@ initDB()
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 function gracefulShutdown(signal) {
   console.log(`${signal} received — shutting down gracefully`);
+  clearInterval(scheduledMeetingPoller);
+  for (const s of scheduledMeetings.values()) { if (s.timerId) clearTimeout(s.timerId); }
 
   // 1. Charge all active meetings before closing
   const chargePromises = [];
