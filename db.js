@@ -282,6 +282,8 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_credit_tx_user_id     ON credit_transactions(user_id);
       CREATE INDEX IF NOT EXISTS idx_credit_tx_company_id  ON credit_transactions(company_id);
       CREATE INDEX IF NOT EXISTS idx_credit_tx_created     ON credit_transactions(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_credit_tx_user_type   ON credit_transactions(user_id, type);
+      CREATE INDEX IF NOT EXISTS idx_credit_tx_type_created ON credit_transactions(type, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_stripe_topups_user    ON stripe_topups(user_id);
       CREATE INDEX IF NOT EXISTS idx_stripe_topups_company ON stripe_topups(company_id);
       CREATE INDEX IF NOT EXISTS idx_usdc_deposits_user    ON usdc_deposits(user_id);
@@ -340,16 +342,24 @@ async function initDB() {
 
 let settingsCache = null;
 let settingsCacheAt = 0;
+let settingsCachePending = null; // prevents concurrent DB queries (cache stampede)
 const SETTINGS_TTL = 60_000; // 60 seconds
 
 async function getSettings() {
   if (settingsCache && Date.now() - settingsCacheAt < SETTINGS_TTL) return settingsCache;
-  const { rows } = await pool.query('SELECT key, value FROM settings');
-  settingsCache = Object.fromEntries(rows.map(r => [r.key, r.value]));
-  settingsCacheAt = Date.now();
-  return settingsCache;
+  if (settingsCachePending) return settingsCachePending;
+  settingsCachePending = pool.query('SELECT key, value FROM settings').then(({ rows }) => {
+    settingsCache = Object.fromEntries(rows.map(r => [r.key, r.value]));
+    settingsCacheAt = Date.now();
+    settingsCachePending = null;
+    return settingsCache;
+  }).catch(err => {
+    settingsCachePending = null;
+    throw err;
+  });
+  return settingsCachePending;
 }
 
-function invalidateSettingsCache() { settingsCache = null; }
+function invalidateSettingsCache() { settingsCache = null; settingsCachePending = null; }
 
 module.exports = { pool, initDB, getSettings, invalidateSettingsCache };

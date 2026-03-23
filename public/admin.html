@@ -1413,7 +1413,8 @@ document.querySelectorAll('.an-period').forEach(btn => {
 });
 
 async function loadAnalytics() {
-  await Promise.all([loadAnOverview(), loadAnEvents(), loadAnTrends(), loadAnUsers(), loadAnAi(),
+  // Use Promise.allSettled so one failed tab doesn't block all analytics
+  await Promise.allSettled([loadAnOverview(), loadAnEvents(), loadAnTrends(), loadAnUsers(), loadAnAi(),
     loadAnRealtime(), loadAnFeatures(), loadAnRetention(), loadAnMeetings(), loadAnHealth(), loadAnErrors(), loadAnPeakHours()]);
 }
 
@@ -1733,6 +1734,8 @@ async function verifySupportKey() {
 function startAnRealtimeRefresh() {
   if (anRealtimeInterval) clearInterval(anRealtimeInterval);
   anRealtimeInterval = setInterval(() => {
+    // Skip polling when page is hidden (saves battery + network)
+    if (document.hidden) return;
     if (document.getElementById('section-analytics').style.display !== 'none') loadAnRealtime();
   }, 30000);
 }

@@ -1834,10 +1834,7 @@ socket.on('chat:message', ({ from, name, text, timestamp, msgId }) => {
       <button class="chat-react-trigger" title="React">+</button>
     </div>
     <div class="chat-reactions"></div>`;
-  div.querySelector('.chat-react-trigger').addEventListener('click', (e) => {
-    e.stopPropagation();
-    openChatReactPicker(id, div.querySelector('.chat-react-trigger'));
-  });
+  // Chat react uses event delegation on container (see setupChatDelegation below)
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   const chatOpen = !$('#sidePanel').classList.contains('hidden') &&
@@ -2103,27 +2100,42 @@ function renderVideoGrid() {
     }
   }
 
+  // Single-pass tile reconciliation: query DOM once, build a PID→tile map, diff against desired set
+  function reconcileTiles(desiredIds) {
+    const existing = new Map();
+    for (const t of grid.querySelectorAll('.video-tile[data-pid]')) existing.set(t.dataset.pid, t);
+    const desired = new Set(desiredIds);
+    // Remove stale tiles
+    for (const [pid, t] of existing) { if (!desired.has(pid)) t.remove(); }
+    // Create or sync desired tiles
+    for (const pid of desiredIds) {
+      const t = existing.get(pid);
+      if (t) syncVideoTile(t, pid);
+      else grid.appendChild(createVideoTile(pid));
+    }
+  }
+
+  function setGridClass(n) {
+    grid.className = 'video-grid';
+    if      (n <= 1) grid.classList.add('grid-1');
+    else if (n === 2) grid.classList.add('grid-2');
+    else if (n <= 4) grid.classList.add('grid-4');
+    else if (n <= 6) grid.classList.add('grid-6');
+    else             grid.classList.add('grid-many');
+  }
+
+  const va = UI.videoArea || $('#videoArea');
+  const sm = UI.spotlightMain || $('#spotlightMain');
+
   // Gallery mode: force equal grid, no spotlight
   if (layoutMode === 'gallery' && !focusedParticipant) {
     pinnedParticipant = null;
-    $('#videoArea').classList.remove('spotlight-active');
+    va.classList.remove('spotlight-active');
     clearSpotlightMain();
-    $('#spotlightMain').classList.add('hidden');
-    grid.className = 'video-grid';
-    if      (count <= 1) grid.classList.add('grid-1');
-    else if (count === 2) grid.classList.add('grid-2');
-    else if (count <= 4) grid.classList.add('grid-4');
-    else if (count <= 6) grid.classList.add('grid-6');
-    else                 grid.classList.add('grid-many');
-    for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
-      if (!participants[tile.dataset.pid]) tile.remove();
-    }
-    for (const pid of allIds) {
-      let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
-      if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
-      else syncVideoTile(tile, pid);
-    }
-    $('#participantCount').textContent = count;
+    sm.classList.add('hidden');
+    setGridClass(count);
+    reconcileTiles(allIds);
+    (UI.participantCount || $('#participantCount')).textContent = count;
     updateControlButtons(); return;
   }
 
@@ -2131,39 +2143,16 @@ function renderVideoGrid() {
     // Spotlight mode
     updateSpotlightMain();
     grid.className = 'video-grid filmstrip';
-    const filmIds = allIds.filter(id => id !== pinnedParticipant);
-
-    for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
-      if (!participants[tile.dataset.pid] || tile.dataset.pid === pinnedParticipant) tile.remove();
-    }
-    for (const pid of filmIds) {
-      let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
-      if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
-      else syncVideoTile(tile, pid);
-    }
-    $('#videoArea').classList.add('spotlight-active');
-    $('#spotlightMain').classList.remove('hidden');
+    reconcileTiles(allIds.filter(id => id !== pinnedParticipant));
+    va.classList.add('spotlight-active');
+    sm.classList.remove('hidden');
   } else {
     // Normal grid
-    $('#videoArea').classList.remove('spotlight-active');
+    va.classList.remove('spotlight-active');
     clearSpotlightMain();
-    $('#spotlightMain').classList.add('hidden');
-
-    grid.className = 'video-grid';
-    if      (count <= 1) grid.classList.add('grid-1');
-    else if (count === 2) grid.classList.add('grid-2');
-    else if (count <= 4) grid.classList.add('grid-4');
-    else if (count <= 6) grid.classList.add('grid-6');
-    else                 grid.classList.add('grid-many');
-
-    for (const tile of [...grid.querySelectorAll('.video-tile[data-pid]')]) {
-      if (!participants[tile.dataset.pid]) tile.remove();
-    }
-    for (const pid of allIds) {
-      let tile = grid.querySelector(`.video-tile[data-pid="${pid}"]`);
-      if (!tile) { tile = createVideoTile(pid); grid.appendChild(tile); }
-      else syncVideoTile(tile, pid);
-    }
+    sm.classList.add('hidden');
+    setGridClass(count);
+    reconcileTiles(allIds);
   }
 
   (UI.participantCount || $('#participantCount')).textContent = count;
@@ -2240,6 +2229,23 @@ function updateSpotlightMain() {
   }
 }
 
+// Event delegation on the video grid — handles pin, focus, and filmstrip click
+// Registered once; eliminates per-tile listeners (O(n) → O(1))
+(function setupGridDelegation() {
+  const grid = document.getElementById('videoGrid');
+  if (!grid) return;
+  grid.addEventListener('click', (e) => {
+    const tile = e.target.closest('.video-tile');
+    if (!tile) return;
+    const pid = tile.dataset.pid;
+    if (!pid) return;
+    if (e.target.closest('.pin-btn')) { e.stopPropagation(); pinParticipant(pid); return; }
+    if (e.target.closest('.focus-btn')) { e.stopPropagation(); focusParticipant(pid); return; }
+    if (e.target.closest('.admin-actions')) return; // admin buttons handle themselves
+    if (grid.classList.contains('filmstrip')) pinParticipant(pid);
+  });
+})();
+
 function createVideoTile(pid) {
   const tile = document.createElement('div');
   tile.dataset.pid = pid;
@@ -2258,14 +2264,12 @@ function createVideoTile(pid) {
   pinBtn.className = 'pin-btn';
   pinBtn.title = 'Pin to spotlight';
   pinBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
-  pinBtn.addEventListener('click', (e) => { e.stopPropagation(); pinParticipant(pid); });
   tile.appendChild(pinBtn);
 
   const focusBtn = document.createElement('button');
   focusBtn.className = 'focus-btn';
   focusBtn.title = 'Fill screen';
   focusBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
-  focusBtn.addEventListener('click', (e) => { e.stopPropagation(); focusParticipant(pid); });
   tile.appendChild(focusBtn);
 
   const handBadge = document.createElement('div');
@@ -2281,10 +2285,12 @@ function createVideoTile(pid) {
   adminActions.className = 'admin-actions';
   tile.appendChild(adminActions);
 
-  // Click filmstrip tile in spotlight mode to switch pinned
-  tile.addEventListener('click', () => {
-    if (document.querySelector('.video-grid.filmstrip')) pinParticipant(pid);
-  });
+  // Cache child refs on the tile element to avoid querySelector in syncVideoTile
+  tile._media = media;
+  tile._screenBadge = screenBadge;
+  tile._handBadge = handBadge;
+  tile._label = label;
+  tile._adminActions = adminActions;
 
   syncVideoTile(tile, pid);
   return tile;
@@ -2306,7 +2312,8 @@ function syncVideoTile(tile, pid) {
       : (peers[pid]?.remoteStream || null);
   }
 
-  const media  = tile.querySelector('.tile-media');
+  // Use cached child refs (set in createVideoTile) — fallback to querySelector for tiles created externally
+  const media  = tile._media || tile.querySelector('.tile-media');
   let video    = media.querySelector('video');
   let avatar   = media.querySelector('.avatar');
 
@@ -2330,13 +2337,13 @@ function syncVideoTile(tile, pid) {
     avatar.style.background = getAvatarColor(pid);
   }
 
-  const screenBadge = tile.querySelector('.screen-share-badge');
+  const screenBadge = tile._screenBadge || tile.querySelector('.screen-share-badge');
   if (screenBadge) screenBadge.style.display = p.isScreenSharing ? 'block' : 'none';
 
-  const handBadge = tile.querySelector('.hand-badge');
+  const handBadge = tile._handBadge || tile.querySelector('.hand-badge');
   if (handBadge) handBadge.classList.toggle('hidden', !p.isHandRaised);
 
-  const lbl = tile.querySelector('.tile-label');
+  const lbl = tile._label || tile.querySelector('.tile-label');
   if (lbl) {
     lbl.innerHTML = escapeHtml(p.name||'Unknown')
       + (isLocal ? ' <span class="you-tag">(You)</span>' : '')
@@ -2345,7 +2352,7 @@ function syncVideoTile(tile, pid) {
           : '');
   }
 
-  const adminActions = tile.querySelector('.admin-actions');
+  const adminActions = tile._adminActions || tile.querySelector('.admin-actions');
   if (adminActions) {
     if (isAdmin && !isLocal) {
       adminActions.innerHTML = `
@@ -2574,6 +2581,20 @@ function updateQualityBadge(pid, quality) {
 }
 
 setInterval(checkConnectionQuality, 5000);
+
+// ─── Chat event delegation (single listener instead of per-message) ───────────
+(function setupChatDelegation() {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  container.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.chat-react-trigger');
+    if (trigger) {
+      e.stopPropagation();
+      const msgEl = trigger.closest('.chat-msg');
+      if (msgEl) openChatReactPicker(msgEl.dataset.msgId, trigger);
+    }
+  });
+})();
 
 // ─── Init control icons ───────────────────────────────────────────────────────
 updateControlButtons();

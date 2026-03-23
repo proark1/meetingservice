@@ -76,17 +76,17 @@ function generateInviteCode() {
 
 // ─── Analytics helpers ────────────────────────────────────────────────────────
 function trackEvent(userId, companyId, eventType, meta = {}) {
-  pool.query(
+  return pool.query(
     `INSERT INTO analytics_events (event_type, user_id, company_id, meta) VALUES ($1,$2,$3,$4)`,
     [eventType, userId || null, companyId || null, JSON.stringify(meta)]
-  ).catch(() => {});
+  ).catch(err => console.error(`trackEvent [${eventType}]:`, err.message));
 }
 
 function trackAiUsage(model, module, endpoint, promptTokens, completionTokens, costUsd = 0) {
-  pool.query(
+  return pool.query(
     `INSERT INTO ai_usage_log (model, module, endpoint, prompt_tokens, completion_tokens, cost_usd) VALUES ($1,$2,$3,$4,$5,$6)`,
     [model, module, endpoint, promptTokens, completionTokens, costUsd]
-  ).catch(() => {});
+  ).catch(err => console.error(`trackAiUsage [${module}]:`, err.message));
 }
 
 const app    = express();
@@ -1748,7 +1748,7 @@ app.post('/api/user/support-key', requireUserSession, async (req, res) => {
 // ─── Admin Analytics ──────────────────────────────────────────────────────────
 app.get('/admin/api/analytics/overview', requireAdminSession, async (_req, res) => {
   try {
-    const [totals, today, week, month] = await Promise.all([
+    const [totals, eventCounts] = await Promise.all([
       pool.query(`SELECT
         (SELECT COUNT(*) FROM users) AS total_users,
         (SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days') AS new_users_7d,
@@ -1763,11 +1763,15 @@ app.get('/admin/api/analytics/overview', requireAdminSession, async (_req, res) 
         (SELECT COALESCE(SUM(prompt_tokens + completion_tokens),0) FROM ai_usage_log) AS total_ai_tokens,
         (SELECT COALESCE(SUM(cost_usd),0) FROM ai_usage_log) AS total_ai_cost
       `),
-      pool.query(`SELECT COUNT(*) AS count FROM analytics_events WHERE created_at > NOW() - INTERVAL '1 day'`),
-      pool.query(`SELECT COUNT(*) AS count FROM analytics_events WHERE created_at > NOW() - INTERVAL '7 days'`),
-      pool.query(`SELECT COUNT(*) AS count FROM analytics_events WHERE created_at > NOW() - INTERVAL '30 days'`),
+      // Single query with conditional aggregation instead of 3 separate queries
+      pool.query(`SELECT
+        SUM(CASE WHEN created_at > NOW() - INTERVAL '1 day' THEN 1 ELSE 0 END) AS events_1d,
+        SUM(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) AS events_7d,
+        COUNT(*) AS events_30d
+        FROM analytics_events WHERE created_at > NOW() - INTERVAL '30 days'
+      `),
     ]);
-    res.json({ ...totals.rows[0], events_1d: today.rows[0].count, events_7d: week.rows[0].count, events_30d: month.rows[0].count });
+    res.json({ ...totals.rows[0], ...eventCounts.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1810,22 +1814,23 @@ app.get('/admin/api/analytics/trends', requireAdminSession, async (req, res) => 
 
 app.get('/admin/api/analytics/users', requireAdminSession, async (req, res) => {
   try {
+    // Pre-aggregate in subqueries to avoid cartesian product from 5 LEFT JOINs
     const { rows } = await pool.query(`
       SELECT u.id, u.email, u.account_type, u.created_at,
-             COUNT(DISTINCT ml.id) AS meeting_count,
-             COALESCE(SUM(ml.duration_minutes),0) AS total_minutes,
-             COALESCE(SUM(ABS(ct.amount_usd)),0) AS credits_spent,
-             COUNT(DISTINCT ak.id) AS api_key_count,
-             COUNT(DISTINCT wh.id) AS webhook_count,
-             MAX(ae.created_at) AS last_active
+             COALESCE(ml.meeting_count, 0) AS meeting_count,
+             COALESCE(ml.total_minutes, 0) AS total_minutes,
+             COALESCE(ct.credits_spent, 0) AS credits_spent,
+             COALESCE(ak.api_key_count, 0) AS api_key_count,
+             COALESCE(wh.webhook_count, 0) AS webhook_count,
+             ae.last_active
       FROM users u
-      LEFT JOIN meetings_log ml ON ml.user_id = u.id
-      LEFT JOIN credit_transactions ct ON ct.user_id = u.id AND ct.type = 'meeting_charge'
-      LEFT JOIN api_keys ak ON ak.user_id = u.id AND ak.is_active = TRUE
-      LEFT JOIN webhooks wh ON wh.user_id = u.id
-      LEFT JOIN analytics_events ae ON ae.user_id = u.id
+      LEFT JOIN (SELECT user_id, COUNT(*) AS meeting_count, COALESCE(SUM(duration_minutes),0) AS total_minutes FROM meetings_log GROUP BY user_id) ml ON ml.user_id = u.id
+      LEFT JOIN (SELECT user_id, COALESCE(SUM(ABS(amount_usd)),0) AS credits_spent FROM credit_transactions WHERE type = 'meeting_charge' GROUP BY user_id) ct ON ct.user_id = u.id
+      LEFT JOIN (SELECT user_id, COUNT(*) AS api_key_count FROM api_keys WHERE is_active = TRUE GROUP BY user_id) ak ON ak.user_id = u.id
+      LEFT JOIN (SELECT user_id, COUNT(*) AS webhook_count FROM webhooks GROUP BY user_id) wh ON wh.user_id = u.id
+      LEFT JOIN (SELECT user_id, MAX(created_at) AS last_active FROM analytics_events GROUP BY user_id) ae ON ae.user_id = u.id
       WHERE u.is_admin = FALSE
-      GROUP BY u.id ORDER BY meeting_count DESC, u.created_at DESC
+      ORDER BY COALESCE(ml.meeting_count, 0) DESC, u.created_at DESC
       LIMIT 100
     `);
     res.json({ users: rows });
@@ -1877,11 +1882,12 @@ app.post('/admin/api/analytics/support-key', requireAdminSession, async (req, re
     return res.status(400).json({ error: 'Invalid support key format' });
   }
   try {
-    // Find all non-expired, unused keys and compare
+    // Find recent non-expired, unused keys (limit scope to reduce bcrypt iterations)
     const { rows } = await pool.query(`
       SELECT sk.id, sk.user_id, sk.key_hash, sk.expires_at, u.email, u.account_type, u.created_at AS user_created
       FROM support_keys sk JOIN users u ON u.id = sk.user_id
-      WHERE sk.expires_at > NOW() AND sk.used_at IS NULL
+      WHERE sk.expires_at > NOW() AND sk.used_at IS NULL AND sk.created_at > NOW() - INTERVAL '7 days'
+      ORDER BY sk.created_at DESC LIMIT 100
     `);
     let matched = null;
     for (const row of rows) {

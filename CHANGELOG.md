@@ -2,9 +2,23 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-22T22:00:00+01:00
+## [1.0.0] — 2026-03-22T23:30:00+01:00
 
 ### Changed
+- **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
+- **Performance**: Cache child element refs on video tiles — syncVideoTile drops from 6 queries to 0
+- **Performance**: Single-pass tile reconciliation in renderVideoGrid — query DOM once, diff with Map
+- **Performance**: Chat event delegation — single listener on container instead of per-message
+- **Performance**: Analytics overview — 3 event count queries merged into 1 with conditional aggregation
+- **Performance**: Analytics users — 5 LEFT JOINs replaced with pre-aggregated subqueries (no cartesian explosion)
+- **Performance**: Support key verification — limited to recent keys (7 days, max 100), prevents O(n) bcrypt
+- **Performance**: Settings cache stampede protection — concurrent getSettings() calls share one DB query
+- **Performance**: Landing page nav — lighter backdrop-filter (blur 8px, no saturate)
+- **Performance**: Admin analytics polling skips when page hidden (Page Visibility API)
+- **Performance**: Admin analytics uses Promise.allSettled (one failed tab doesn't block all)
+- **Performance**: Added compound indexes on credit_transactions(user_id,type) and (type,created_at)
+- **Performance**: trackEvent/trackAiUsage now log errors instead of silently swallowing
+
 - **Performance**: Cache DOM element refs in meeting page — eliminates 30+ getElementById calls per updateControlButtons()
 - **Performance**: Cache video tile refs by PID — speaking detection drops from 67 DOM queries/sec to ~0 with 10 participants
 - **Performance**: Cache recording tile list (500ms TTL) — eliminates 300+ querySelectorAll calls/sec at 30fps
