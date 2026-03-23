@@ -2384,7 +2384,17 @@ function renderParticipantsList() {
     frag.appendChild(muteAllBtn);
   }
 
-  for (const [pid, p] of Object.entries(participants)) {
+  // Sort: hands raised first (oldest first), then others by join order
+  const sorted = Object.entries(participants).sort(([,a], [,b]) => {
+    if (a.isHandRaised && !b.isHandRaised) return -1;
+    if (!a.isHandRaised && b.isHandRaised) return 1;
+    if (a.isHandRaised && b.isHandRaised) return (a.handRaisedAt || 0) - (b.handRaisedAt || 0);
+    return 0;
+  });
+
+  let handQueue = 0;
+  for (const [pid, p] of sorted) {
+    if (p.isHandRaised) handQueue++;
     const isLocal = pid === myParticipantId;
     const item = document.createElement('div');
     item.className = 'participant-item';
@@ -2395,7 +2405,7 @@ function renderParticipantsList() {
           ${escapeHtml(p.name||'Unknown')}
           ${p.isAdmin  ? '<span class="admin-badge">Host</span>' : ''}
           ${isLocal    ? '<span class="you-badge">You</span>'    : ''}
-          ${p.isHandRaised ? '<span class="hand-indicator">✋</span>' : ''}
+          ${p.isHandRaised ? `<span class="hand-indicator" title="Queue #${handQueue}">✋${handQueue > 1 ? '<sup style="font-size:9px;margin-left:1px;">' + handQueue + '</sup>' : ''}</span>` : ''}
           ${p.isMuted  ? '<span style="color:var(--text-muted);font-size:12px;margin-left:3px;display:inline-flex;align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/></svg></span>' : ''}
         </div>
       </div>

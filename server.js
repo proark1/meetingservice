@@ -2268,7 +2268,11 @@ io.on('connection', (socket) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
-    if (p) { p.isHandRaised = isHandRaised; io.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isHandRaised }); }
+    if (p) {
+      p.isHandRaised = isHandRaised;
+      p.handRaisedAt = isHandRaised ? Date.now() : null;
+      io.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isHandRaised, handRaisedAt: p.handRaisedAt });
+    }
     trackEvent(currentUserId, currentCompanyId, 'feature.hand_raise', { raised: isHandRaised });
   });
 
@@ -2363,6 +2367,11 @@ io.on('connection', (socket) => {
     if (!meeting) return;
     await removeParticipantFromMeeting(meeting, currentParticipantId, io);
   });
+});
+
+// ─── 404 catch-all (must be last route) ───────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', 'error.html'));
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

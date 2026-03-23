@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T00:15:00+01:00
+## [1.0.0] — 2026-03-23T01:00:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -26,6 +26,16 @@ All notable changes to onepizza.io are documented in this file.
 - **Performance**: Scheduled meeting polling interval skips iteration when Map is empty
 - **Performance**: Dashboard recordings+transcripts loaded in parallel (Promise.allSettled)
 - **Performance**: CSS will-change on toast and reaction-float animations for GPU acceleration
+
+### Added
+- 404 error page (`public/error.html`) with clean UI and catch-all route in server.js
+- Hand raise queue ordering: raised hands sorted by timestamp, queue position shown in participants list
+- Pre-commit hook enforcing CHANGELOG.md updates on every commit
+- New test suites: `tests/scheduled-meetings.test.js` (5 tests), `tests/helpers.test.js` (20 tests)
+- Tests cover: meeting ID generation, escapeHtml, hand raise sorting, avatar colors, scheduled meeting activation
+
+### Changed
+- CLAUDE.md fully rewritten: documents MCP server, recordings, chat persistence, analytics, graceful shutdown, performance patterns
 
 ### Fixed
 - Memory leak: qualityState, _avatarColorCache, _tileCache cleaned up on participant leave
