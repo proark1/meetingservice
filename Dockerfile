@@ -6,6 +6,9 @@ RUN npm ci --omit=dev
 
 COPY . .
 
+# Create uploads directory and set ownership before switching to non-root
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+
 # Run as non-root for security
 USER node
 

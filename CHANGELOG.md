@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T04:00:00+01:00
+## [1.0.0] — 2026-03-23T12:10:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -49,7 +49,7 @@ All notable changes to onepizza.io are documented in this file.
 
 ### Changed
 - CLAUDE.md fully rewritten: documents MCP server, recordings, chat persistence, analytics, graceful shutdown, performance patterns
-- Dockerfile hardened: `npm ci --omit=dev`, `USER node` (non-root), `HEALTHCHECK` instruction
+- Dockerfile hardened: `npm ci --omit=dev`, `USER node` (non-root), `HEALTHCHECK`, pre-create uploads dir with correct ownership
 - CI pipeline: `npm install` → `npm ci` for deterministic builds
 - Support key bcrypt cost: 10 → 12 (consistent with password hashing)
 
