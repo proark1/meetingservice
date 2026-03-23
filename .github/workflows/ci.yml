@@ -39,7 +39,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm install
+      - run: npm ci
 
       - name: Lint
         run: npm run lint

@@ -1737,7 +1737,7 @@ app.post('/api/user/support-key', requireUserSession, async (req, res) => {
   await pool.query(`DELETE FROM support_keys WHERE user_id = $1`, [req.session.userId]);
   // Generate a random 32-char key
   const rawKey = crypto.randomBytes(16).toString('hex');
-  const keyHash = await bcrypt.hash(rawKey, 10);
+  const keyHash = await bcrypt.hash(rawKey, 12);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
   await pool.query(
     `INSERT INTO support_keys (user_id, key_hash, expires_at) VALUES ($1,$2,$3)`,
@@ -2096,6 +2096,7 @@ const handLimiter     = createSocketRateLimiter(5,  10000);
 
 // ─── Socket.IO signaling ──────────────────────────────────────────────────────
 io.on('connection', (socket) => {
+  console.log(`[ws] connect ${socket.id} ip=${socket.handshake.address}`);
   let currentMeetingId      = null;
   let currentParticipantId  = null;
   let currentWaitingRoomId  = null; // set while in waiting room, cleared on admit/deny/join
@@ -2141,6 +2142,7 @@ io.on('connection', (socket) => {
     socket.join(meetingId);
     currentMeetingId     = meetingId;
     currentParticipantId = participantId;
+    console.log(`[ws] join ${socket.id} meeting=${meetingId} name="${safeName}" pid=${participantId}`);
 
     const existing = [...meeting.participants.values()]
       .filter(p => p.id !== participantId)
@@ -2345,6 +2347,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
+    console.log(`[ws] disconnect ${socket.id}${currentMeetingId ? ' meeting=' + currentMeetingId : ''}`);
     // Clean up rate limiter state
     chatLimiter.cleanup(socket.id);
     reactLimiter.cleanup(socket.id);

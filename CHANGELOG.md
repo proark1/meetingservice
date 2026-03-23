@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T01:00:00+01:00
+## [1.0.0] — 2026-03-23T02:00:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -28,6 +28,10 @@ All notable changes to onepizza.io are documented in this file.
 - **Performance**: CSS will-change on toast and reaction-float animations for GPU acceleration
 
 ### Added
+- SEO meta tags on landing page: description, Open Graph, Twitter Card
+- SVG favicon (`/favicon.svg`) added to all 10 HTML pages
+- `robots.txt` (allow all, block /admin and /api) and `sitemap.xml`
+- Socket.IO connection logging: connect/disconnect/join events with socket ID, IP, meeting ID
 - 404 error page (`public/error.html`) with clean UI and catch-all route in server.js
 - Hand raise queue ordering: raised hands sorted by timestamp, queue position shown in participants list
 - Pre-commit hook enforcing CHANGELOG.md updates on every commit
@@ -36,6 +40,9 @@ All notable changes to onepizza.io are documented in this file.
 
 ### Changed
 - CLAUDE.md fully rewritten: documents MCP server, recordings, chat persistence, analytics, graceful shutdown, performance patterns
+- Dockerfile hardened: `npm ci --omit=dev`, `USER node` (non-root), `HEALTHCHECK` instruction
+- CI pipeline: `npm install` → `npm ci` for deterministic builds
+- Support key bcrypt cost: 10 → 12 (consistent with password hashing)
 
 ### Fixed
 - Memory leak: qualityState, _avatarColorCache, _tileCache cleaned up on participant leave
