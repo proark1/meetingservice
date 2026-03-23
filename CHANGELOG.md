@@ -4,6 +4,24 @@ All notable changes to onepizza.io are documented in this file.
 
 ## [1.0.0] — 2026-03-22T22:00:00+01:00
 
+### Changed
+- **Performance**: Cache DOM element refs in meeting page — eliminates 30+ getElementById calls per updateControlButtons()
+- **Performance**: Cache video tile refs by PID — speaking detection drops from 67 DOM queries/sec to ~0 with 10 participants
+- **Performance**: Cache recording tile list (500ms TTL) — eliminates 300+ querySelectorAll calls/sec at 30fps
+- **Performance**: Use DocumentFragment for participant list rebuild — single DOM reflow instead of N appends
+- **Performance**: Fast average in speaking analyzer — sample every 4th frequency bin instead of all 128
+- **Performance**: Break early in getStats() loop — stop iterating after finding first video inbound-rtp report
+- **Performance**: Cache avatar colors — compute hash once per participant, reuse on every render
+- **Performance**: Use cached UI refs in timer, recording timer, spotlight, and quality badge functions
+- **Performance**: Add `async` attribute to MediaPipe script tag — unblocks HTML parsing on slow networks
+- **Performance**: Eliminate N+1 DB query on participant join — cache ownerId/companyId in meeting object
+- **Performance**: Remove DB lookup from participant.left webhook — use cached owner IDs
+- **Performance**: Optimize chargeMeeting — use cached owner IDs, fall back to DB only if missing
+
+### Fixed
+- Timing-safe token comparison now used for active meeting deletion (was using plain `===`)
+- Scheduled meetings now propagate ownerId/ownerCompanyId through activation
+
 ### Added
 - MCP server (`mcp-server.js`) for AI agent integration via Model Context Protocol
   - 13 tools: meeting CRUD, participant management, and real-time bot interaction (join, chat, react)

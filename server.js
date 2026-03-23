@@ -265,6 +265,8 @@ function activateScheduledMeeting(scheduled) {
     waitingRoom: new Map(),
     peakParticipants: 0,
     logId: null,
+    ownerId: scheduled.ownerId || null,
+    ownerCompanyId: scheduled.ownerCompanyId || null,
     settings: { ...scheduled.settings },
   };
   meetings.set(scheduled.id, meeting);
@@ -1139,16 +1141,11 @@ async function removeParticipantFromMeeting(meeting, participantId, io) {
   }
   io.to(meeting.id).emit('participant:left', { participantId, name: p ? p.name : 'Unknown' });
 
-  // Fire participant.left webhook
-  if (meeting.logId) {
-    const { rows: lRows } = await pool.query(
-      `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
-    ).catch(() => ({ rows: [] }));
-    if (lRows[0]) {
-      deliverWebhook(meeting.logId, lRows[0].user_id, lRows[0].company_id, 'participant.left', {
-        meetingId: meeting.id, participantId, name: p ? p.name : 'Unknown',
-      }).catch(() => {});
-    }
+  // Fire participant.left webhook — use cached owner IDs
+  if (meeting.logId && meeting.ownerId) {
+    deliverWebhook(meeting.logId, meeting.ownerId, meeting.ownerCompanyId, 'participant.left', {
+      meetingId: meeting.id, participantId, name: p ? p.name : 'Unknown',
+    }).catch(() => {});
   }
 
   // If room is empty, schedule charge and cleanup after 60s grace period
@@ -1182,12 +1179,15 @@ async function chargeMeeting(meeting) {
     const cost = calculateMeetingCost(mins, meeting.peakParticipants || 1, rate);
     if (cost < 0.0001) { client.release(); return; }
 
-    // Look up who created the meeting to find user/company
-    const { rows } = await client.query(
-      `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
-    );
-    if (!rows.length) { client.release(); return; }
-    const { user_id, company_id } = rows[0];
+    // Use cached owner IDs (set when meeting was created) — falls back to DB
+    let user_id = meeting.ownerId, company_id = meeting.ownerCompanyId;
+    if (!user_id) {
+      const { rows } = await client.query(
+        `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
+      );
+      if (!rows.length) { client.release(); return; }
+      user_id = rows[0].user_id; company_id = rows[0].company_id;
+    }
 
     await client.query('BEGIN');
 
@@ -1345,6 +1345,8 @@ app.post('/api/meetings', authApi, async (req, res) => {
       title: ((req.body.title || 'Untitled Meeting') + '').slice(0, 100),
       scheduledAt, createdAt: Date.now(),
       status: 'scheduled', settings,
+      ownerId: req.apiUser?.userId || null,
+      ownerCompanyId: req.apiUser?.companyId || null,
     };
     scheduledMeetings.set(id, scheduled);
 
@@ -1379,6 +1381,8 @@ app.post('/api/meetings', authApi, async (req, res) => {
     waitingRoom:      new Map(),
     peakParticipants: 0,
     logId:            null,
+    ownerId:          null,  // cached for webhook/analytics (avoids DB lookup on join)
+    ownerCompanyId:   null,
     settings,
   };
   meetings.set(id, meeting);
@@ -1387,6 +1391,8 @@ app.post('/api/meetings', authApi, async (req, res) => {
   if (req.apiUser) {
     try {
       const { userId: user_id, companyId: company_id } = req.apiUser;
+      meeting.ownerId = user_id;
+      meeting.ownerCompanyId = company_id;
       const keyFingerprint = crypto.createHash('sha256').update(req.headers['x-api-key']).digest('hex').slice(0, 16);
       const { rows: logRows } = await pool.query(
         `INSERT INTO meetings_log (meeting_id, title, created_by_key, user_id, company_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
@@ -1466,8 +1472,9 @@ app.delete('/api/meetings/:meetingId', authApi, (req, res) => {
   const s = scheduledMeetings.get(req.params.meetingId);
 
   if (m) {
-    const adminToken = req.headers['x-admin-token'];
-    if (!adminToken || adminToken !== m.adminToken) {
+    const provided = Buffer.from(req.headers['x-admin-token'] || '');
+    const expected = Buffer.from(m.adminToken || '');
+    if (provided.length === 0 || provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
       return res.status(403).json({ error: 'Admin token required' });
     }
     io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by admin' });
@@ -2152,17 +2159,13 @@ io.on('connection', (socket) => {
       isHandRaised: false, isAdmin: participant.isAdmin,
     });
 
-    // Fire participant.joined webhook (fire-and-forget)
-    if (meeting.logId) {
-      pool.query(`SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]).then(({ rows }) => {
-        if (rows[0]) {
-          currentUserId = rows[0].user_id;
-          currentCompanyId = rows[0].company_id;
-          trackEvent(currentUserId, currentCompanyId, 'meeting.participant_joined', { meetingId, participantCount: meeting.participants.size });
-          deliverWebhook(meeting.logId, rows[0].user_id, rows[0].company_id, 'participant.joined', {
-            meetingId, participantId, name: participant.name,
-          }).catch(() => {});
-        }
+    // Fire participant.joined webhook (fire-and-forget) — use cached owner IDs
+    if (meeting.logId && meeting.ownerId) {
+      currentUserId = meeting.ownerId;
+      currentCompanyId = meeting.ownerCompanyId;
+      trackEvent(currentUserId, currentCompanyId, 'meeting.participant_joined', { meetingId, participantCount: meeting.participants.size }).catch(() => {});
+      deliverWebhook(meeting.logId, meeting.ownerId, meeting.ownerCompanyId, 'participant.joined', {
+        meetingId, participantId, name: participant.name,
       }).catch(() => {});
     }
   });

@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
+  <script async src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -504,10 +504,34 @@ function escapeHtml(s) {
   const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
 }
 
+const _avatarColorCache = {};
 function getAvatarColor(pid) {
+  if (_avatarColorCache[pid]) return _avatarColorCache[pid];
   let h = 0;
   for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  return (_avatarColorCache[pid] = AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]);
+}
+
+// Cached DOM refs for frequently-accessed elements (populated once on join)
+const UI = {};
+function cacheUIElements() {
+  UI.micBtn = $('#micBtn'); UI.micIcon = $('#micIcon');
+  UI.camBtn = $('#camBtn'); UI.camIcon = $('#camIcon');
+  UI.screenBtn = $('#screenBtn'); UI.screenLabel = $('#screenLabel');
+  UI.handBtn = $('#handBtn'); UI.handLabel = $('#handLabel');
+  UI.recordBtn = $('#recordBtn'); UI.recordIcon = $('#recordIcon'); UI.recordLabel = $('#recordLabel');
+  UI.lockBtn = $('#lockBtn'); UI.lockIcon = $('#lockIcon');
+  UI.videoGrid = $('#videoGrid'); UI.videoArea = $('#videoArea');
+  UI.spotlightMain = $('#spotlightMain');
+  UI.participantCount = $('#participantCount');
+  UI.emptyState = $('#emptyState');
+  UI.meetingTimer = $('#meetingTimer'); UI.meetingTimerBar = $('#meetingTimerBar');
+  UI.recordingIndicator = $('#recordingIndicator'); UI.recTimerText = $('#recTimerText');
+  UI.moreRecordBadge = $('#moreRecordBadge'); UI.moreRecordOpt = $('#moreRecordOpt'); UI.moreRecordTitle = $('#moreRecordTitle');
+  UI.moreCaptionsBadge = $('#moreCaptionsBadge'); UI.moreCaptionsOpt = $('#moreCaptionsOpt');
+  UI.moreEffectsBadge = $('#moreEffectsBadge'); UI.moreEffectsOpt = $('#moreEffectsOpt');
+  UI.moreLockOpt = $('#moreLockOpt'); UI.moreLockTitle = $('#moreLockTitle'); UI.moreLockIcon = $('#moreLockIcon');
+  UI.participantsList = $('#participantsList');
 }
 
 function showToast(msg, type = '') {
@@ -539,8 +563,8 @@ function startTimer() {
     const txt = h > 0
       ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
       : `${m}:${String(sec).padStart(2,'0')}`;
-    $('#meetingTimer').textContent = txt;
-    const bar = $('#meetingTimerBar');
+    (UI.meetingTimer || $('#meetingTimer')).textContent = txt;
+    const bar = UI.meetingTimerBar || $('#meetingTimerBar');
     if (bar) bar.textContent = txt;
   }, 1000);
 }
@@ -563,16 +587,29 @@ function removeSpeakAnalyser(pid) {
   if (entry) { try { entry.source.disconnect(); } catch(e) {} delete speakAnalysers[pid]; }
 }
 
+const _tileCache = {}; // pid → DOM element (invalidated on renderVideoGrid)
+function _getCachedTile(pid) {
+  let t = _tileCache[pid];
+  if (t && t.isConnected) return t;
+  t = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  if (t) _tileCache[pid] = t;
+  return t;
+}
+function _invalidateTileCache() { for (const k in _tileCache) delete _tileCache[k]; }
+
 setInterval(() => {
   for (const [pid, { analyser, data }] of Object.entries(speakAnalysers)) {
     analyser.getByteFrequencyData(data);
-    const avg = data.reduce((a,b) => a + b, 0) / data.length;
+    // Fast average: sample every 4th value instead of all 128
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) sum += data[i];
+    const avg = sum / (data.length >> 2);
     const speaking = avg > 10 && participants[pid] && !participants[pid].isMuted;
     if (speaking) lastSpoke[pid] = Date.now();
-    const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+    const tile = _getCachedTile(pid);
     if (tile) tile.classList.toggle('is-speaking', speaking);
     if (pid === pinnedParticipant) {
-      $('#spotlightMain')?.classList.toggle('is-speaking', speaking);
+      (UI.spotlightMain || $('#spotlightMain'))?.classList.toggle('is-speaking', speaking);
     }
   }
 }, 150);
@@ -677,6 +714,7 @@ socket.on('joined', (data) => {
   $('#meetingRoom').style.display = 'flex';
   $('#meetingTitle').textContent = data.title;
   document.title = data.title + ' — Meeting';
+  cacheUIElements();
 
   participants[myParticipantId] = {
     name: sessionStorage.getItem('userName'),
@@ -1139,10 +1177,17 @@ async function startRecording() {
     recCanvasEl.width = recW; recCanvasEl.height = recH;
     const ctx = recCanvasEl.getContext('2d');
 
+    let _recTiles = null; let _recTilesTs = 0;
     function drawFrame() {
       ctx.fillStyle = '#f1f5f9';
       ctx.fillRect(0, 0, recW, recH);
-      const tiles = [...document.querySelectorAll('#videoGrid .video-tile')];
+      // Cache tile list for 500ms to avoid querySelectorAll every frame
+      const now = Date.now();
+      if (!_recTiles || now - _recTilesTs > 500) {
+        _recTiles = [...(UI.videoGrid || document.getElementById('videoGrid')).querySelectorAll('.video-tile')];
+        _recTilesTs = now;
+      }
+      const tiles = _recTiles;
       const n = tiles.length;
       if (n > 0) {
         const cols = n === 1 ? 1 : n <= 4 ? 2 : 3;
@@ -1215,7 +1260,7 @@ async function startRecording() {
     const recStartTs = Date.now();
     recTimerInterval = setInterval(() => {
       const s = Math.floor((Date.now() - recStartTs) / 1000);
-      $('#recTimerText').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+      (UI.recTimerText || $('#recTimerText')).textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
     }, 1000);
     showToast('Recording started');
     const myName = participants[myParticipantId]?.name || '';
@@ -1947,72 +1992,72 @@ document.addEventListener('keyup', (e) => {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 function updateControlButtons() {
-  const micBtn = $('#micBtn');
+  const micBtn = UI.micBtn || $('#micBtn');
   micBtn.className = `ctrl-btn${isMuted ? ' state-danger' : ''}`;
-  $('#micIcon').innerHTML = isMuted ? ICONS.micOff : ICONS.micOn;
+  (UI.micIcon || $('#micIcon')).innerHTML = isMuted ? ICONS.micOff : ICONS.micOn;
   const micLabel = micBtn.querySelector('.ctrl-label');
   if (micLabel) micLabel.textContent = isMuted ? 'Unmute' : 'Mute';
 
-  const camBtn = $('#camBtn');
+  const camBtn = UI.camBtn || $('#camBtn');
   camBtn.className = `ctrl-btn${isVideoOff ? ' state-danger' : ''}`;
-  $('#camIcon').innerHTML = isVideoOff ? ICONS.camOff : ICONS.camOn;
+  (UI.camIcon || $('#camIcon')).innerHTML = isVideoOff ? ICONS.camOff : ICONS.camOn;
   const camLabel = camBtn.querySelector('.ctrl-label');
   if (camLabel) camLabel.textContent = isVideoOff ? 'Start video' : 'Stop video';
 
-  $('#screenBtn').className = `ctrl-btn${isScreenSharing ? ' state-active' : ''}`;
-  const screenLabel = $('#screenLabel');
+  (UI.screenBtn || $('#screenBtn')).className = `ctrl-btn${isScreenSharing ? ' state-active' : ''}`;
+  const screenLabel = UI.screenLabel || $('#screenLabel');
   if (screenLabel) screenLabel.textContent = isScreenSharing ? 'Stop share' : 'Present';
 
-  $('#handBtn').className  = `ctrl-btn${isHandRaised    ? ' state-raised'  : ''}`;
-  const handLabel = $('#handLabel');
+  (UI.handBtn || $('#handBtn')).className = `ctrl-btn${isHandRaised ? ' state-raised' : ''}`;
+  const handLabel = UI.handLabel || $('#handLabel');
   if (handLabel) handLabel.textContent = isHandRaised ? 'Lower' : 'Hand';
 
-  // Hidden proxy buttons (keep for legacy compatibility)
-  const recBtn = $('#recordBtn');
-  if (recBtn) { recBtn.className = `ctrl-btn${isRecording ? ' state-danger' : ''}`; }
-  const recIconEl = $('#recordIcon');
+  // Hidden proxy buttons
+  const recBtn = UI.recordBtn || $('#recordBtn');
+  if (recBtn) recBtn.className = `ctrl-btn${isRecording ? ' state-danger' : ''}`;
+  const recIconEl = UI.recordIcon || $('#recordIcon');
   if (recIconEl) recIconEl.innerHTML = isRecording ? ICONS.recOn : ICONS.recOff;
-  const recLabel = $('#recordLabel');
+  const recLabel = UI.recordLabel || $('#recordLabel');
   if (recLabel) recLabel.textContent = isRecording ? 'Stop rec' : 'Record';
 
-  const lockBtn = $('#lockBtn');
+  const lockBtn = UI.lockBtn || $('#lockBtn');
   if (lockBtn) {
-    const lockIcon = $('#lockIcon');
+    const lockIcon = UI.lockIcon || $('#lockIcon');
     if (lockIcon) lockIcon.innerHTML = isLocked
       ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
       : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
   }
 
   // More panel badges & active states
-  const moreRecBadge = $('#moreRecordBadge');
+  const moreRecBadge = UI.moreRecordBadge || $('#moreRecordBadge');
   if (moreRecBadge) {
     moreRecBadge.classList.toggle('hidden', !isRecording);
     moreRecBadge.className = isRecording ? 'more-opt-badge' : 'more-opt-badge hidden';
   }
-  $('#moreRecordOpt')?.classList.toggle('active', isRecording);
-  const moreRecTitle = $('#moreRecordTitle');
+  (UI.moreRecordOpt || $('#moreRecordOpt'))?.classList.toggle('active', isRecording);
+  const moreRecTitle = UI.moreRecordTitle || $('#moreRecordTitle');
   if (moreRecTitle) moreRecTitle.textContent = isRecording ? 'Stop recording' : 'Record meeting';
 
-  const moreCaptBadge = $('#moreCaptionsBadge');
+  const moreCaptBadge = UI.moreCaptionsBadge || $('#moreCaptionsBadge');
   if (moreCaptBadge) moreCaptBadge.classList.toggle('hidden', !captionsOn);
   if (moreCaptBadge && captionsOn) moreCaptBadge.className = 'more-opt-badge badge-active';
-  $('#moreCaptionsOpt')?.classList.toggle('active', captionsOn);
+  (UI.moreCaptionsOpt || $('#moreCaptionsOpt'))?.classList.toggle('active', captionsOn);
 
-  const moreEffBadge = $('#moreEffectsBadge');
+  const moreEffBadge = UI.moreEffectsBadge || $('#moreEffectsBadge');
   const effectsOn = bgMode !== 'none';
   if (moreEffBadge) {
     moreEffBadge.classList.toggle('hidden', !effectsOn);
     if (effectsOn) moreEffBadge.className = 'more-opt-badge badge-active';
   }
-  $('#moreEffectsOpt')?.classList.toggle('active', effectsOn);
+  (UI.moreEffectsOpt || $('#moreEffectsOpt'))?.classList.toggle('active', effectsOn);
 
   // Lock in More panel (admin only)
-  const moreLockOpt = $('#moreLockOpt');
+  const moreLockOpt = UI.moreLockOpt || $('#moreLockOpt');
   if (moreLockOpt) {
     moreLockOpt.classList.toggle('hidden', !isAdmin);
-    const moreLockTitle = $('#moreLockTitle');
+    const moreLockTitle = UI.moreLockTitle || $('#moreLockTitle');
     if (moreLockTitle) moreLockTitle.textContent = isLocked ? 'Unlock meeting' : 'Lock meeting';
-    const lockIconEl = $('#moreLockIcon');
+    const lockIconEl = UI.moreLockIcon || $('#moreLockIcon');
     if (lockIconEl) lockIconEl.innerHTML = isLocked
       ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
       : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
@@ -2026,7 +2071,7 @@ function updateControlButtons() {
 
   // Empty state
   const onlyMe = Object.keys(participants).length <= 1;
-  $('#emptyState')?.classList.toggle('hidden', !onlyMe || !myParticipantId);
+  (UI.emptyState || $('#emptyState'))?.classList.toggle('hidden', !onlyMe || !myParticipantId);
 
   // Sync bg panel selection state
   if (typeof syncBgPanel === 'function') syncBgPanel();
@@ -2034,7 +2079,8 @@ function updateControlButtons() {
 
 // Full grid re-render (diff-based to prevent flicker)
 function renderVideoGrid() {
-  const grid   = $('#videoGrid');
+  _invalidateTileCache();
+  const grid   = UI.videoGrid || $('#videoGrid');
   const allIds = Object.keys(participants);
   const count  = allIds.length;
 
@@ -2045,7 +2091,7 @@ function renderVideoGrid() {
   }
 
   // Apply / remove focus-active class
-  $('#videoArea').classList.toggle('focus-active', !!focusedParticipant);
+  (UI.videoArea || $('#videoArea')).classList.toggle('focus-active', !!focusedParticipant);
 
   // Update unpin button label based on mode
   const unpinBtn = $('#unpinBtn');
@@ -2120,25 +2166,25 @@ function renderVideoGrid() {
     }
   }
 
-  $('#participantCount').textContent = count;
+  (UI.participantCount || $('#participantCount')).textContent = count;
   updateControlButtons();
 }
 
 // Update single tile (used on state changes)
 function syncParticipantTile(pid) {
   if (pid === pinnedParticipant) updateSpotlightMain();
-  const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  const tile = _getCachedTile(pid);
   if (tile) {
     syncVideoTile(tile, pid);
   } else if (pid !== pinnedParticipant) {
     renderVideoGrid(); return;
   }
-  $('#participantCount').textContent = Object.keys(participants).length;
+  (UI.participantCount || $('#participantCount')).textContent = Object.keys(participants).length;
   updateControlButtons();
 }
 
 function clearSpotlightMain() {
-  const sm = $('#spotlightMain');
+  const sm = UI.spotlightMain || $('#spotlightMain');
   const vid = sm.querySelector('video');
   if (vid) { vid.srcObject = null; vid.remove(); }
   const av = sm.querySelector('.sm-avatar');
@@ -2146,7 +2192,7 @@ function clearSpotlightMain() {
 }
 
 function updateSpotlightMain() {
-  const sm  = $('#spotlightMain');
+  const sm  = UI.spotlightMain || $('#spotlightMain');
   const pid = pinnedParticipant;
   const p   = participants[pid];
   if (!p) return;
@@ -2317,15 +2363,15 @@ function syncVideoTile(tile, pid) {
 }
 
 function renderParticipantsList() {
-  const list = $('#participantsList');
-  list.innerHTML = '';
+  const list = UI.participantsList || $('#participantsList');
+  const frag = document.createDocumentFragment();
 
   if (isAdmin) {
     const muteAllBtn = document.createElement('button');
     muteAllBtn.className = 'mute-all-btn';
     muteAllBtn.innerHTML = `${ICONS.muteAllIcon} Mute everyone`;
     muteAllBtn.onclick = adminMuteAll;
-    list.appendChild(muteAllBtn);
+    frag.appendChild(muteAllBtn);
   }
 
   for (const [pid, p] of Object.entries(participants)) {
@@ -2352,8 +2398,10 @@ function renderParticipantsList() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>` : ''}`;
-    list.appendChild(item);
+    frag.appendChild(item);
   }
+  list.innerHTML = '';
+  list.appendChild(frag);
 }
 
 function pinParticipant(pid) {
@@ -2480,16 +2528,21 @@ async function togglePiP() {
 const qualityState = {}; // pid -> 'good' | 'fair' | 'poor'
 
 async function checkConnectionQuality() {
-  for (const [pid, { pc }] of Object.entries(peers)) {
+  const pids = Object.keys(peers);
+  for (let i = 0; i < pids.length; i++) {
+    const pid = pids[i];
+    const peer = peers[pid];
+    if (!peer) continue;
     try {
-      const stats = await pc.getStats();
+      const stats = await peer.pc.getStats();
       let packetsLost = 0, totalPackets = 0;
-      stats.forEach(report => {
+      for (const report of stats.values()) {
         if (report.type === 'inbound-rtp' && report.kind === 'video') {
           packetsLost  += report.packetsLost    || 0;
           totalPackets += (report.packetsReceived || 0) + (report.packetsLost || 0);
+          break; // only need the first video inbound-rtp
         }
-      });
+      }
       const lossRate = totalPackets > 0 ? packetsLost / totalPackets : 0;
       const quality  = lossRate < 0.02 ? 'good' : lossRate < 0.08 ? 'fair' : 'poor';
       if (qualityState[pid] !== quality) {
@@ -2504,7 +2557,7 @@ async function checkConnectionQuality() {
 }
 
 function updateQualityBadge(pid, quality) {
-  const tile = document.querySelector(`.video-tile[data-pid="${pid}"]`);
+  const tile = _getCachedTile(pid);
   if (!tile) return;
   let badge = tile.querySelector('.quality-badge');
   if (!badge) {
