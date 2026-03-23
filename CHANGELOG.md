@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T02:00:00+01:00
+## [1.0.0] — 2026-03-23T03:00:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -31,6 +31,10 @@ All notable changes to onepizza.io are documented in this file.
 - SEO meta tags on landing page: description, Open Graph, Twitter Card
 - SVG favicon (`/favicon.svg`) added to all 10 HTML pages
 - `robots.txt` (allow all, block /admin and /api) and `sitemap.xml`
+- Structured JSON logging helper (`log(level, msg, meta)`) — replaces raw console.log for key events
+- Socket.IO idle timeout: disconnect sockets that don't join a meeting within 30s
+- Kubernetes health endpoints: `/health/liveness` (always 200), `/health/readiness` (checks DB)
+- ESLint rules expanded: eqeqeq, no-unreachable, no-dupe-keys, no-duplicate-case, no-self-assign, no-throw-literal
 - Socket.IO connection logging: connect/disconnect/join events with socket ID, IP, meeting ID
 - 404 error page (`public/error.html`) with clean UI and catch-all route in server.js
 - Hand raise queue ordering: raised hands sorted by timestamp, queue position shown in participants list

@@ -26,6 +26,13 @@ module.exports = [
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-undef': 'error',
+      'no-unreachable': 'error',
+      'no-dupe-keys': 'error',
+      'no-duplicate-case': 'error',
+      'no-constant-condition': 'warn',
+      'no-self-assign': 'error',
+      'eqeqeq': ['warn', 'always', { null: 'ignore' }],
+      'no-throw-literal': 'error',
     },
   },
 ];

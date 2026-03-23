@@ -17,6 +17,13 @@ const crypto = require('crypto');
 const multer = require('multer');
 const fs     = require('fs');
 
+// ─── Structured logging ─────────────────────────────────────────────────────
+function log(level, msg, meta = {}) {
+  const entry = JSON.stringify({ ts: new Date().toISOString(), level, msg, ...meta });
+  if (level === 'error') process.stderr.write(entry + '\n');
+  else process.stdout.write(entry + '\n');
+}
+
 // ─── Recording upload storage ────────────────────────────────────────────────
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -220,13 +227,24 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
 app.use(express.json());
 
-// ─── Health check ─────────────────────────────────────────────────────────────
+// ─── Health checks ────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString(), meetings: meetings.size });
   } catch (err) {
     res.status(503).json({ status: 'error', error: 'Database unavailable' });
+  }
+});
+app.get('/health/liveness', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+app.get('/health/readiness', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected' });
+  } catch (err) {
+    res.status(503).json({ status: 'error', db: 'unavailable' });
   }
 });
 
@@ -2096,7 +2114,14 @@ const handLimiter     = createSocketRateLimiter(5,  10000);
 
 // ─── Socket.IO signaling ──────────────────────────────────────────────────────
 io.on('connection', (socket) => {
-  console.log(`[ws] connect ${socket.id} ip=${socket.handshake.address}`);
+  log('info', 'ws:connect', { sid: socket.id, ip: socket.handshake.address });
+  // Idle timeout: disconnect sockets that don't join a meeting within 30s
+  const idleTimer = setTimeout(() => {
+    if (!currentMeetingId && !currentWaitingRoomId) {
+      log('info', 'ws:idle-timeout', { sid: socket.id });
+      socket.disconnect(true);
+    }
+  }, 30000);
   let currentMeetingId      = null;
   let currentParticipantId  = null;
   let currentWaitingRoomId  = null; // set while in waiting room, cleared on admit/deny/join
@@ -2140,9 +2165,10 @@ io.on('connection', (socket) => {
       meeting.peakParticipants = meeting.participants.size;
     }
     socket.join(meetingId);
+    clearTimeout(idleTimer);
     currentMeetingId     = meetingId;
     currentParticipantId = participantId;
-    console.log(`[ws] join ${socket.id} meeting=${meetingId} name="${safeName}" pid=${participantId}`);
+    log('info', 'ws:join', { sid: socket.id, meeting: meetingId, name: safeName, pid: participantId });
 
     const existing = [...meeting.participants.values()]
       .filter(p => p.id !== participantId)
@@ -2189,6 +2215,7 @@ io.on('connection', (socket) => {
     }
     const safeName = ((name || 'Anonymous') + '').trim().slice(0, 60) || 'Anonymous';
     meeting.waitingRoom.set(socket.id, { socketId: socket.id, name: safeName });
+    clearTimeout(idleTimer);
     currentWaitingRoomId = mid;
     socket.join(`waiting:${mid}`);
     // Notify host(s) that someone is waiting
@@ -2347,7 +2374,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log(`[ws] disconnect ${socket.id}${currentMeetingId ? ' meeting=' + currentMeetingId : ''}`);
+    log('info', 'ws:disconnect', { sid: socket.id, meeting: currentMeetingId || undefined });
     // Clean up rate limiter state
     chatLimiter.cleanup(socket.id);
     reactLimiter.cleanup(socket.id);
@@ -2383,8 +2410,7 @@ const PORT = process.env.PORT || 3000;
 initDB()
   .then(() => {
     server.listen(PORT, () => {
-      console.log(`onepizza.io running on http://localhost:${PORT}`);
-      console.log(`Admin panel at http://localhost:${PORT}/admin`);
+      log('info', 'server:start', { port: PORT, url: `http://localhost:${PORT}` });
     });
   })
   .catch((err) => {
