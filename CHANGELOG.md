@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T03:00:00+01:00
+## [1.0.0] — 2026-03-23T04:00:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -35,6 +35,11 @@ All notable changes to onepizza.io are documented in this file.
 - Socket.IO idle timeout: disconnect sockets that don't join a meeting within 30s
 - Kubernetes health endpoints: `/health/liveness` (always 200), `/health/readiness` (checks DB)
 - ESLint rules expanded: eqeqeq, no-unreachable, no-dupe-keys, no-duplicate-case, no-self-assign, no-throw-literal
+- `trust proxy` configured for correct client IP behind reverse proxies (Railway, nginx)
+- Socket.IO transports: WebSocket first, polling fallback (faster initial connection)
+- Admin settings batch write: N separate INSERT queries → single multi-value INSERT
+- JSON body size limit: 1MB max to prevent OOM from malicious payloads
+- Admin list queries capped: users, keys, companies LIMIT 200 (prevents DOM explosion)
 - Socket.IO connection logging: connect/disconnect/join events with socket ID, IP, meeting ID
 - 404 error page (`public/error.html`) with clean UI and catch-all route in server.js
 - Hand raise queue ordering: raised hands sorted by timestamp, queue position shown in participants list

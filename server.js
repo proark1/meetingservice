@@ -110,7 +110,10 @@ const io = new Server(server, {
   cors: { origin: allowedOrigins || true, credentials: true },
   pingTimeout:  60000,
   pingInterval: 25000,
+  transports: ['websocket', 'polling'], // prefer WebSocket, polling as fallback
 });
+
+app.set('trust proxy', 1); // trust first proxy (Railway, nginx, etc.) for correct IP in rate limiters
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -225,7 +228,7 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
 });
 
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // ─── Health checks ────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
@@ -711,6 +714,7 @@ app.get('/admin/api/users', requireAdminSession, async (_req, res) => {
     LEFT JOIN companies c ON c.id = u.company_id
     GROUP BY u.id, c.name
     ORDER BY u.created_at DESC
+    LIMIT 200
   `);
   res.json({ users: rows });
 });
@@ -743,6 +747,7 @@ app.get('/admin/api/keys', requireAdminSession, async (_req, res) => {
     FROM api_keys k
     JOIN users u ON u.id = k.user_id
     ORDER BY k.created_at DESC
+    LIMIT 200
   `);
   res.json({ keys: rows });
 });
@@ -780,6 +785,8 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
   const entries = Object.entries(req.body).filter(([k]) => allowed.has(k));
   if (entries.length === 0) return res.status(400).json({ error: 'No valid settings provided' });
 
+  // Validate all entries first, then batch-write in a single query
+  const sanitized = [];
   for (const [key, value] of entries) {
     let safeValue = String(value);
     if (booleanSettings.has(key)) {
@@ -789,12 +796,15 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
       if (!Number.isFinite(num) || num < 0) return res.status(400).json({ error: `${key} must be a non-negative number` });
       safeValue = String(num);
     }
-    await pool.query(
-      `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
-       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-      [key, safeValue]
-    );
+    sanitized.push([key, safeValue]);
   }
+  const values = sanitized.flatMap(([k, v]) => [k, v]);
+  const placeholders = sanitized.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, NOW())`).join(', ');
+  await pool.query(
+    `INSERT INTO settings (key, value, updated_at) VALUES ${placeholders}
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    values
+  );
   invalidateSettingsCache();
   res.json({ message: 'Settings updated' });
 });
@@ -867,6 +877,7 @@ app.get('/admin/api/companies', requireAdminSession, async (_req, res) => {
     LEFT JOIN users m ON m.company_id = c.id
     GROUP BY c.id, u.email
     ORDER BY c.created_at DESC
+    LIMIT 200
   `);
   res.json({ companies: rows });
 });
