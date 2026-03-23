@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T12:10:00+01:00
+## [1.0.0] — 2026-03-23T12:30:00+01:00
 
 ### Changed
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
@@ -36,6 +36,8 @@ All notable changes to onepizza.io are documented in this file.
 - Kubernetes health endpoints: `/health/liveness` (always 200), `/health/readiness` (checks DB)
 - ESLint rules expanded: eqeqeq, no-unreachable, no-dupe-keys, no-duplicate-case, no-self-assign, no-throw-literal
 - `trust proxy` configured for correct client IP behind reverse proxies (Railway, nginx)
+- Session `proxy: true` for secure cookies behind load balancer (fixes login not working on Railway)
+- Dashboard `initApp()` error handling — shows login page on crash instead of blank page
 - Socket.IO transports: WebSocket first, polling fallback (faster initial connection)
 - Admin settings batch write: N separate INSERT queries → single multi-value INSERT
 - JSON body size limit: 1MB max to prevent OOM from malicious payloads

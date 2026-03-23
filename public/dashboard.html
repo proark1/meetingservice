@@ -1623,7 +1623,11 @@ document.getElementById('new-key-label')?.addEventListener('keydown', e => { if 
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 // initApp() handles auth check — no pre-flight fetch needed
-initApp();
+initApp().catch(err => {
+  console.error('initApp failed:', err);
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('appPage').style.display = 'none';
+});
 </script>
 </body>
 </html>

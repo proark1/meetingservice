@@ -263,6 +263,7 @@ app.use(session({
   secret:            process.env.SESSION_SECRET || 'onepizza-secret-2024',
   resave:            false,
   saveUninitialized: false,
+  proxy: true, // trust proxy for secure cookies behind Railway/nginx
   cookie: {
     maxAge:   7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
