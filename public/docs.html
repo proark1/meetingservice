@@ -92,8 +92,8 @@
 <h1>onepizza.io API</h1>
 <p class="subtitle">A RESTful + WebSocket API for creating and managing video meetings. Built for developers, agents, and teams.</p>
 <div class="meta">
-  <span>Version: <strong>3.0.0</strong></span>
-  <span>Updated: <strong>March 19, 2026</strong></span>
+  <span>Version: <strong>1.0.0</strong></span>
+  <span>Updated: <strong>March 23, 2026</strong></span>
   <span>Base URL: <strong>https://onepizza.io</strong></span>
 </div>
 
@@ -127,8 +127,9 @@
   <a href="#admin-analytics">18. Admin Analytics API</a>
   <a href="#transcripts">19. Meeting Transcripts</a>
   <a href="#recordings">20. Meeting Recordings</a>
-  <a href="#quickstart">21. Quick Start</a>
-  <a href="#features">22. Features Overview</a>
+  <a href="#health">21. Health Endpoints</a>
+  <a href="#quickstart">22. Quick Start</a>
+  <a href="#features">23. Features Overview</a>
 </div>
 
 <!-- ─── Account & Auth ───────────────────────────────────────────────── -->
@@ -549,13 +550,16 @@ const socket = io("https://onepizza.io");</code></pre>
   <tr><td><code>raise-hand</code></td><td><code>{ isHandRaised: boolean }</code></td><td>Raise or lower your hand</td></tr>
   <tr><td><code>react</code></td><td><code>{ emoji: string }</code></td><td>Send a floating emoji reaction (👍 ❤️ 😂 🎉 👏)</td></tr>
   <tr><td><code>recording:broadcast-started</code></td><td><code>{ hostName: string }</code></td><td>Notify participants that the host has started recording</td></tr>
+  <tr><td><code>recording:broadcast-stopped</code></td><td><code>{}</code></td><td>Notify participants that the host has stopped recording</td></tr>
   <tr><td><code>chat:message</code></td><td><code>{ text: string }</code></td><td>Send a chat message (max 2000 chars)</td></tr>
+  <tr><td><code>chat:react</code></td><td><code>{ msgId: string, emoji: string }</code></td><td>React to a chat message with an emoji</td></tr>
+  <tr><td><code>captions:update</code></td><td><code>{ pid: participantId, text: string, final: boolean }</code></td><td>Send live caption text from speech recognition (interim or final result)</td></tr>
 </table>
 
 <h3>Server → Client</h3>
 <table>
   <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
-  <tr><td><code>joined</code></td><td><code>{ participantId, participants[], settings, title, isAdmin }</code></td><td>Confirmed join — includes all current participants and meeting settings</td></tr>
+  <tr><td><code>joined</code></td><td><code>{ participantId, participants[], settings, title, isAdmin, muteOnJoin, videoOffOnJoin, isRecording, recordingHostName }</code></td><td>Confirmed join — includes all current participants, meeting settings, and active recording state</td></tr>
   <tr><td><code>participant:joined</code></td><td><code>{ participantId, name, isMuted, isVideoOff, isAdmin }</code></td><td>A new participant joined the room</td></tr>
   <tr><td><code>participant:left</code></td><td><code>{ participantId, name }</code></td><td>A participant disconnected</td></tr>
   <tr><td><code>participant:updated</code></td><td><code>{ participantId, isMuted?, isVideoOff?, isScreenSharing?, isHandRaised? }</code></td><td>A participant's media or hand state changed</td></tr>
@@ -571,6 +575,9 @@ const socket = io("https://onepizza.io");</code></pre>
   <tr><td><code>chat:message</code></td><td><code>{ from: participantId, name, text, timestamp }</code></td><td>A chat message was sent in the room</td></tr>
   <tr><td><code>react</code></td><td><code>{ participantId, emoji }</code></td><td>An emoji reaction from a participant</td></tr>
   <tr><td><code>recording:started</code></td><td><code>{ hostName: string }</code></td><td>The host has started recording — display consent notice</td></tr>
+  <tr><td><code>recording:stopped</code></td><td><code>{}</code></td><td>Recording has ended — dismiss consent notice</td></tr>
+  <tr><td><code>chat:react</code></td><td><code>{ msgId: string, participantId, emoji: string }</code></td><td>A participant reacted to a chat message</td></tr>
+  <tr><td><code>captions:update</code></td><td><code>{ pid: participantId, text: string, final: boolean }</code></td><td>Live caption text from a participant's speech recognition</td></tr>
   <tr><td><code>error</code></td><td><code>{ message: string }</code></td><td>Something went wrong (meeting not found, locked, full, or scheduled)</td></tr>
 </table>
 
@@ -981,8 +988,39 @@ Supported media tracks:
   -H "x-api-key: YOUR_KEY"</code></pre>
 </div>
 
+<!-- ─── Health Endpoints ────────────────────────────────────────────── -->
+<h2 id="health">21. Health Endpoints</h2>
+<p>Health check endpoints for monitoring and orchestration (Kubernetes, Railway, etc.). No authentication required.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /health</div>
+  <p>Full health check — verifies database connectivity.</p>
+  <pre><code>// 200 OK
+{ "status": "ok", "db": "connected" }
+
+// 503 Service Unavailable
+{ "status": "error", "db": "unavailable" }</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /health/liveness</div>
+  <p>Liveness probe — always returns 200 if the process is running. Use for Kubernetes liveness checks.</p>
+  <pre><code>// 200 OK
+{ "status": "alive" }</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header"><span class="method get">GET</span> /health/readiness</div>
+  <p>Readiness probe — returns 200 only if the database is reachable. Use for Kubernetes readiness checks and load balancer health.</p>
+  <pre><code>// 200 OK
+{ "status": "ready", "db": "connected" }
+
+// 503 Service Unavailable
+{ "status": "not ready", "db": "unavailable" }</code></pre>
+</div>
+
 <!-- ─── Quick Start ────────────────────────────────────────────────── -->
-<h2 id="quickstart">21. Quick Start</h2>
+<h2 id="quickstart">22. Quick Start</h2>
 
 <h3>1. Start a guest meeting (no account needed)</h3>
 <pre><code>curl -X POST https://onepizza.io/api/meetings/guest \
@@ -1058,7 +1096,7 @@ socket.emit("raise-hand", { isHandRaised: true });
 socket.emit("react", { emoji: "👍" });</code></pre>
 
 <!-- ─── Features ────────────────────────────────────────────────────── -->
-<h2 id="features">22. Features Overview</h2>
+<h2 id="features">23. Features Overview</h2>
 <table>
   <tr><th>Category</th><th>Feature</th><th>Description</th></tr>
   <tr><td>Video</td><td>WebRTC video calls</td><td>Full mesh peer-to-peer video; camera device selection</td></tr>

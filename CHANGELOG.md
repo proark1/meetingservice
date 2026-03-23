@@ -2,9 +2,15 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T12:30:00+01:00
+## [1.0.0] — 2026-03-23T12:40:00+01:00
 
 ### Changed
+- **Docs**: API docs version synced to 1.0.0 (was incorrectly showing 3.0.0), date updated to March 23, 2026
+- **Docs**: Added 5 missing Socket.IO events: `recording:broadcast-stopped`, `recording:stopped`, `chat:react`, `captions:update` (client→server & server→client)
+- **Docs**: Added `isRecording` and `recordingHostName` fields to `joined` event payload
+- **Docs**: Added Health Endpoints section (21) documenting `/health`, `/health/liveness`, `/health/readiness`
+- **Docs**: Renumbered Quick Start (22) and Features Overview (23)
+
 - **Performance**: Event delegation on video grid — single click listener instead of 3 per tile (O(n)→O(1))
 - **Performance**: Cache child element refs on video tiles — syncVideoTile drops from 6 queries to 0
 - **Performance**: Single-pass tile reconciliation in renderVideoGrid — query DOM once, diff with Map
