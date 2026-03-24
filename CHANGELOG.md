@@ -2,7 +2,12 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-23T12:40:00+01:00
+## [1.0.0] — 2026-03-24T12:00:00+01:00
+
+### Fixed
+- **Security**: Disabled Helmet's `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` headers that were causing `ERR_BLOCKED_BY_RESPONSE` when accessing the site
+
+## [1.0.0-prev] — 2026-03-23T12:40:00+01:00
 
 ### Changed
 - **Docs**: API docs version synced to 1.0.0 (was incorrectly showing 3.0.0), date updated to March 23, 2026
