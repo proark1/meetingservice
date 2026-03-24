@@ -10,12 +10,12 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9;
-      --primary: #4f46e5; --primary-hover: #4338ca; --primary-light: #eef0fd;
+      --bg: #FAF8F6; --surface: #ffffff; --surface2: #F5F1EB;
+      --primary: #E05A33; --primary-hover: #C94D2B; --primary-light: #FDF5F2;
       --danger: #ef4444; --danger-hover: #dc2626;
       --success: #059669; --warning: #d97706;
-      --text: #0f172a; --text-muted: #64748b; --text-xmuted: #94a3b8;
-      --border: #e2e8f0; --radius: 12px; --radius-sm: 8px;
+      --text: #2B2318; --text-muted: #8C8073; --text-xmuted: #8C8073;
+      --border: #E9E4DD; --radius: 12px; --radius-sm: 8px;
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
       --shadow: 0 4px 16px rgba(0,0,0,0.08);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -88,14 +88,14 @@
     th, td { text-align: left; padding: 11px 18px; font-size: 13px; border-bottom: 1px solid var(--border); }
     th { color: var(--text-muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: var(--surface2); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(67,97,238,.02); }
+    tr:hover td { background: rgba(224,90,51,.02); }
     .badge {
       display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 99px;
       font-size: 11px; font-weight: 700;
     }
     .badge.green  { background: rgba(5,150,105,.1);   color: var(--success); }
     .badge.red    { background: rgba(239,35,60,.1);    color: var(--danger);  }
-    .badge.blue   { background: rgba(67,97,238,.1);    color: var(--primary); }
+    .badge.blue   { background: rgba(224,90,51,.1);    color: var(--primary); }
     .badge.orange { background: rgba(217,119,6,.1);    color: var(--warning); }
 
     /* Buttons */
@@ -203,8 +203,8 @@
     .config-input.invalid { border-color: var(--danger); }
 
     /* Extra badge colors */
-    .badge.purple { background: rgba(139,92,246,.12); color: #7c3aed; }
-    .badge.gray   { background: rgba(100,116,139,.12); color: #64748b; }
+    .badge.purple { background: rgba(204,133,51,.12); color: #CC8533; }
+    .badge.gray   { background: rgba(100,116,139,.12); color: #8C8073; }
 
     @media (max-width: 768px) {
       .sidebar { width: 56px; }
@@ -1340,7 +1340,7 @@ async function loadCryptoDeposits() {
       <td style="font-family:monospace;font-size:11px;">${d.tx_hash ? d.tx_hash.slice(0,12)+'…' : '—'}</td>
       <td><span class="badge ${d.status==='confirmed'||d.status==='completed'?'green':d.status==='pending'?'orange':'red'}">${d.status}</span></td>
       <td>${fmt(d.created_at)}</td>
-      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#4f46e5;color:#fff;" onclick="confirmDeposit(${d.id}, ${parseFloat(d.amount_usd||0).toFixed(4)})">Confirm</button>` : ''}</td>
+      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#E05A33;color:#fff;" onclick="confirmDeposit(${d.id}, ${parseFloat(d.amount_usd||0).toFixed(4)})">Confirm</button>` : ''}</td>
     </tr>`).join('');
 }
 
@@ -1472,7 +1472,7 @@ const EVENT_LABELS = {
   'feature.captions':'Captions','feature.waiting_room':'Waiting Room',
   'feature.blur':'Background Effects',
 };
-const AN_COLORS = ['#4f46e5','#7b2fff','#059669','#d97706','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f59e0b'];
+const AN_COLORS = ['#E05A33','#CC8533','#059669','#d97706','#ef4444','#0ea5e9','#CC8533','#ec4899','#14b8a6','#f59e0b'];
 
 async function loadAnEvents() {
   try {

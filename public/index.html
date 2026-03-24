@@ -18,10 +18,10 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --primary: #4f46e5; --primary-hover: #3451d1; --primary-light: #eef0fd;
-      --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9; --surface3: #e2e8f0;
-      --text: #0f172a; --text-muted: #64748b; --text-xmuted: #94a3b8;
-      --border: #e2e8f0; --border-light: #f1f5f9;
+      --primary: #E05A33; --primary-hover: #C94D2B; --primary-light: #FDF5F2;
+      --bg: #FAF8F6; --surface: #ffffff; --surface2: #F5F1EB; --surface3: #E9E4DD;
+      --text: #2B2318; --text-muted: #64748b; --text-xmuted: #94a3b8;
+      --border: #E9E4DD; --border-light: #F5F1EB;
       --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
       --radius: 16px; --radius-sm: 10px; --radius-xs: 6px;
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -120,7 +120,7 @@
       content: '';
       position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
       width: 900px; height: 900px; border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(67,97,238,0.12) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(224,90,51,0.12) 0%, transparent 70%);
     }
     .hero-bg::after {
       content: '';
@@ -158,7 +158,7 @@
     .hero-badge {
       display: inline-flex; align-items: center; gap: 7px;
       background: var(--primary-light); color: var(--primary);
-      border: 1px solid rgba(67,97,238,0.25); border-radius: 99px;
+      border: 1px solid rgba(224,90,51,0.25); border-radius: 99px;
       padding: 5px 16px; font-size: 13px; font-weight: 600;
       margin-bottom: 32px; animation: fadeUp 0.5s ease both;
     }
@@ -169,7 +169,7 @@
       line-height: 1.05; letter-spacing: -0.04em; color: var(--text);
       margin-bottom: 24px; animation: fadeUp 0.5s 0.05s ease both;
     }
-    .hero h1 .grad { background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero h1 .grad { background: linear-gradient(135deg, var(--primary) 0%, #CC8533 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .hero-sub {
       font-size: clamp(17px, 2.2vw, 21px); color: var(--text-muted); font-weight: 400;
       max-width: 620px; margin: 0 auto 44px; line-height: 1.65;
@@ -181,10 +181,10 @@
       background: var(--primary); color: white;
       font-size: 16px; font-weight: 700;
       padding: 15px 30px; border-radius: var(--radius-sm);
-      box-shadow: 0 4px 20px rgba(67,97,238,0.45);
+      box-shadow: 0 4px 20px rgba(224,90,51,0.45);
       transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
     }
-    .btn-hero-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(67,97,238,0.55); }
+    .btn-hero-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(224,90,51,0.55); }
     .btn-hero-secondary {
       display: flex; align-items: center; gap: 9px;
       background: var(--surface); color: var(--text);
@@ -206,7 +206,7 @@
     .preview-glow {
       position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
       width: 70%; height: 80px;
-      background: rgba(67,97,238,0.25); filter: blur(40px); border-radius: 50%;
+      background: rgba(224,90,51,0.25); filter: blur(40px); border-radius: 50%;
     }
     .preview-card {
       background: #0d1117; border-radius: 18px; overflow: hidden;
@@ -239,11 +239,11 @@
       display: flex; align-items: center; justify-content: center;
       background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
     }
-    .preview-tile.speaking { box-shadow: 0 0 0 2.5px #4f46e5; }
+    .preview-tile.speaking { box-shadow: 0 0 0 2.5px #E05A33; }
     .p-avatar { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: white; }
     .p-name { position: absolute; bottom: 8px; left: 10px; background: rgba(0,0,0,0.7); color: white; font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 5px; backdrop-filter: blur(4px); }
     .p-muted { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; background: rgba(239,68,68,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-    .p-speaking-indicator { position: absolute; top: 8px; left: 10px; background: rgba(67,97,238,0.9); border-radius: 5px; padding: 2px 8px; font-size: 10px; color: white; font-weight: 600; }
+    .p-speaking-indicator { position: absolute; top: 8px; left: 10px; background: rgba(224,90,51,0.9); border-radius: 5px; padding: 2px 8px; font-size: 10px; color: white; font-weight: 600; }
     .preview-sidebar {
       background: #161b22; width: 220px; border-left: 1px solid rgba(255,255,255,0.06);
       padding: 12px; display: flex; flex-direction: column; gap: 6px;
@@ -266,7 +266,7 @@
     }
     .ctrl-btn:hover { background: rgba(255,255,255,0.14); }
     .ctrl-btn.danger { background: #ef4444; border-color: #ef4444; }
-    .ctrl-btn.active { background: rgba(67,97,238,0.4); border-color: rgba(67,97,238,0.6); }
+    .ctrl-btn.active { background: rgba(224,90,51,0.4); border-color: rgba(224,90,51,0.6); }
     .ctrl-reactions { display: flex; gap: 4px; align-items: center; }
     .ctrl-reaction { font-size: 16px; cursor: pointer; transition: transform 0.2s; }
     .ctrl-reaction:hover { transform: scale(1.3); }
@@ -307,7 +307,7 @@
       transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
       box-shadow: var(--shadow-sm);
     }
-    .feat-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: rgba(67,97,238,0.2); }
+    .feat-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: rgba(224,90,51,0.2); }
     .feat-icon {
       width: 48px; height: 48px; border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
@@ -323,7 +323,7 @@
     .steps-grid::before {
       content: '';
       position: absolute; top: 28px; left: calc(16.67% + 28px); right: calc(16.67% + 28px);
-      height: 2px; background: linear-gradient(90deg, var(--primary), #7c3aed);
+      height: 2px; background: linear-gradient(90deg, var(--primary), #CC8533);
       border-radius: 2px;
     }
     @media (max-width: 640px) { .steps-grid::before { display: none; } }
@@ -334,7 +334,7 @@
       font-size: 20px; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
       margin: 0 auto 20px; position: relative; z-index: 1;
-      box-shadow: 0 4px 16px rgba(67,97,238,0.4);
+      box-shadow: 0 4px 16px rgba(224,90,51,0.4);
     }
     .step-item h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
     .step-item p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
@@ -351,7 +351,7 @@
     .split-bullets { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
     .split-bullets li { display: flex; align-items: flex-start; gap: 12px; font-size: 15px; color: var(--text-muted); }
     .split-bullets li::before { content: '✓'; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(16,185,129,0.1); color: var(--success); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-    .feat-highlight { display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(67,97,238,0.06); border: 1px solid rgba(67,97,238,0.15); border-radius: 12px; margin-top: 24px; }
+    .feat-highlight { display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(224,90,51,0.06); border: 1px solid rgba(224,90,51,0.15); border-radius: 12px; margin-top: 24px; }
     .feat-highlight-icon { font-size: 28px; }
     .feat-highlight h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
     .feat-highlight p { font-size: 13px; color: var(--text-muted); }
@@ -359,7 +359,7 @@
     /* ─── Code section ─── */
     .code-tabs { display: flex; gap: 4px; padding: 12px 16px; background: #161b22; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .code-tab { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #8b949e; transition: background 0.15s, color 0.15s; }
-    .code-tab.active { background: rgba(67,97,238,0.3); color: #79b8ff; }
+    .code-tab.active { background: rgba(224,90,51,0.3); color: #79b8ff; }
     .code-body { padding: 24px; overflow-x: auto; }
     .code-body pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 13px; line-height: 1.75; }
     .c-comment { color: #6e7681; }
@@ -385,11 +385,11 @@
     .pricing-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
     .pricing-card.featured {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(67,97,238,0.12), var(--shadow);
+      box-shadow: 0 0 0 3px rgba(224,90,51,0.12), var(--shadow);
     }
     .pricing-pop {
       position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      background: linear-gradient(135deg, var(--primary), #CC8533);
       color: white; font-size: 11px; font-weight: 700;
       padding: 4px 16px; border-radius: 99px; white-space: nowrap;
     }
@@ -413,7 +413,7 @@
 
     /* ─── Company highlight ─── */
     .company-section {
-      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      background: linear-gradient(135deg, #2B2318 0%, #2B1F1A 100%);
       color: white; border-radius: 24px; overflow: hidden;
       padding: 72px; position: relative;
     }
@@ -422,7 +422,7 @@
       content: '';
       position: absolute; top: -100px; right: -100px;
       width: 400px; height: 400px; border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(124,58,237,0.3) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(204,133,51,0.3) 0%, transparent 70%);
     }
     .company-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; position: relative; }
     @media (max-width: 768px) { .company-grid { grid-template-columns: 1fr; gap: 40px; } }
@@ -432,7 +432,7 @@
     .company-features { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
     .company-feat { display: flex; align-items: center; gap: 12px; font-size: 15px; color: rgba(255,255,255,0.85); }
     .company-feat-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-    .btn-company { display: inline-flex; align-items: center; gap: 8px; background: white; color: #1e1b4b; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: var(--radius-xs); transition: opacity 0.15s, transform 0.15s; }
+    .btn-company { display: inline-flex; align-items: center; gap: 8px; background: white; color: #2B1F1A; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: var(--radius-xs); transition: opacity 0.15s, transform 0.15s; }
     .btn-company:hover { opacity: 0.92; transform: translateY(-1px); }
     .company-cards { display: flex; flex-direction: column; gap: 14px; }
     .company-mini-card {
@@ -461,7 +461,7 @@
       font-size: 14px; outline: none; font-family: inherit;
       transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
     }
-    .form-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(67,97,238,0.1); }
+    .form-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(224,90,51,0.1); }
     .btn-full {
       width: 100%; padding: 14px; background: var(--primary); color: white;
       border-radius: var(--radius-xs); font-size: 15px; font-weight: 700;
@@ -485,7 +485,7 @@
     /* ─── CTA banner ─── */
     .cta-section { padding: 96px 0; }
     .cta-inner {
-      background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, #CC8533 100%);
       border-radius: 24px; padding: 72px; text-align: center;
       color: white; position: relative; overflow: hidden;
     }
@@ -538,7 +538,7 @@
     .mode-btn:hover { color: var(--text); }
     .mode-btn.active {
       background: var(--primary); color: white;
-      box-shadow: 0 2px 12px rgba(79,70,229,0.35);
+      box-shadow: 0 2px 12px rgba(224,90,51,0.35);
     }
     .mode-btn svg { width: 16px; height: 16px; }
 
@@ -567,7 +567,7 @@
     }
     .terminal-body { padding: 28px 24px; font-family: 'SF Mono','Fira Code','Cascadia Code',monospace; font-size: 13px; line-height: 1.9; }
     .terminal-line { display: flex; gap: 8px; }
-    .terminal-prompt { color: #7c3aed; font-weight: 600; user-select: none; }
+    .terminal-prompt { color: #CC8533; font-weight: 600; user-select: none; }
     .terminal-cmd { color: #c9d1d9; }
     .terminal-output { color: #8b949e; padding-left: 18px; }
     .terminal-success { color: #3fb950; }
@@ -584,7 +584,7 @@
       transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
       box-shadow: var(--shadow-sm);
     }
-    .dev-feat-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: rgba(124,58,237,0.25); }
+    .dev-feat-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: rgba(204,133,51,0.25); }
     .dev-feat-card .feat-icon { margin-bottom: 16px; }
     .dev-feat-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
     .dev-feat-card p { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
@@ -603,7 +603,7 @@
     .dev-step-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
     .dev-step-num {
       width: 32px; height: 32px; border-radius: 8px;
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      background: linear-gradient(135deg, var(--primary), #CC8533);
       color: white; font-size: 14px; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
       margin-bottom: 14px;
@@ -685,14 +685,14 @@
 
     <!-- DEVELOPERS MODE: Hero -->
     <div class="mode-content" data-mode="developers">
-      <div class="hero-badge" style="background:rgba(124,58,237,0.1);color:#7c3aed;border-color:rgba(124,58,237,0.25);">
-        <div class="hero-badge-dot" style="background:#7c3aed;"></div>
+      <div class="hero-badge" style="background:rgba(204,133,51,0.1);color:#CC8533;border-color:rgba(204,133,51,0.25);">
+        <div class="hero-badge-dot" style="background:#CC8533;"></div>
         REST API + Socket.IO + Agent-ready
       </div>
-      <h1 class="hero">Build on <span class="grad" style="background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);-webkit-background-clip:text;background-clip:text;">video meetings</span><br>with a single API call</h1>
+      <h1 class="hero">Build on <span class="grad" style="background:linear-gradient(135deg,#CC8533 0%,#E05A33 100%);-webkit-background-clip:text;background-clip:text;">video meetings</span><br>with a single API call</h1>
       <p class="hero-sub">Create meetings, join as a bot, send messages, react, and listen — all programmatically. Perfect for AI agents, automations, and custom integrations.</p>
       <div class="hero-actions">
-        <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#7c3aed;box-shadow:0 4px 20px rgba(124,58,237,0.45);position:relative;">
+        <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#CC8533;box-shadow:0 4px 20px rgba(204,133,51,0.45);position:relative;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Read API docs
           <span class="ch-wrap ch-wrap--cursor" style="right:-8px;bottom:-20px;">
@@ -723,7 +723,7 @@
           <div style="flex:1;">
             <div class="preview-grid">
               <div class="preview-tile speaking">
-                <div class="p-avatar" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);">A</div>
+                <div class="p-avatar" style="background:linear-gradient(135deg,#E05A33,#CC8533);">A</div>
                 <div class="p-speaking-indicator">Speaking</div>
                 <div class="p-name">Alex Chen · Host</div>
               </div>
@@ -784,7 +784,7 @@
     <!-- DEVELOPERS MODE: Terminal preview -->
     <div class="mode-content" data-mode="developers">
     <div class="terminal-preview">
-      <div class="preview-glow" style="background:rgba(124,58,237,0.25);"></div>
+      <div class="preview-glow" style="background:rgba(204,133,51,0.25);"></div>
       <div class="terminal-card">
         <div class="preview-topbar">
           <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
@@ -875,7 +875,7 @@
     <div class="features-grid">
 
       <div class="feat-card">
-        <div class="feat-icon" style="background:#eef0fd;color:#4f46e5;">
+        <div class="feat-icon" style="background:#FDF5F2;color:#E05A33;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
         </div>
         <h3>HD Video &amp; Audio</h3>
@@ -900,7 +900,7 @@
       </div>
 
       <div class="feat-card">
-        <div class="feat-icon" style="background:#fdf4ff;color:#a855f7;">
+        <div class="feat-icon" style="background:#FDF5F2;color:#a855f7;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
         <h3>Live Chat &amp; Reactions</h3>
@@ -933,21 +933,21 @@
       </div>
 
       <div class="feat-card">
-        <div class="feat-icon" style="background:#eef0fd;color:#4f46e5;">
+        <div class="feat-icon" style="background:#FDF5F2;color:#E05A33;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
         <h3>Company Accounts</h3>
         <p>Create a workspace and invite your whole team. Manage shared credits, centralized billing, and API keys from one dashboard.</p>
-        <span class="feat-tag" style="background:#eef0fd;color:#4f46e5;">Team billing</span>
+        <span class="feat-tag" style="background:#FDF5F2;color:#E05A33;">Team billing</span>
       </div>
 
       <div class="feat-card">
-        <div class="feat-icon" style="background:#fdf4ff;color:#9333ea;">
+        <div class="feat-icon" style="background:#FDF5F2;color:#9333ea;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </div>
         <h3>Full Developer API</h3>
         <p>REST API + Socket.IO for building bots, automating meetings, and integrating with your tools. API key management built-in.</p>
-        <span class="feat-tag" style="background:#fdf4ff;color:#7c3aed;">REST + WS</span>
+        <span class="feat-tag" style="background:#FDF5F2;color:#CC8533;">REST + WS</span>
       </div>
 
     </div>
@@ -956,19 +956,19 @@
     <!-- DEVELOPERS MODE: Features -->
     <div class="mode-content" data-mode="developers">
     <div class="section-center">
-      <div class="section-label" style="color:#7c3aed;">Developer toolkit</div>
+      <div class="section-label" style="color:#CC8533;">Developer toolkit</div>
       <h2 class="section-title">Everything you need to integrate</h2>
       <p class="section-sub">A complete API for building meeting bots, AI agents, workflow automations, and custom video experiences.</p>
     </div>
     <div class="features-grid" style="margin-top:56px;">
 
       <div class="dev-feat-card">
-        <div class="feat-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed;">
+        <div class="feat-icon" style="background:rgba(204,133,51,0.1);color:#CC8533;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </div>
         <h3>REST API</h3>
         <p>Create, list, and manage meetings with standard HTTP endpoints. JSON request/response, API key auth.</p>
-        <span class="feat-tag" style="background:rgba(124,58,237,0.1);color:#7c3aed;">POST /api/meetings</span>
+        <span class="feat-tag" style="background:rgba(204,133,51,0.1);color:#CC8533;">POST /api/meetings</span>
       </div>
 
       <div class="dev-feat-card">
@@ -990,12 +990,12 @@
       </div>
 
       <div class="dev-feat-card">
-        <div class="feat-icon" style="background:rgba(79,70,229,0.1);color:#4f46e5;">
+        <div class="feat-icon" style="background:rgba(224,90,51,0.1);color:#E05A33;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         </div>
         <h3>API Key Management</h3>
         <p>Generate up to 5 keys per company. Track usage, rotate keys, and label them for different environments.</p>
-        <span class="feat-tag" style="background:rgba(79,70,229,0.1);color:#4f46e5;">x-api-key</span>
+        <span class="feat-tag" style="background:rgba(224,90,51,0.1);color:#E05A33;">x-api-key</span>
       </div>
 
       <div class="dev-feat-card">
@@ -1022,7 +1022,7 @@
         </div>
         <h3>Webhooks</h3>
         <p>Get notified when meetings start, end, or participants join. Integrate with Slack, Zapier, or your own backend.</p>
-        <span class="feat-tag" style="background:rgba(168,85,247,0.1);color:#7c3aed;">Event-driven</span>
+        <span class="feat-tag" style="background:rgba(168,85,247,0.1);color:#CC8533;">Event-driven</span>
       </div>
 
       <div class="dev-feat-card">
@@ -1035,12 +1035,12 @@
       </div>
 
       <div class="dev-feat-card">
-        <div class="feat-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed;">
+        <div class="feat-icon" style="background:rgba(204,133,51,0.1);color:#CC8533;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </div>
         <h3>Self-Hosted Option</h3>
         <p>Deploy on your own infrastructure with Docker. Full control over data, no vendor lock-in, same API surface.</p>
-        <span class="feat-tag" style="background:rgba(124,58,237,0.1);color:#7c3aed;">Docker</span>
+        <span class="feat-tag" style="background:rgba(204,133,51,0.1);color:#CC8533;">Docker</span>
       </div>
 
     </div>
@@ -1083,7 +1083,7 @@
     <!-- DEVELOPERS MODE: How it works -->
     <div class="mode-content" data-mode="developers">
     <div class="section-center">
-      <div class="section-label" style="color:#7c3aed;">Quick start</div>
+      <div class="section-label" style="color:#CC8533;">Quick start</div>
       <h2 class="section-title">Integrate in 4 steps</h2>
       <p class="section-sub">From zero to a working meeting bot in under 5 minutes. No SDKs to install — just HTTP and WebSockets.</p>
     </div>
@@ -1148,11 +1148,11 @@
         </div>
         <div style="padding:14px;background:#0d1117;">
           <!-- Main spotlighted participant -->
-          <div style="background:linear-gradient(135deg,#1e1b4b,#0d1117);border-radius:12px;padding:40px 20px;text-align:center;margin-bottom:10px;border:2px solid #4f46e5;">
-            <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:white;margin:0 auto 12px;">A</div>
+          <div style="background:linear-gradient(135deg,#2B1F1A,#0d1117);border-radius:12px;padding:40px 20px;text-align:center;margin-bottom:10px;border:2px solid #E05A33;">
+            <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#E05A33,#CC8533);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:white;margin:0 auto 12px;">A</div>
             <div style="font-size:13px;color:#c9d1d9;font-weight:600;">Alex Chen</div>
-            <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:rgba(67,97,238,0.2);border-radius:99px;padding:4px 12px;">
-              <div style="width:7px;height:7px;border-radius:50%;background:#4f46e5;animation:pulse 1.5s infinite;"></div>
+            <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:rgba(224,90,51,0.2);border-radius:99px;padding:4px 12px;">
+              <div style="width:7px;height:7px;border-radius:50%;background:#E05A33;animation:pulse 1.5s infinite;"></div>
               <span style="font-size:11px;color:#79b8ff;font-weight:600;">Speaking — Spotlighted</span>
             </div>
           </div>
@@ -1543,7 +1543,7 @@
 function showToast(msg, type) {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
-  t.style.cssText = `background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.08);min-width:220px;display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;border-left:3px solid ${type === 'error' ? '#ef4444' : '#10b981'};font-family:Inter,-apple-system,sans-serif;`;
+  t.style.cssText = `background:#fff;border:1px solid #E9E4DD;border-radius:8px;padding:12px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.08);min-width:220px;display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;border-left:3px solid ${type === 'error' ? '#ef4444' : '#10b981'};font-family:Inter,-apple-system,sans-serif;`;
   const icon = document.createElement('span');
   icon.textContent = type === 'error' ? '✗' : '✓';
   const text = document.createElement('span');

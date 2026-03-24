@@ -2,7 +2,14 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-24T16:00:00+01:00
+## [1.0.0] — 2026-03-24T20:25:00+01:00
+
+### Changed
+- **UI**: Complete design system overhaul — migrated from indigo (#4f46e5) to warm coral (#E05A33) palette across all pages, styles.css, and favicon
+- **UI**: Updated light mode: warm backgrounds (#FAF8F6), warm borders (#E9E4DD), warm text (#2B2318), coral primary, amber secondary (#CC8533)
+- **UI**: Updated dark mode: warm dark backgrounds (#171311), coral primary (#E8694A), warm muted tones
+- **UI**: Updated border-radius from 12px to 0.5rem (8px) for more compact feel
+- **UI**: ClickHint animations now loop infinitely instead of playing once
 
 ### Added
 - **UI**: Animated ClickHint indicators on primary CTA buttons across all pages (index, register, dashboard, admin-login, reset) — cursor and finger-tap SVGs with ripple/glow animations guide users to key actions
