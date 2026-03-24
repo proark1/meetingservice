@@ -35,6 +35,79 @@
     button { cursor: pointer; font-family: inherit; border: none; }
     img { display: block; max-width: 100%; }
 
+    /* ─── Click Hint ─── */
+    .ch-wrap {
+      position: absolute; pointer-events: none; z-index: 10;
+      animation: chLife 4.5s cubic-bezier(0.4,0,0.2,1) forwards;
+    }
+    .ch-wrap--cursor .ch-icon { animation: chCursorMove 4.5s cubic-bezier(0.33,1,0.68,1) forwards; }
+    .ch-wrap--finger .ch-icon { animation: chFingerTap 4.5s cubic-bezier(0.33,1,0.68,1) forwards; }
+    .ch-ripple1 {
+      position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.7); opacity: 0;
+      animation: chRipple1 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+    }
+    .ch-ripple2 {
+      position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.5); opacity: 0;
+      animation: chRipple2 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+    }
+    .ch-glow {
+      position: absolute; top: 0; left: 0; width: 32px; height: 32px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+      opacity: 0; animation: chGlow 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+    }
+    .ch-icon {
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(255,255,255,0.3));
+    }
+    @keyframes chLife {
+      0% { opacity: 0; transform: scale(0.8); }
+      6% { opacity: 1; transform: scale(1); }
+      82% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.9); }
+    }
+    @keyframes chCursorMove {
+      0%, 6% { transform: translate(0, 0) rotate(0deg); }
+      18% { transform: translate(3px, 4px) rotate(-2deg); }
+      28% { transform: translate(5px, 7px) rotate(0deg); }
+      36% { transform: translate(6px, 10px) rotate(1deg); }
+      42% { transform: translate(6px, 14px) rotate(0deg); }
+      48% { transform: translate(6px, 10px) rotate(-1deg); }
+      58% { transform: translate(6px, 14px) rotate(0deg); }
+      65% { transform: translate(6px, 10px) rotate(1deg); }
+      100% { transform: translate(6px, 10px) rotate(0deg); }
+    }
+    @keyframes chFingerTap {
+      0%, 6% { transform: translate(0, 0) scale(1) rotate(0deg); }
+      20% { transform: translate(3px, 5px) scale(1) rotate(-3deg); }
+      32% { transform: translate(4px, 8px) scale(1) rotate(0deg); }
+      40% { transform: translate(4px, 13px) scale(0.82) rotate(2deg); }
+      48% { transform: translate(4px, 8px) scale(1) rotate(0deg); }
+      58% { transform: translate(4px, 13px) scale(0.82) rotate(2deg); }
+      66% { transform: translate(4px, 8px) scale(1) rotate(-1deg); }
+      100% { transform: translate(4px, 8px) scale(1) rotate(0deg); }
+    }
+    @keyframes chRipple1 {
+      0%, 38% { transform: translate(4px, 8px) scale(0); opacity: 0; }
+      42% { transform: translate(4px, 8px) scale(0.6); opacity: 0.7; }
+      52% { transform: translate(4px, 8px) scale(2.8); opacity: 0; }
+      56%, 100% { transform: translate(4px, 8px) scale(0); opacity: 0; }
+    }
+    @keyframes chRipple2 {
+      0%, 42% { transform: translate(4px, 8px) scale(0); opacity: 0; }
+      46% { transform: translate(4px, 8px) scale(0.4); opacity: 0.6; }
+      58% { transform: translate(4px, 8px) scale(3.2); opacity: 0; }
+      62%, 100% { transform: translate(4px, 8px) scale(0); opacity: 0; }
+    }
+    @keyframes chGlow {
+      0%, 36% { transform: translate(2px, 6px) scale(0); opacity: 0; }
+      40% { transform: translate(2px, 6px) scale(1.5); opacity: 0.9; }
+      48% { transform: translate(2px, 6px) scale(0.8); opacity: 0.4; }
+      54% { transform: translate(2px, 6px) scale(1.8); opacity: 0.7; }
+      62% { transform: translate(2px, 6px) scale(0.5); opacity: 0; }
+      100% { transform: translate(2px, 6px) scale(0); opacity: 0; }
+    }
+
     /* ─── Utility ─── */
     .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
@@ -559,7 +632,12 @@
     </nav>
     <div class="nav-actions">
       <button class="btn-ghost" onclick="location.href='/dashboard'">Sign in</button>
-      <button class="btn-primary" onclick="location.href='/register'">Get started free →</button>
+      <button class="btn-primary" onclick="location.href='/register'" style="position:relative;">Get started free →
+        <span class="ch-wrap ch-wrap--finger" style="right:-10px;bottom:-18px;">
+          <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
+          <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+        </span>
+      </button>
     </div>
   </div>
 </nav>
@@ -590,9 +668,13 @@
       <h1 class="hero">Video meetings built<br>for <span class="grad">modern teams</span></h1>
       <p class="hero-sub">Crystal-clear WebRTC video, screen sharing, live chat, and a full developer API. Self-hosted or cloud — yours to own.</p>
       <div class="hero-actions">
-        <button class="btn-hero-primary" onclick="document.getElementById('start-form').scrollIntoView({behavior:'smooth'})">
+        <button class="btn-hero-primary" onclick="document.getElementById('start-form').scrollIntoView({behavior:'smooth'})" style="position:relative;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
           Start a meeting now
+          <span class="ch-wrap ch-wrap--cursor" style="right:-8px;bottom:-20px;">
+            <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l8 24 3-9 9-3z"/></svg>
+            <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+          </span>
         </button>
         <button class="btn-hero-secondary" onclick="location.href='/register'">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
@@ -610,9 +692,13 @@
       <h1 class="hero">Build on <span class="grad" style="background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);-webkit-background-clip:text;background-clip:text;">video meetings</span><br>with a single API call</h1>
       <p class="hero-sub">Create meetings, join as a bot, send messages, react, and listen — all programmatically. Perfect for AI agents, automations, and custom integrations.</p>
       <div class="hero-actions">
-        <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#7c3aed;box-shadow:0 4px 20px rgba(124,58,237,0.45);">
+        <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#7c3aed;box-shadow:0 4px 20px rgba(124,58,237,0.45);position:relative;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Read API docs
+          <span class="ch-wrap ch-wrap--cursor" style="right:-8px;bottom:-20px;">
+            <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l8 24 3-9 9-3z"/></svg>
+            <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+          </span>
         </button>
         <button class="btn-hero-secondary" onclick="location.href='/register'">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
@@ -1176,7 +1262,12 @@
           <li><div class="check-icon">✓</div> 1 API key</li>
           <li><div class="x-icon">✗</div> <span style="color:var(--text-muted);">Company workspace</span></li>
         </ul>
-        <button class="pricing-btn p-outline" onclick="location.href='/register'">Get started free</button>
+        <button class="pricing-btn p-outline" onclick="location.href='/register'" style="position:relative;">Get started free
+          <span class="ch-wrap ch-wrap--finger" style="right:-6px;bottom:-16px;">
+            <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
+            <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+          </span>
+        </button>
       </div>
 
       <div class="pricing-card featured">
@@ -1194,7 +1285,12 @@
           <li><div class="check-icon">✓</div> Pay with card or USDC</li>
           <li><div class="check-icon">✓</div> Billing history &amp; audit log</li>
         </ul>
-        <button class="pricing-btn p-primary" onclick="location.href='/register?type=company'">Create company →</button>
+        <button class="pricing-btn p-primary" onclick="location.href='/register?type=company'" style="position:relative;">Create company →
+          <span class="ch-wrap ch-wrap--cursor" style="right:-8px;bottom:-18px;">
+            <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l8 24 3-9 9-3z"/></svg>
+            <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+          </span>
+        </button>
       </div>
 
       <div class="pricing-card">
@@ -1303,8 +1399,12 @@
         <label>Your name *</label>
         <input type="text" id="hostName" class="form-input" placeholder="Your display name">
       </div>
-      <button class="btn-full" id="createBtn">
+      <button class="btn-full" id="createBtn" style="position:relative;">
         Start meeting →
+        <span class="ch-wrap ch-wrap--finger" style="right:10px;bottom:-16px;">
+          <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
+          <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+        </span>
       </button>
       <div class="divider-text">or join with a code</div>
       <div class="form-group">

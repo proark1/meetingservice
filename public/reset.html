@@ -52,6 +52,34 @@
     .bottom-link { text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-muted); }
     .bottom-link a { color: var(--primary); font-weight: 600; }
     #invalidState { display: none; }
+
+    /* Click Hint */
+    .ch-wrap {
+      position: absolute; pointer-events: none; z-index: 10;
+      animation: chLife 4.5s cubic-bezier(0.4,0,0.2,1) forwards;
+    }
+    .ch-wrap--finger .ch-icon { animation: chFingerTap 4.5s cubic-bezier(0.33,1,0.68,1) forwards; }
+    .ch-ripple1 {
+      position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.7); opacity: 0;
+      animation: chRipple1 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+    }
+    .ch-ripple2 {
+      position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.5); opacity: 0;
+      animation: chRipple2 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+    }
+    .ch-glow {
+      position: absolute; top: 0; left: 0; width: 32px; height: 32px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+      opacity: 0; animation: chGlow 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+    }
+    .ch-icon { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(255,255,255,0.3)); }
+    @keyframes chLife { 0%{opacity:0;transform:scale(0.8)} 6%{opacity:1;transform:scale(1)} 82%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(0.9)} }
+    @keyframes chFingerTap { 0%,6%{transform:translate(0,0) scale(1) rotate(0)} 20%{transform:translate(3px,5px) scale(1) rotate(-3deg)} 32%{transform:translate(4px,8px) scale(1) rotate(0)} 40%{transform:translate(4px,13px) scale(0.82) rotate(2deg)} 48%{transform:translate(4px,8px) scale(1) rotate(0)} 58%{transform:translate(4px,13px) scale(0.82) rotate(2deg)} 66%{transform:translate(4px,8px) scale(1) rotate(-1deg)} 100%{transform:translate(4px,8px) scale(1) rotate(0)} }
+    @keyframes chRipple1 { 0%,38%{transform:translate(4px,8px) scale(0);opacity:0} 42%{transform:translate(4px,8px) scale(0.6);opacity:0.7} 52%{transform:translate(4px,8px) scale(2.8);opacity:0} 56%,100%{transform:translate(4px,8px) scale(0);opacity:0} }
+    @keyframes chRipple2 { 0%,42%{transform:translate(4px,8px) scale(0);opacity:0} 46%{transform:translate(4px,8px) scale(0.4);opacity:0.6} 58%{transform:translate(4px,8px) scale(3.2);opacity:0} 62%,100%{transform:translate(4px,8px) scale(0);opacity:0} }
+    @keyframes chGlow { 0%,36%{transform:translate(2px,6px) scale(0);opacity:0} 40%{transform:translate(2px,6px) scale(1.5);opacity:0.9} 48%{transform:translate(2px,6px) scale(0.8);opacity:0.4} 54%{transform:translate(2px,6px) scale(1.8);opacity:0.7} 62%{transform:translate(2px,6px) scale(0.5);opacity:0} 100%{transform:translate(2px,6px) scale(0);opacity:0} }
   </style>
 </head>
 <body>
@@ -75,7 +103,12 @@
       <label for="confirmPassword">Confirm password</label>
       <input type="password" id="confirmPassword" placeholder="Repeat password" autocomplete="new-password">
       <div class="msg error" id="errMsg"></div>
-      <button class="btn" id="submitBtn" onclick="doReset()">Set new password →</button>
+      <button class="btn" id="submitBtn" onclick="doReset()" style="position:relative;">Set new password →
+        <span class="ch-wrap ch-wrap--finger" style="right:10px;bottom:-16px;">
+          <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
+          <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
+        </span>
+      </button>
     </div>
   </div>
   <div class="bottom-link"><a href="/dashboard">← Back to sign in</a></div>

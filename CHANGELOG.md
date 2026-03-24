@@ -2,7 +2,10 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-24T12:00:00+01:00
+## [1.0.0] — 2026-03-24T16:00:00+01:00
+
+### Added
+- **UI**: Animated ClickHint indicators on primary CTA buttons across all pages (index, register, dashboard, admin-login, reset) — cursor and finger-tap SVGs with ripple/glow animations guide users to key actions
 
 ### Fixed
 - **Security**: Disabled Helmet's `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` headers that were causing `ERR_BLOCKED_BY_RESPONSE` when accessing the site
