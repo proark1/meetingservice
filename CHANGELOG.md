@@ -2,7 +2,18 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-24T16:00:00+01:00
+## [1.0.0] — 2026-03-24T21:30:00+01:00
+
+### Changed
+- **UI**: Complete design system overhaul — migrated to dark navy (#1C2340) + warm beige (#EBE3DB) palette inspired by modern SaaS landing pages
+- **UI**: Primary color changed from coral (#E05A33) to dark navy (#1C2340), secondary accent from amber (#CC8533) to blue (#4B6BFB)
+- **UI**: Updated backgrounds: warm beige bg (#EBE3DB), warm surfaces (#F2ECE5), warm borders (#D5CDC4)
+- **UI**: Hero buttons and CTA buttons now use pill-shaped (99px border-radius) design
+- **UI**: Hero badge pills now use filled dark primary background with white text
+- **UI**: Stats numbers use larger 40px bold dark text instead of colored primary
+- **UI**: All pages updated to new palette (index, dashboard, admin, docs, error)
+- **UI**: Updated border-radius from 12px to 0.5rem (8px) for more compact feel
+- **UI**: ClickHint animations now loop infinitely instead of playing once
 
 ### Added
 - **UI**: Animated ClickHint indicators on primary CTA buttons across all pages (index, register, dashboard, admin-login, reset) — cursor and finger-tap SVGs with ripple/glow animations guide users to key actions
