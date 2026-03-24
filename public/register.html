@@ -39,23 +39,23 @@
     /* Click Hint */
     .ch-wrap {
       position: absolute; pointer-events: none; z-index: 10;
-      animation: chLife 4.5s cubic-bezier(0.4,0,0.2,1) forwards;
+      animation: chLife 4.5s cubic-bezier(0.4,0,0.2,1) infinite;
     }
-    .ch-wrap--finger .ch-icon { animation: chFingerTap 4.5s cubic-bezier(0.33,1,0.68,1) forwards; }
+    .ch-wrap--finger .ch-icon { animation: chFingerTap 4.5s cubic-bezier(0.33,1,0.68,1) infinite; }
     .ch-ripple1 {
       position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.7); opacity: 0;
-      animation: chRipple1 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+      animation: chRipple1 4.5s cubic-bezier(0.33,1,0.68,1) infinite;
     }
     .ch-ripple2 {
       position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.5); opacity: 0;
-      animation: chRipple2 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+      animation: chRipple2 4.5s cubic-bezier(0.33,1,0.68,1) infinite;
     }
     .ch-glow {
       position: absolute; top: 0; left: 0; width: 32px; height: 32px; border-radius: 50%;
       background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
-      opacity: 0; animation: chGlow 4.5s cubic-bezier(0.33,1,0.68,1) forwards;
+      opacity: 0; animation: chGlow 4.5s cubic-bezier(0.33,1,0.68,1) infinite;
     }
     .ch-icon { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(255,255,255,0.3)); }
     @keyframes chLife { 0%{opacity:0;transform:scale(0.8)} 6%{opacity:1;transform:scale(1)} 82%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(0.9)} }
