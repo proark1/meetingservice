@@ -2,6 +2,11 @@
 
 All notable changes to onepizza.io are documented in this file.
 
+## [1.0.0] — 2026-03-25
+
+### Fixed
+- **UI**: Landing page navigation buttons (Sign in, Get started free, and all CTA buttons) converted from `<button onclick>` to `<a href>` links — fixes buttons not navigating when clicked
+
 ## [1.0.0] — 2026-03-24T21:30:00+01:00
 
 ### Changed
