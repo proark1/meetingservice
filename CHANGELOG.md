@@ -6,6 +6,7 @@ All notable changes to onepizza.io are documented in this file.
 
 ### Fixed
 - **UI**: Landing page navigation buttons (Sign in, Get started free, and all CTA buttons) converted from `<button onclick>` to `<a href>` links — fixes buttons not navigating when clicked
+- **UI**: Dashboard login button converted from inline `onclick` to form submit event listener — fixes Sign In button not working when clicked; login inputs now wrapped in a `<form>` for native submit behavior
 
 ## [1.0.0] — 2026-03-24T21:30:00+01:00
 
