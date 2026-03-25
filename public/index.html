@@ -144,9 +144,9 @@
     .nav-links a { font-size: 14px; font-weight: 500; color: var(--text-muted); padding: 6px 14px; border-radius: var(--radius-xs); transition: background 0.15s, color 0.15s; }
     .nav-links a:hover { background: var(--surface2); color: var(--text); }
     .nav-actions { display: flex; align-items: center; gap: 8px; margin-left: 20px; }
-    .btn-ghost { font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 8px 16px; border-radius: var(--radius-xs); background: none; transition: color 0.15s, background 0.15s; }
+    .btn-ghost { display: inline-flex; align-items: center; font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 8px 16px; border-radius: var(--radius-xs); background: none; transition: color 0.15s, background 0.15s; cursor: pointer; }
     .btn-ghost:hover { color: var(--text); background: var(--surface2); }
-    .btn-primary { font-size: 14px; font-weight: 700; color: white; background: var(--primary); padding: 9px 20px; border-radius: var(--radius-xs); transition: background 0.15s, transform 0.1s; }
+    .btn-primary { display: inline-flex; align-items: center; font-size: 14px; font-weight: 700; color: white; background: var(--primary); padding: 9px 20px; border-radius: var(--radius-xs); transition: background 0.15s, transform 0.1s; cursor: pointer; }
     .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
     @media (max-width: 768px) { .nav-links { display: none; } }
 
@@ -403,8 +403,8 @@
     .check-icon { width: 18px; height: 18px; border-radius: 50%; background: rgba(16,185,129,0.12); color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
     .x-icon { width: 18px; height: 18px; border-radius: 50%; background: rgba(239,68,68,0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
     .pricing-btn {
-      width: 100%; padding: 13px; border-radius: var(--radius-xs);
-      font-size: 14px; font-weight: 700; transition: all 0.15s;
+      display: block; width: 100%; padding: 13px; border-radius: var(--radius-xs);
+      font-size: 14px; font-weight: 700; transition: all 0.15s; text-align: center; cursor: pointer;
     }
     .pricing-btn.p-primary { background: var(--primary); color: white; }
     .pricing-btn.p-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
@@ -432,7 +432,7 @@
     .company-features { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
     .company-feat { display: flex; align-items: center; gap: 12px; font-size: 15px; color: rgba(255,255,255,0.85); }
     .company-feat-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-    .btn-company { display: inline-flex; align-items: center; gap: 8px; background: white; color: #151B30; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 99px; transition: opacity 0.15s, transform 0.15s; }
+    .btn-company { display: inline-flex; align-items: center; gap: 8px; background: white; color: #151B30; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 99px; transition: opacity 0.15s, transform 0.15s; cursor: pointer; }
     .btn-company:hover { opacity: 0.92; transform: translateY(-1px); }
     .company-cards { display: flex; flex-direction: column; gap: 14px; }
     .company-mini-card {
@@ -631,13 +631,13 @@
       <a href="/docs">API Docs</a>
     </nav>
     <div class="nav-actions">
-      <button class="btn-ghost" onclick="location.href='/dashboard'">Sign in</button>
-      <button class="btn-primary" onclick="location.href='/register'" style="position:relative;">Get started free →
+      <a href="/dashboard" class="btn-ghost">Sign in</a>
+      <a href="/register" class="btn-primary" style="position:relative;">Get started free →
         <span class="ch-wrap ch-wrap--finger" style="right:-10px;bottom:-18px;">
           <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
           <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
         </span>
-      </button>
+      </a>
     </div>
   </div>
 </nav>
@@ -676,10 +676,10 @@
             <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
           </span>
         </button>
-        <button class="btn-hero-secondary" onclick="location.href='/register'">
+        <a href="/register" class="btn-hero-secondary">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
           Create free account
-        </button>
+        </a>
       </div>
     </div>
 
@@ -692,18 +692,18 @@
       <h1 class="hero">Build on <span class="grad" style="background:linear-gradient(135deg,#4B6BFB 0%,#1C2340 100%);-webkit-background-clip:text;background-clip:text;">video meetings</span><br>with a single API call</h1>
       <p class="hero-sub">Create meetings, join as a bot, send messages, react, and listen — all programmatically. Perfect for AI agents, automations, and custom integrations.</p>
       <div class="hero-actions">
-        <button class="btn-hero-primary" onclick="location.href='/docs'" style="background:#4B6BFB;box-shadow:0 4px 20px rgba(75,107,251,0.45);position:relative;">
+        <a href="/docs" class="btn-hero-primary" style="background:#4B6BFB;box-shadow:0 4px 20px rgba(75,107,251,0.45);position:relative;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Read API docs
           <span class="ch-wrap ch-wrap--cursor" style="right:-8px;bottom:-20px;">
             <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l8 24 3-9 9-3z"/></svg>
             <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
           </span>
-        </button>
-        <button class="btn-hero-secondary" onclick="location.href='/register'">
+        </a>
+        <a href="/register" class="btn-hero-secondary">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
           Get your API key
-        </button>
+        </a>
       </div>
     </div>
     </div>
@@ -1195,13 +1195,13 @@
           <li>Company and team management API</li>
         </ul>
         <div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap;">
-          <button class="btn-hero-secondary" onclick="location.href='/docs'" style="display:inline-flex;font-size:14px;padding:11px 22px;">
+          <a href="/docs" class="btn-hero-secondary" style="display:inline-flex;font-size:14px;padding:11px 22px;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             View full API docs
-          </button>
-          <button class="btn-hero-secondary" onclick="location.href='/register'" style="display:inline-flex;font-size:14px;padding:11px 22px;">
+          </a>
+          <a href="/register" class="btn-hero-secondary" style="display:inline-flex;font-size:14px;padding:11px 22px;">
             Get API key →
-          </button>
+          </a>
         </div>
       </div>
       <div class="split-visual">
@@ -1262,12 +1262,12 @@
           <li><div class="check-icon">✓</div> 1 API key</li>
           <li><div class="x-icon">✗</div> <span style="color:var(--text-muted);">Company workspace</span></li>
         </ul>
-        <button class="pricing-btn p-outline" onclick="location.href='/register'" style="position:relative;">Get started free
+        <a href="/register" class="pricing-btn p-outline" style="position:relative;">Get started free
           <span class="ch-wrap ch-wrap--finger" style="right:-6px;bottom:-16px;">
             <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
             <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
           </span>
-        </button>
+        </a>
       </div>
 
       <div class="pricing-card featured">
@@ -1285,12 +1285,12 @@
           <li><div class="check-icon">✓</div> Pay with card or USDC</li>
           <li><div class="check-icon">✓</div> Billing history &amp; audit log</li>
         </ul>
-        <button class="pricing-btn p-primary" onclick="location.href='/register?type=company'" style="position:relative;">Create company →
+        <a href="/register?type=company" class="pricing-btn p-primary" style="position:relative;">Create company →
           <span class="ch-wrap ch-wrap--cursor" style="right:-8px;bottom:-18px;">
             <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l8 24 3-9 9-3z"/></svg>
             <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
           </span>
-        </button>
+        </a>
       </div>
 
       <div class="pricing-card">
@@ -1307,7 +1307,7 @@
           <li><div class="check-icon">✓</div> Company billing API</li>
           <li><div class="check-icon">✓</div> Webhook events</li>
         </ul>
-        <button class="pricing-btn p-outline" onclick="location.href='/docs'">View API docs</button>
+        <a href="/docs" class="pricing-btn p-outline">View API docs</a>
       </div>
 
     </div>
@@ -1341,9 +1341,9 @@
               Pay with Stripe credit card or USDC on-chain — whichever works for your team
             </div>
           </div>
-          <button class="btn-company" onclick="location.href='/register?type=company'">
+          <a href="/register?type=company" class="btn-company">
             Create company account →
-          </button>
+          </a>
         </div>
         <div class="company-cards">
           <div class="company-mini-card">
@@ -1432,8 +1432,8 @@
         <h2>Ready to upgrade your team's meetings?</h2>
         <p>Create a company account and collaborate with centralized billing, shared API keys, and full developer access.</p>
         <div class="cta-actions">
-          <button class="btn-cta-white" onclick="location.href='/register?type=company'">Create company account →</button>
-          <button class="btn-cta-ghost" onclick="location.href='/docs'">Read the API docs</button>
+          <a href="/register?type=company" class="btn-cta-white">Create company account →</a>
+          <a href="/docs" class="btn-cta-ghost">Read the API docs</a>
         </div>
       </div>
       <!-- DEVELOPERS MODE: CTA -->
@@ -1441,8 +1441,8 @@
         <h2>Start building with the API today</h2>
         <p>Get your API key in seconds. Full REST + Socket.IO documentation, code examples in cURL, Node.js, and Python.</p>
         <div class="cta-actions">
-          <button class="btn-cta-white" onclick="location.href='/register'">Get your API key →</button>
-          <button class="btn-cta-ghost" onclick="location.href='/docs'">Explore API docs</button>
+          <a href="/register" class="btn-cta-white">Get your API key →</a>
+          <a href="/docs" class="btn-cta-ghost">Explore API docs</a>
         </div>
       </div>
     </div>
