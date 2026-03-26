@@ -2444,6 +2444,145 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.captions', {});
   });
 
+  // ─── Breakout rooms ────────────────────────────────────────────────────────
+  socket.on('breakout:create', ({ rooms }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    if (!Array.isArray(rooms) || rooms.length < 1 || rooms.length > 20) return;
+    meeting.breakoutRooms = new Map();
+    rooms.forEach((name, i) => {
+      const roomId = `br-${i}`;
+      meeting.breakoutRooms.set(roomId, {
+        id: roomId,
+        name: ((name || `Room ${i + 1}`) + '').slice(0, 60),
+        participants: new Map(),
+      });
+    });
+    io.to(currentMeetingId).emit('breakout:created', {
+      rooms: [...meeting.breakoutRooms.values()].map(r => ({ id: r.id, name: r.name, participantCount: 0 })),
+    });
+    trackEvent(currentUserId, currentCompanyId, 'feature.breakout_rooms', { count: rooms.length });
+  });
+
+  socket.on('breakout:assign', ({ assignments }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    if (!Array.isArray(assignments)) return;
+    // assignments: [{ participantId, roomId }]
+    for (const { participantId: pid, roomId } of assignments) {
+      const target = meeting.participants.get(pid);
+      const room = meeting.breakoutRooms.get(roomId);
+      if (!target || !room) continue;
+      // Remove from previous breakout room
+      for (const [, r] of meeting.breakoutRooms) r.participants.delete(pid);
+      room.participants.set(pid, target);
+      io.to(target.socketId).emit('breakout:assigned', { roomId, roomName: room.name });
+    }
+    // Broadcast updated room list
+    io.to(currentMeetingId).emit('breakout:updated', {
+      rooms: [...meeting.breakoutRooms.values()].map(r => ({
+        id: r.id, name: r.name, participantCount: r.participants.size,
+        participants: [...r.participants.values()].map(pt => ({ id: pt.id, name: pt.name })),
+      })),
+    });
+  });
+
+  socket.on('breakout:join', ({ roomId }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const room = meeting.breakoutRooms.get(roomId);
+    if (!room) return;
+    const breakoutRoomId = `breakout:${currentMeetingId}:${roomId}`;
+    // Leave all other breakout rooms
+    for (const [, r] of meeting.breakoutRooms) {
+      const brId = `breakout:${currentMeetingId}:${r.id}`;
+      socket.leave(brId);
+    }
+    socket.join(breakoutRoomId);
+    // Signal to others in this breakout room
+    socket.to(breakoutRoomId).emit('breakout:participant-joined', {
+      participantId: currentParticipantId, roomId,
+    });
+  });
+
+  socket.on('breakout:leave', () => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    for (const [, r] of meeting.breakoutRooms) {
+      const brId = `breakout:${currentMeetingId}:${r.id}`;
+      socket.leave(brId);
+      socket.to(brId).emit('breakout:participant-left', { participantId: currentParticipantId });
+    }
+  });
+
+  socket.on('breakout:broadcast', ({ message }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    const safeMsg = ((message || '') + '').trim().slice(0, 500);
+    if (!safeMsg) return;
+    // Broadcast to all breakout rooms
+    for (const [, r] of meeting.breakoutRooms) {
+      io.to(`breakout:${currentMeetingId}:${r.id}`).emit('breakout:message', {
+        from: 'Host', text: safeMsg, timestamp: Date.now(),
+      });
+    }
+  });
+
+  socket.on('breakout:close', () => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    // Move everyone back to main room
+    for (const [, r] of meeting.breakoutRooms) {
+      const brId = `breakout:${currentMeetingId}:${r.id}`;
+      io.to(brId).emit('breakout:closed');
+      io.in(brId).socketsLeave(brId);
+    }
+    meeting.breakoutRooms = null;
+    io.to(currentMeetingId).emit('breakout:all-closed');
+  });
+
+  // ─── Live streaming ────────────────────────────────────────────────────────
+  socket.on('stream:start', ({ url }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    const safeUrl = ((url || '') + '').trim().slice(0, 500);
+    if (!safeUrl) return;
+    meeting.isStreaming = true;
+    meeting.streamUrl = safeUrl;
+    meeting.streamingParticipantId = currentParticipantId;
+    io.to(currentMeetingId).emit('stream:started', { hostName: p.name });
+    trackEvent(currentUserId, currentCompanyId, 'feature.live_stream', { started: true });
+  });
+
+  socket.on('stream:stop', () => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    meeting.isStreaming = false;
+    meeting.streamUrl = null;
+    meeting.streamingParticipantId = null;
+    io.to(currentMeetingId).emit('stream:stopped');
+  });
+
   socket.on('disconnect', async () => {
     log('info', 'ws:disconnect', { sid: socket.id, meeting: currentMeetingId || undefined });
     // Clean up rate limiter state

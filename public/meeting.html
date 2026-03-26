@@ -230,6 +230,14 @@
       <span class="more-opt-title">Background effects</span>
       <span class="more-opt-badge hidden" id="moreEffectsBadge">On</span>
     </button>
+    <button class="more-opt hidden" id="moreBreakoutOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg></span>
+      <span class="more-opt-title">Breakout rooms</span>
+    </button>
+    <button class="more-opt hidden" id="moreStreamOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></span>
+      <span class="more-opt-title">Live stream</span>
+    </button>
     <div class="more-panel-sep"></div>
     <button class="more-opt" id="moreDevicesOpt">
       <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
@@ -374,6 +382,72 @@
         <tr><td><kbd>Esc</kbd></td><td>Close panels / exit focus view</td></tr>
       </table>
     </div>
+  </div>
+
+  <!-- Breakout Rooms Modal -->
+  <div id="breakoutModal" class="modal-overlay hidden" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+    <div style="background:var(--surface,#fff);border-radius:16px;padding:24px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;">Breakout Rooms</h3>
+        <button id="closeBreakoutModal" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted);">&#10005;</button>
+      </div>
+      <!-- Create phase -->
+      <div id="breakoutCreate">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Number of rooms</label>
+        <input type="number" id="breakoutCount" value="2" min="2" max="20" style="width:80px;padding:8px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:14px;">
+        <button id="breakoutCreateBtn" style="margin-left:8px;background:var(--primary,#1C2340);color:white;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Create rooms</button>
+        <button id="breakoutRandomBtn" style="margin-left:8px;background:var(--surface2,#F2ECE5);color:var(--text,#1C2340);border:1px solid var(--border,#D5CDC4);padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Assign randomly</button>
+      </div>
+      <!-- Active rooms list -->
+      <div id="breakoutRoomsList" style="margin-top:16px;"></div>
+      <!-- Broadcast message -->
+      <div id="breakoutBroadcast" style="margin-top:16px;display:none;">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="breakoutMsgInput" placeholder="Broadcast message to all rooms…" maxlength="500" style="flex:1;padding:8px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;">
+          <button id="breakoutMsgSend" style="background:var(--primary,#1C2340);color:white;border:none;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Send</button>
+        </div>
+      </div>
+      <!-- Close rooms button -->
+      <div id="breakoutCloseWrap" style="margin-top:16px;display:none;">
+        <button id="breakoutCloseBtn" style="width:100%;background:#ef4444;color:white;border:none;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Close all rooms &amp; return everyone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breakout room active banner -->
+  <div id="breakoutBanner" style="display:none;position:fixed;top:44px;left:50%;transform:translateX(-50%);z-index:9997;background:var(--primary,#1C2340);color:white;padding:8px 20px;border-radius:99px;font-size:13px;font-weight:600;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+    <span id="breakoutBannerText">In: Room 1</span>
+    <button id="breakoutReturnBtn" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Return to main</button>
+  </div>
+
+  <!-- Live Stream Modal -->
+  <div id="streamModal" class="modal-overlay hidden" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+    <div style="background:var(--surface,#fff);border-radius:16px;padding:24px;width:90%;max-width:420px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;">Live Stream</h3>
+        <button id="closeStreamModal" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted);">&#10005;</button>
+      </div>
+      <div id="streamSetup">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">RTMP Stream URL</label>
+        <input type="url" id="streamUrlInput" placeholder="rtmp://live.twitch.tv/app/your-stream-key" style="width:100%;padding:10px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;margin-bottom:12px;box-sizing:border-box;">
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">Enter the RTMP ingest URL from your streaming platform (YouTube Live, Twitch, etc.)</p>
+        <button id="streamStartBtn" style="width:100%;background:var(--primary,#1C2340);color:white;border:none;padding:10px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">Start streaming</button>
+      </div>
+      <div id="streamActive" style="display:none;text-align:center;">
+        <div style="width:48px;height:48px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <div style="width:12px;height:12px;background:#ef4444;border-radius:50%;animation:recPulse 1.5s infinite;"></div>
+        </div>
+        <p style="font-size:15px;font-weight:700;margin-bottom:4px;">Streaming live</p>
+        <p id="streamTimer" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">0:00</p>
+        <button id="streamStopBtn" style="width:100%;background:#ef4444;color:white;border:none;padding:10px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">Stop streaming</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live stream banner -->
+  <div id="streamBanner" style="display:none;position:fixed;top:44px;right:20px;z-index:9997;background:rgba(239,68,68,0.95);color:white;padding:6px 14px;border-radius:99px;font-size:12px;font-weight:600;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+    <div style="width:8px;height:8px;background:white;border-radius:50%;animation:recPulse 1.5s infinite;"></div>
+    LIVE
   </div>
 
 </div><!-- end meeting-container -->
@@ -2151,10 +2225,12 @@ function updateControlButtons() {
   }
   (UI.moreEffectsOpt || $('#moreEffectsOpt'))?.classList.toggle('active', effectsOn);
 
-  // Lock in More panel (admin only)
+  // Lock, breakout rooms, and live stream in More panel (admin only)
   const moreLockOpt = UI.moreLockOpt || $('#moreLockOpt');
   if (moreLockOpt) {
     moreLockOpt.classList.toggle('hidden', !isAdmin);
+  document.getElementById('moreBreakoutOpt')?.classList.toggle('hidden', !isAdmin);
+  document.getElementById('moreStreamOpt')?.classList.toggle('hidden', !isAdmin);
     const moreLockTitle = UI.moreLockTitle || $('#moreLockTitle');
     if (moreLockTitle) moreLockTitle.textContent = isLocked ? 'Unlock meeting' : 'Lock meeting';
     const lockIconEl = UI.moreLockIcon || $('#moreLockIcon');
@@ -2713,6 +2789,174 @@ setInterval(checkConnectionQuality, 5000);
     }
   });
 })();
+
+// ─── Breakout Rooms ───────────────────────────────────────────────────────────
+let currentBreakoutRoom = null;
+let breakoutRooms = [];
+
+function openBreakoutModal() {
+  document.getElementById('breakoutModal')?.classList.remove('hidden');
+}
+function closeBreakoutModalFn() {
+  document.getElementById('breakoutModal')?.classList.add('hidden');
+}
+
+document.getElementById('moreBreakoutOpt')?.addEventListener('click', () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  openBreakoutModal();
+});
+document.getElementById('closeBreakoutModal')?.addEventListener('click', closeBreakoutModalFn);
+
+document.getElementById('breakoutCreateBtn')?.addEventListener('click', () => {
+  const count = Math.min(Math.max(parseInt(document.getElementById('breakoutCount')?.value) || 2, 2), 20);
+  const names = Array.from({ length: count }, (_, i) => `Room ${i + 1}`);
+  socket.emit('breakout:create', { rooms: names });
+});
+
+document.getElementById('breakoutRandomBtn')?.addEventListener('click', () => {
+  if (!breakoutRooms.length) return;
+  // Get all non-admin participants
+  const pids = Object.keys(participants).filter(pid => pid !== myParticipantId);
+  // Shuffle
+  for (let i = pids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pids[i], pids[j]] = [pids[j], pids[i]];
+  }
+  // Distribute round-robin
+  const assignments = pids.map((pid, i) => ({
+    participantId: pid,
+    roomId: breakoutRooms[i % breakoutRooms.length].id,
+  }));
+  socket.emit('breakout:assign', { assignments });
+});
+
+document.getElementById('breakoutMsgSend')?.addEventListener('click', () => {
+  const input = document.getElementById('breakoutMsgInput');
+  const msg = input?.value?.trim();
+  if (!msg) return;
+  socket.emit('breakout:broadcast', { message: msg });
+  if (input) input.value = '';
+  showToast('Message broadcast to all rooms');
+});
+
+document.getElementById('breakoutCloseBtn')?.addEventListener('click', () => {
+  socket.emit('breakout:close');
+});
+
+document.getElementById('breakoutReturnBtn')?.addEventListener('click', () => {
+  socket.emit('breakout:leave');
+  currentBreakoutRoom = null;
+  document.getElementById('breakoutBanner').style.display = 'none';
+});
+
+// Breakout socket handlers
+socket.on('breakout:created', ({ rooms }) => {
+  breakoutRooms = rooms;
+  renderBreakoutRooms();
+  document.getElementById('breakoutBroadcast').style.display = 'block';
+  document.getElementById('breakoutCloseWrap').style.display = 'block';
+  showToast(`${rooms.length} breakout rooms created`);
+});
+
+socket.on('breakout:updated', ({ rooms }) => {
+  breakoutRooms = rooms;
+  renderBreakoutRooms();
+});
+
+socket.on('breakout:assigned', ({ roomId, roomName }) => {
+  currentBreakoutRoom = roomId;
+  socket.emit('breakout:join', { roomId });
+  const banner = document.getElementById('breakoutBanner');
+  if (banner) {
+    banner.style.display = 'flex';
+    document.getElementById('breakoutBannerText').textContent = `In: ${roomName}`;
+  }
+  showToast(`You've been assigned to ${roomName}`);
+});
+
+socket.on('breakout:closed', () => {
+  currentBreakoutRoom = null;
+  document.getElementById('breakoutBanner').style.display = 'none';
+  showToast('Breakout rooms closed — returning to main meeting');
+});
+
+socket.on('breakout:all-closed', () => {
+  breakoutRooms = [];
+  currentBreakoutRoom = null;
+  document.getElementById('breakoutBanner').style.display = 'none';
+  document.getElementById('breakoutBroadcast').style.display = 'none';
+  document.getElementById('breakoutCloseWrap').style.display = 'none';
+  renderBreakoutRooms();
+});
+
+socket.on('breakout:message', ({ from, text, timestamp }) => {
+  showToast(`[${from}] ${text}`);
+});
+
+function renderBreakoutRooms() {
+  const list = document.getElementById('breakoutRoomsList');
+  if (!list) return;
+  if (!breakoutRooms.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">No breakout rooms active</p>';
+    return;
+  }
+  list.innerHTML = breakoutRooms.map(r => `
+    <div style="background:var(--surface2,#F2ECE5);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${escapeHtml(r.name)} <span style="color:var(--text-muted);font-weight:400;">(${r.participantCount || 0})</span></div>
+      ${r.participants && r.participants.length ? r.participants.map(p => `<span style="display:inline-block;background:var(--surface,#fff);padding:2px 8px;border-radius:4px;font-size:12px;margin:2px 2px 0 0;">${escapeHtml(p.name)}</span>`).join('') : '<span style="font-size:12px;color:var(--text-muted);">No participants yet</span>'}
+    </div>
+  `).join('');
+}
+
+// ─── Live Streaming ───────────────────────────────────────────────────────────
+let isStreaming = false;
+let streamTimerInterval = null;
+let streamStartTime = null;
+
+document.getElementById('moreStreamOpt')?.addEventListener('click', () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  document.getElementById('streamModal')?.classList.remove('hidden');
+});
+document.getElementById('closeStreamModal')?.addEventListener('click', () => {
+  document.getElementById('streamModal')?.classList.add('hidden');
+});
+
+document.getElementById('streamStartBtn')?.addEventListener('click', () => {
+  const url = document.getElementById('streamUrlInput')?.value?.trim();
+  if (!url) { showToast('Please enter a stream URL', true); return; }
+  isStreaming = true;
+  streamStartTime = Date.now();
+  socket.emit('stream:start', { url });
+  document.getElementById('streamSetup').style.display = 'none';
+  document.getElementById('streamActive').style.display = 'block';
+  streamTimerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - streamStartTime) / 1000);
+    const el = document.getElementById('streamTimer');
+    if (el) el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }, 1000);
+  showToast('Live stream started');
+});
+
+document.getElementById('streamStopBtn')?.addEventListener('click', () => {
+  isStreaming = false;
+  if (streamTimerInterval) clearInterval(streamTimerInterval);
+  socket.emit('stream:stop');
+  document.getElementById('streamSetup').style.display = 'block';
+  document.getElementById('streamActive').style.display = 'none';
+  document.getElementById('streamModal')?.classList.add('hidden');
+  showToast('Live stream stopped');
+});
+
+socket.on('stream:started', ({ hostName }) => {
+  const banner = document.getElementById('streamBanner');
+  if (banner) banner.style.display = 'flex';
+  showToast(`${hostName} started live streaming`);
+});
+
+socket.on('stream:stopped', () => {
+  document.getElementById('streamBanner').style.display = 'none';
+  showToast('Live stream ended');
+});
 
 // ─── Static button event listeners ───────────────────────────────────────────
 document.getElementById('layoutAuto')?.addEventListener('click', () => setLayout('auto'));
