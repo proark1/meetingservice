@@ -2332,39 +2332,75 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.waiting_room', { action: 'deny' });
   });
 
+  // Helper: get breakout room ID for a participant (null if in main room)
+  function getBreakoutRoomOf(meeting, pid) {
+    if (!meeting.breakoutRooms) return null;
+    for (const [roomId, r] of meeting.breakoutRooms) {
+      if (r.participants.has(pid)) return roomId;
+    }
+    return null;
+  }
+
+  // Helper: check if two participants can signal each other (same room)
+  function canSignal(meeting, pidA, pidB) {
+    if (!meeting.breakoutRooms) return true; // no breakout rooms = everyone can signal
+    return getBreakoutRoomOf(meeting, pidA) === getBreakoutRoomOf(meeting, pidB);
+  }
+
   socket.on('signal:offer', ({ to, offer }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const target = meeting.participants.get(to);
-    if (target) io.to(target.socketId).emit('signal:offer', { from: currentParticipantId, offer });
+    if (target && canSignal(meeting, currentParticipantId, to)) {
+      io.to(target.socketId).emit('signal:offer', { from: currentParticipantId, offer });
+    }
   });
 
   socket.on('signal:answer', ({ to, answer }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const target = meeting.participants.get(to);
-    if (target) io.to(target.socketId).emit('signal:answer', { from: currentParticipantId, answer });
+    if (target && canSignal(meeting, currentParticipantId, to)) {
+      io.to(target.socketId).emit('signal:answer', { from: currentParticipantId, answer });
+    }
   });
 
   socket.on('signal:ice-candidate', ({ to, candidate }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const target = meeting.participants.get(to);
-    if (target) io.to(target.socketId).emit('signal:ice-candidate', { from: currentParticipantId, candidate });
+    if (target && canSignal(meeting, currentParticipantId, to)) {
+      io.to(target.socketId).emit('signal:ice-candidate', { from: currentParticipantId, candidate });
+    }
   });
 
   socket.on('media:toggle-audio', ({ isMuted }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
-    if (p) { p.isMuted = isMuted; socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isMuted }); }
+    if (!p) return;
+    p.isMuted = isMuted;
+    // Broadcast only to participants in the same breakout room (or main room)
+    const myRoom = getBreakoutRoomOf(meeting, currentParticipantId);
+    if (myRoom) {
+      io.to(`breakout:${currentMeetingId}:${myRoom}`).emit('participant:updated', { participantId: currentParticipantId, isMuted });
+    } else {
+      socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isMuted });
+    }
   });
 
   socket.on('media:toggle-video', ({ isVideoOff }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
-    if (p) { p.isVideoOff = isVideoOff; socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isVideoOff }); }
+    if (!p) return;
+    p.isVideoOff = isVideoOff;
+    const myRoom = getBreakoutRoomOf(meeting, currentParticipantId);
+    if (myRoom) {
+      io.to(`breakout:${currentMeetingId}:${myRoom}`).emit('participant:updated', { participantId: currentParticipantId, isVideoOff });
+    } else {
+      socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isVideoOff });
+    }
   });
 
   socket.on('media:screen-share', ({ isScreenSharing }) => {
@@ -2509,7 +2545,7 @@ io.on('connection', (socket) => {
   socket.on('breakout:join', ({ roomId }) => {
     if (!currentMeetingId) return;
     const meeting = meetings.get(currentMeetingId);
-    if (!meeting || !meeting.breakoutRooms) return;
+    if (!meeting || !meeting.breakoutRooms || meeting.closingBreakout) return;
     const room = meeting.breakoutRooms.get(roomId);
     if (!room) return;
     const breakoutRoomId = `breakout:${currentMeetingId}:${roomId}`;
@@ -2559,12 +2595,15 @@ io.on('connection', (socket) => {
     const p = meeting.participants.get(currentParticipantId);
     if (!p || !p.isAdmin) return;
     // Move everyone back to main room
+    meeting.closingBreakout = true;
     for (const [, r] of meeting.breakoutRooms) {
       const brId = `breakout:${currentMeetingId}:${r.id}`;
       io.to(brId).emit('breakout:closed');
       io.in(brId).socketsLeave(brId);
+      r.participants.clear();
     }
     meeting.breakoutRooms = null;
+    meeting.closingBreakout = false;
     io.to(currentMeetingId).emit('breakout:all-closed');
   });
 

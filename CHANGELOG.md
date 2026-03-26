@@ -5,7 +5,7 @@ All notable changes to onepizza.io are documented in this file.
 ## [1.0.0] — 2026-03-26
 
 ### Added
-- **Meeting**: Breakout rooms — admin can create up to 20 rooms, assign participants (manually or randomly), broadcast messages to all rooms, and close rooms to bring everyone back; participants see a banner with room name and "Return to main" button
+- **Meeting**: Breakout rooms — admin can create up to 20 rooms, assign participants (manually or randomly), broadcast messages to all rooms, and close rooms to bring everyone back; WebRTC signaling and media state isolated per room; participants see a banner with room name and "Return to main" button
 - **Meeting**: Live streaming broadcast mode — admin can start live broadcast, all participants see "LIVE" indicator; stream timer supports hours; clarified that OBS/WebRTC-RTMP bridge handles actual media forwarding
 - **SEO**: Open Graph image (`og:image`) and Twitter card image meta tags for social sharing previews
 - **SEO**: JSON-LD structured data (Schema.org/SoftwareApplication) for search engine rich results
