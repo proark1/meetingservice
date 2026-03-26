@@ -9,13 +9,8 @@
   <meta name="theme-color" content="#1C2340">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    // Fallback: if Socket.IO didn't load from server, load from CDN
-    if (typeof io === 'undefined') {
-      document.write('<scr' + 'ipt src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/scr' + 'ipt>');
-    }
-  </script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script>if (typeof io === 'undefined') document.write('<scr'+'ipt src="/socket.io/socket.io.js"><\/scr'+'ipt>');</script>
   <script async src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -473,6 +468,11 @@ const ICONS = {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const meetingId = window.location.pathname.split('/').pop();
+if (typeof io === 'undefined') {
+  document.getElementById('lobbyError').textContent = 'Failed to load — please hard refresh (Ctrl+Shift+R)';
+  document.getElementById('lobbyError').classList.remove('hidden');
+  throw new Error('Socket.IO not loaded');
+}
 const socket = io({
   reconnection: true,
   reconnectionDelay: 1000,

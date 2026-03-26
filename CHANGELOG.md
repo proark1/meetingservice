@@ -49,7 +49,7 @@ All notable changes to onepizza.io are documented in this file.
 ### Fixed
 - **UI**: Join meeting now works after creating — navigation includes `?name=` parameter; meeting.html falls back to sessionStorage name
 - **Server**: HTML pages served with `no-cache, no-store, must-revalidate` headers — prevents stale cached code after deploys; CSS/JS/images still cached for 1 day
-- **Meeting**: Added CDN fallback for Socket.IO client script — if `/socket.io/socket.io.js` fails to load, falls back to `cdn.socket.io`; added `connect_error` handler showing error in lobby
+- **Meeting**: Socket.IO client now loads from CDN as primary source (cdn.socket.io) with server `/socket.io/socket.io.js` as fallback — fixes crash when server script fails to load; added safety check with user-visible error if both fail
 - **Server**: Null reference crash in change-password when user not found — added `rows[0]` check
 - **Server**: Analytics query days parameter now capped at 365 — prevents unbounded table scans
 - **Email**: Startup warning logged when `RESEND_API_KEY` not set — makes silent email failures visible
