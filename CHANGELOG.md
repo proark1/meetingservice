@@ -2,11 +2,17 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-25
+## [1.0.0] — 2026-03-26
 
 ### Fixed
-- **UI**: Landing page navigation buttons (Sign in, Get started free, and all CTA buttons) converted from `<button onclick>` to `<a href>` links — fixes buttons not navigating when clicked
-- **UI**: Dashboard login button converted from inline `onclick` to form submit event listener — fixes Sign In button not working when clicked; login inputs now wrapped in a `<form>` for native submit behavior
+- **UI**: Converted ALL inline `onclick` handlers to `addEventListener` across every page — fixes buttons not responding to clicks
+  - `index.html` — navigation buttons converted to `<a href>` links; scroll button uses addEventListener
+  - `register.html` — form wrapped in `<form>` with submit listener; type toggle buttons use addEventListener
+  - `reset.html` — form wrapped in `<form>` with submit listener
+  - `dashboard.html` — login form, sidebar nav (event delegation), and all 44 action buttons use addEventListener
+  - `billing.html` — tab buttons, amount buttons (event delegation), pay/copy buttons use addEventListener
+  - `meeting.html` — leave button converted to `<a>` link; layout/PiP/shortcuts buttons use addEventListener; admin/waiting room dynamic buttons use event delegation with `data-action` attributes
+  - `admin.html` — all static buttons use addEventListener; dynamic buttons in render functions use event delegation with `data-action` attributes on parent containers
 
 ## [1.0.0] — 2026-03-24T21:30:00+01:00
 
