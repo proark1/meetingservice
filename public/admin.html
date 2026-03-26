@@ -1745,25 +1745,25 @@ startAnRealtimeRefresh();
 function fmt2(n) { return Number(n).toLocaleString(); }
 
 // ─── Static button event listeners ───────────────────────────────────────────
-document.getElementById('btn-logout').addEventListener('click', logout);
-document.getElementById('btn-refresh-overview').addEventListener('click', loadOverview);
-document.getElementById('btn-refresh-meetings').addEventListener('click', loadMeetings);
-document.getElementById('btn-refresh-users').addEventListener('click', loadUsers);
-document.getElementById('btn-create-key').addEventListener('click', openCreateKeyModal);
-document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
-document.getElementById('btn-refresh-billing-tx').addEventListener('click', loadBillingTransactions);
-document.getElementById('btn-refresh-billing-stripe').addEventListener('click', loadBillingStripe);
-document.getElementById('btn-grant-credit').addEventListener('click', grantCredit);
-document.getElementById('btn-refresh-companies').addEventListener('click', loadCompanies);
-document.getElementById('btn-save-crypto-wallet').addEventListener('click', saveCryptoWallet);
-document.getElementById('btn-save-crypto-rpc').addEventListener('click', saveCryptoRpc);
-document.getElementById('btn-crypto-rescan').addEventListener('click', cryptoRescan);
-document.getElementById('btn-refresh-crypto-deposits').addEventListener('click', loadCryptoDeposits);
-document.getElementById('btn-refresh-unmatched').addEventListener('click', loadUnmatchedTransfers);
-document.getElementById('btn-refresh-analytics').addEventListener('click', loadAnalytics);
-document.getElementById('btn-verify-support-key').addEventListener('click', verifySupportKey);
-document.getElementById('btn-close-key-modal').addEventListener('click', closeCreateKeyModal);
-document.getElementById('modal-create-btn').addEventListener('click', createKey);
+document.getElementById('btn-logout')?.addEventListener('click', logout);
+document.getElementById('btn-refresh-overview')?.addEventListener('click', loadOverview);
+document.getElementById('btn-refresh-meetings')?.addEventListener('click', loadMeetings);
+document.getElementById('btn-refresh-users')?.addEventListener('click', loadUsers);
+document.getElementById('btn-create-key')?.addEventListener('click', openCreateKeyModal);
+document.getElementById('btn-save-settings')?.addEventListener('click', saveSettings);
+document.getElementById('btn-refresh-billing-tx')?.addEventListener('click', loadBillingTransactions);
+document.getElementById('btn-refresh-billing-stripe')?.addEventListener('click', loadBillingStripe);
+document.getElementById('btn-grant-credit')?.addEventListener('click', grantCredit);
+document.getElementById('btn-refresh-companies')?.addEventListener('click', loadCompanies);
+document.getElementById('btn-save-crypto-wallet')?.addEventListener('click', saveCryptoWallet);
+document.getElementById('btn-save-crypto-rpc')?.addEventListener('click', saveCryptoRpc);
+document.getElementById('btn-crypto-rescan')?.addEventListener('click', cryptoRescan);
+document.getElementById('btn-refresh-crypto-deposits')?.addEventListener('click', loadCryptoDeposits);
+document.getElementById('btn-refresh-unmatched')?.addEventListener('click', loadUnmatchedTransfers);
+document.getElementById('btn-refresh-analytics')?.addEventListener('click', loadAnalytics);
+document.getElementById('btn-verify-support-key')?.addEventListener('click', verifySupportKey);
+document.getElementById('btn-close-key-modal')?.addEventListener('click', closeCreateKeyModal);
+document.getElementById('modal-create-btn')?.addEventListener('click', createKey);
 
 // ─── Billing sub-tab switching ───────────────────────────────────────────────
 document.querySelectorAll('[data-billing-tab]').forEach(btn => {
@@ -1773,19 +1773,19 @@ document.querySelectorAll('[data-billing-tab]').forEach(btn => {
 // ─── Event delegation for dynamic buttons ────────────────────────────────────
 
 // Overview meetings table — end meeting
-document.getElementById('overview-meetings-body').addEventListener('click', (e) => {
+document.getElementById('overview-meetings-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="end-meeting"]');
   if (btn) endMeeting(btn.dataset.id);
 });
 
 // Meetings table — end meeting
-document.getElementById('meetings-body').addEventListener('click', (e) => {
+document.getElementById('meetings-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="end-meeting"]');
   if (btn) endMeeting(btn.dataset.id);
 });
 
 // Users table — toggle, make admin, delete
-document.getElementById('users-body').addEventListener('click', (e) => {
+document.getElementById('users-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
@@ -1796,7 +1796,7 @@ document.getElementById('users-body').addEventListener('click', (e) => {
 });
 
 // API keys table — copy, revoke
-document.getElementById('keys-body').addEventListener('click', (e) => {
+document.getElementById('keys-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   if (btn.dataset.action === 'copy-text') copyText(btn.dataset.key);
@@ -1804,19 +1804,19 @@ document.getElementById('keys-body').addEventListener('click', (e) => {
 });
 
 // Companies table — dissolve
-document.getElementById('companies-body').addEventListener('click', (e) => {
+document.getElementById('companies-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="dissolve-company"]');
   if (btn) dissolveCompany(parseInt(btn.dataset.id), btn.dataset.name);
 });
 
 // Crypto deposits table — confirm deposit
-document.getElementById('crypto-deposits-body').addEventListener('click', (e) => {
+document.getElementById('crypto-deposits-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="confirm-deposit"]');
   if (btn) confirmDeposit(parseInt(btn.dataset.id), parseFloat(btn.dataset.amount));
 });
 
 // Unmatched transfers table — resolve
-document.getElementById('unmatched-body').addEventListener('click', (e) => {
+document.getElementById('unmatched-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="resolve-transfer"]');
   if (btn) resolveTransfer(parseInt(btn.dataset.id));
 });

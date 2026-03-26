@@ -13,6 +13,7 @@ All notable changes to onepizza.io are documented in this file.
   - `billing.html` — tab buttons, amount buttons (event delegation), pay/copy buttons use addEventListener
   - `meeting.html` — leave button converted to `<a>` link; layout/PiP/shortcuts buttons use addEventListener; admin/waiting room dynamic buttons use event delegation with `data-action` attributes
   - `admin.html` — all static buttons use addEventListener; dynamic buttons in render functions use event delegation with `data-action` attributes on parent containers
+- **UI**: Added optional chaining (`?.`) to all `getElementById().addEventListener()` calls — prevents a missing element from crashing the script and breaking login/init
 
 ## [1.0.0] — 2026-03-24T21:30:00+01:00
 

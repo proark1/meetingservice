@@ -1498,7 +1498,7 @@
 <div id="toastContainer" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
 <script>
 // ─── Scroll-to-start button ───
-document.getElementById('scrollToStartBtn').addEventListener('click', () => {
+document.getElementById('scrollToStartBtn')?.addEventListener('click', () => {
   document.getElementById('start-form').scrollIntoView({ behavior: 'smooth' });
 });
 
@@ -1558,7 +1558,7 @@ function showToast(msg, type) {
   setTimeout(() => t.remove(), 3500);
 }
 
-document.getElementById('createBtn').addEventListener('click', async () => {
+document.getElementById('createBtn')?.addEventListener('click', async () => {
   const title = document.getElementById('meetingTitle').value.trim() || 'Untitled Meeting';
   const name  = document.getElementById('hostName').value.trim();
   if (!name) { showToast('Please enter your name', 'error'); return; }
@@ -1582,7 +1582,7 @@ document.getElementById('createBtn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('joinBtn').addEventListener('click', () => {
+document.getElementById('joinBtn')?.addEventListener('click', () => {
   const code = document.getElementById('meetingCode').value.trim();
   const name = document.getElementById('joinName').value.trim();
   if (!code) { showToast('Please enter a meeting code', 'error'); return; }

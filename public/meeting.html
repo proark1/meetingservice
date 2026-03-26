@@ -1630,7 +1630,7 @@ $('#deviceBtn').addEventListener('click', async () => {
   soundRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;';
   soundRow.innerHTML = `<span style="font-size:13px;">Meeting sounds</span>
     <input type="checkbox" id="soundsToggle" style="cursor:pointer;width:16px;height:16px;" ${soundsEnabled ? 'checked' : ''}>`;
-  soundRow.querySelector('#soundsToggle').addEventListener('change', (e) => {
+  soundRow.querySelector('#soundsToggle')?.addEventListener('change', (e) => {
     soundsEnabled = e.target.checked;
     localStorage.setItem('soundsEnabled', soundsEnabled);
   });
@@ -1641,7 +1641,7 @@ $('#deviceBtn').addEventListener('click', async () => {
   noiseRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;';
   noiseRow.innerHTML = `<span style="font-size:13px;">Noise suppression</span>
     <input type="checkbox" id="noiseToggle" style="cursor:pointer;width:16px;height:16px;" ${noiseEnabled ? 'checked' : ''}>`;
-  noiseRow.querySelector('#noiseToggle').addEventListener('change', async (e) => {
+  noiseRow.querySelector('#noiseToggle')?.addEventListener('change', async (e) => {
     const enabled = e.target.checked;
     localStorage.setItem('noiseSuppression', enabled);
     if (localStream) {

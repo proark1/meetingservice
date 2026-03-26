@@ -1643,55 +1643,55 @@ function copyCode(blockId) {
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 // Login form
-document.getElementById('loginForm').addEventListener('submit', e => { e.preventDefault(); doLogin(); });
+document.getElementById('loginForm')?.addEventListener('submit', e => { e.preventDefault(); doLogin(); });
 // Sidebar navigation (event delegation)
-document.querySelector('.sidebar-nav').addEventListener('click', e => {
+document.querySelector('.sidebar-nav')?.addEventListener('click', e => {
   const item = e.target.closest('.nav-item[data-section]');
   if (item) goTo(item.dataset.section);
 });
 // Sidebar controls
-document.getElementById('logoutBtn').addEventListener('click', doLogout);
-document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+document.getElementById('logoutBtn')?.addEventListener('click', doLogout);
+document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
 // Top bar
-document.getElementById('newMeetingTopBtn').addEventListener('click', () => goTo('meeting'));
+document.getElementById('newMeetingTopBtn')?.addEventListener('click', () => goTo('meeting'));
 // Quick actions
-document.getElementById('qaMeeting').addEventListener('click', () => goTo('meeting'));
-document.getElementById('qaApikeys').addEventListener('click', () => goTo('apikeys'));
-document.getElementById('qaBilling').addEventListener('click', () => goTo('billing'));
-document.getElementById('qaCompany').addEventListener('click', () => goTo('company'));
+document.getElementById('qaMeeting')?.addEventListener('click', () => goTo('meeting'));
+document.getElementById('qaApikeys')?.addEventListener('click', () => goTo('apikeys'));
+document.getElementById('qaBilling')?.addEventListener('click', () => goTo('billing'));
+document.getElementById('qaCompany')?.addEventListener('click', () => goTo('company'));
 // Code copy buttons
-document.getElementById('copyQuickstart').addEventListener('click', () => copyCode('quickstartCodeBlock'));
-document.getElementById('copyBot').addEventListener('click', () => copyCode('botCodeBlock'));
-document.getElementById('copyApiCode').addEventListener('click', () => copyCode('apiCodeBlock'));
+document.getElementById('copyQuickstart')?.addEventListener('click', () => copyCode('quickstartCodeBlock'));
+document.getElementById('copyBot')?.addEventListener('click', () => copyCode('botCodeBlock'));
+document.getElementById('copyApiCode')?.addEventListener('click', () => copyCode('apiCodeBlock'));
 // Meeting actions
-document.getElementById('createMeetingBtn').addEventListener('click', createMeeting);
-document.getElementById('joinMeetingBtn').addEventListener('click', joinMeeting);
+document.getElementById('createMeetingBtn')?.addEventListener('click', createMeeting);
+document.getElementById('joinMeetingBtn')?.addEventListener('click', joinMeeting);
 // API keys
-document.getElementById('createKeyBtn').addEventListener('click', createKey);
+document.getElementById('createKeyBtn')?.addEventListener('click', createKey);
 // Company
-document.getElementById('copyInviteBtn').addEventListener('click', copyInviteCode);
-document.getElementById('topupNavBtn').addEventListener('click', () => goTo('billing'));
-document.getElementById('refreshMembersBtn').addEventListener('click', loadMembers);
-document.getElementById('joinCompanyBtn').addEventListener('click', joinCompany);
+document.getElementById('copyInviteBtn')?.addEventListener('click', copyInviteCode);
+document.getElementById('topupNavBtn')?.addEventListener('click', () => goTo('billing'));
+document.getElementById('refreshMembersBtn')?.addEventListener('click', loadMembers);
+document.getElementById('joinCompanyBtn')?.addEventListener('click', joinCompany);
 // Billing
-document.getElementById('topupStripeBtn').addEventListener('click', topupStripe);
-document.getElementById('topupCryptoBtn').addEventListener('click', topupCrypto);
-document.getElementById('closeUsdcBtn').addEventListener('click', () => { document.getElementById('usdcDepositCard').style.display = 'none'; });
-document.getElementById('copyUsdcBtn').addEventListener('click', copyUsdcAddress);
-document.getElementById('refreshBillingBtn').addEventListener('click', loadBillingHistory);
+document.getElementById('topupStripeBtn')?.addEventListener('click', topupStripe);
+document.getElementById('topupCryptoBtn')?.addEventListener('click', topupCrypto);
+document.getElementById('closeUsdcBtn')?.addEventListener('click', () => { document.getElementById('usdcDepositCard').style.display = 'none'; });
+document.getElementById('copyUsdcBtn')?.addEventListener('click', copyUsdcAddress);
+document.getElementById('refreshBillingBtn')?.addEventListener('click', loadBillingHistory);
 // History
-document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
+document.getElementById('refreshHistoryBtn')?.addEventListener('click', loadHistory);
 // Recordings
-document.getElementById('searchRecordingsBtn').addEventListener('click', loadRecordings);
-document.getElementById('download-transcript-btn').addEventListener('click', downloadTranscriptDash);
+document.getElementById('searchRecordingsBtn')?.addEventListener('click', loadRecordings);
+document.getElementById('download-transcript-btn')?.addEventListener('click', downloadTranscriptDash);
 // Webhooks
-document.getElementById('refreshWebhooksBtn').addEventListener('click', loadWebhooks);
-document.getElementById('createWebhookBtn').addEventListener('click', createWebhook);
+document.getElementById('refreshWebhooksBtn')?.addEventListener('click', loadWebhooks);
+document.getElementById('createWebhookBtn')?.addEventListener('click', createWebhook);
 // Settings
-document.getElementById('changePassBtn').addEventListener('click', changePassword);
-document.getElementById('genSupportKeyBtn').addEventListener('click', generateSupportKey);
-document.getElementById('copySupportKeyBtn').addEventListener('click', copySupportKey);
-document.getElementById('signOutBtn').addEventListener('click', doLogout);
+document.getElementById('changePassBtn')?.addEventListener('click', changePassword);
+document.getElementById('genSupportKeyBtn')?.addEventListener('click', generateSupportKey);
+document.getElementById('copySupportKeyBtn')?.addEventListener('click', copySupportKey);
+document.getElementById('signOutBtn')?.addEventListener('click', doLogout);
 
 ['nm-title','nm-name'].forEach(id => {
   document.getElementById(id)?.addEventListener('keydown', e => { if (e.key === 'Enter') createMeeting(); });

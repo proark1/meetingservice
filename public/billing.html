@@ -211,7 +211,7 @@ function selectAmount(amt, btn) {
   document.getElementById('payAmount').textContent = amt;
 }
 
-document.getElementById('customAmount').addEventListener('input', function() {
+document.getElementById('customAmount')?.addEventListener('input', function() {
   const v = parseFloat(this.value);
   if (v >= 5) {
     selectedAmount = v;
@@ -279,15 +279,15 @@ if (params.get('cancel')) {
 }
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
-document.getElementById('tabCard').addEventListener('click', () => showTab('card'));
-document.getElementById('tabCrypto').addEventListener('click', () => showTab('crypto'));
-document.getElementById('tabHistory').addEventListener('click', () => showTab('history'));
-document.querySelector('.amounts').addEventListener('click', e => {
+document.getElementById('tabCard')?.addEventListener('click', () => showTab('card'));
+document.getElementById('tabCrypto')?.addEventListener('click', () => showTab('crypto'));
+document.getElementById('tabHistory')?.addEventListener('click', () => showTab('history'));
+document.querySelector('.amounts')?.addEventListener('click', e => {
   const btn = e.target.closest('.amount-btn');
   if (btn) selectAmount(Number(btn.dataset.amount), btn);
 });
-document.getElementById('stripeBtn').addEventListener('click', doStripeCheckout);
-document.getElementById('copyAddrBtn').addEventListener('click', copyAddr);
+document.getElementById('stripeBtn')?.addEventListener('click', doStripeCheckout);
+document.getElementById('copyAddrBtn')?.addEventListener('click', copyAddr);
 
 // Load balance on page load
 (async () => {
