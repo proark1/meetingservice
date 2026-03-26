@@ -4,6 +4,9 @@ All notable changes to onepizza.io are documented in this file.
 
 ## [1.0.0] — 2026-03-26
 
+### Changed
+- **UI**: Removed hero badge ("Now with company accounts, team billing & USDC payments") from landing page
+
 ### Fixed
 - **UI**: Converted ALL inline `onclick` handlers to `addEventListener` across every page — fixes buttons not responding to clicks
   - `index.html` — navigation buttons converted to `<a href>` links; scroll button uses addEventListener
