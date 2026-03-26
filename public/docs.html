@@ -93,7 +93,7 @@
 <p class="subtitle">A RESTful + WebSocket API for creating and managing video meetings. Built for developers, agents, and teams.</p>
 <div class="meta">
   <span>Version: <strong>1.0.0</strong></span>
-  <span>Updated: <strong>March 23, 2026</strong></span>
+  <span>Updated: <strong>March 26, 2026</strong></span>
   <span>Base URL: <strong>https://onepizza.io</strong></span>
 </div>
 
@@ -129,7 +129,8 @@
   <a href="#recordings">20. Meeting Recordings</a>
   <a href="#health">21. Health Endpoints</a>
   <a href="#quickstart">22. Quick Start</a>
-  <a href="#features">23. Features Overview</a>
+  <a href="#keyboard">23. Keyboard Shortcuts</a>
+  <a href="#features">24. Features Overview</a>
 </div>
 
 <!-- ─── Account & Auth ───────────────────────────────────────────────── -->
@@ -551,7 +552,7 @@ const socket = io("https://onepizza.io");</code></pre>
   <tr><td><code>react</code></td><td><code>{ emoji: string }</code></td><td>Send a floating emoji reaction (👍 ❤️ 😂 🎉 👏)</td></tr>
   <tr><td><code>recording:broadcast-started</code></td><td><code>{ hostName: string }</code></td><td>Notify participants that the host has started recording</td></tr>
   <tr><td><code>recording:broadcast-stopped</code></td><td><code>{}</code></td><td>Notify participants that the host has stopped recording</td></tr>
-  <tr><td><code>chat:message</code></td><td><code>{ text: string }</code></td><td>Send a chat message (max 2000 chars)</td></tr>
+  <tr><td><code>chat:message</code></td><td><code>{ text: string, replyTo?: string }</code></td><td>Send a chat message (max 2000 chars). Optional <code>replyTo</code> is the message ID to reply to.</td></tr>
   <tr><td><code>chat:react</code></td><td><code>{ msgId: string, emoji: string }</code></td><td>React to a chat message with an emoji</td></tr>
   <tr><td><code>captions:update</code></td><td><code>{ pid: participantId, text: string, final: boolean }</code></td><td>Send live caption text from speech recognition (interim or final result)</td></tr>
 </table>
@@ -572,13 +573,55 @@ const socket = io("https://onepizza.io");</code></pre>
   <tr><td><code>meeting:ended</code></td><td><code>{ reason: string }</code></td><td>The meeting was ended by the host or admin</td></tr>
   <tr><td><code>meeting:all-muted</code></td><td><code>{}</code></td><td>All participants were muted</td></tr>
   <tr><td><code>meeting:settings-updated</code></td><td><code>{ muteOnJoin, videoOffOnJoin, maxParticipants, locked, waitingRoom }</code></td><td>Meeting settings changed</td></tr>
-  <tr><td><code>chat:message</code></td><td><code>{ from: participantId, name, text, timestamp }</code></td><td>A chat message was sent in the room</td></tr>
+  <tr><td><code>chat:message</code></td><td><code>{ from: participantId, name, text, timestamp, replyTo: string|null }</code></td><td>A chat message was sent in the room. <code>replyTo</code> is null or the ID of the message being replied to.</td></tr>
   <tr><td><code>react</code></td><td><code>{ participantId, emoji }</code></td><td>An emoji reaction from a participant</td></tr>
   <tr><td><code>recording:started</code></td><td><code>{ hostName: string }</code></td><td>The host has started recording — display consent notice</td></tr>
   <tr><td><code>recording:stopped</code></td><td><code>{}</code></td><td>Recording has ended — dismiss consent notice</td></tr>
   <tr><td><code>chat:react</code></td><td><code>{ msgId: string, participantId, emoji: string }</code></td><td>A participant reacted to a chat message</td></tr>
   <tr><td><code>captions:update</code></td><td><code>{ pid: participantId, text: string, final: boolean }</code></td><td>Live caption text from a participant's speech recognition</td></tr>
   <tr><td><code>error</code></td><td><code>{ message: string }</code></td><td>Something went wrong (meeting not found, locked, full, or scheduled)</td></tr>
+</table>
+
+<div class="note">
+  <strong>Chat rich text:</strong> Chat messages support markdown-lite formatting: <code>**bold**</code>, <code>*italic*</code>, <code>`code`</code>, <code>```code blocks```</code>.
+</div>
+
+<h3>Breakout Room Events (Client → Server)</h3>
+<table>
+  <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+  <tr><td><code>breakout:create</code></td><td><code>{ rooms: string[] }</code></td><td>Admin creates breakout rooms (array of room names, max 20)</td></tr>
+  <tr><td><code>breakout:assign</code></td><td><code>{ assignments: [{participantId, roomId}] }</code></td><td>Admin assigns participants to rooms</td></tr>
+  <tr><td><code>breakout:join</code></td><td><code>{ roomId }</code></td><td>Participant joins assigned breakout room</td></tr>
+  <tr><td><code>breakout:leave</code></td><td>&mdash;</td><td>Participant returns to main room</td></tr>
+  <tr><td><code>breakout:broadcast</code></td><td><code>{ message }</code></td><td>Admin sends message to all breakout rooms</td></tr>
+  <tr><td><code>breakout:close</code></td><td>&mdash;</td><td>Admin closes all rooms, returns everyone to main</td></tr>
+</table>
+
+<h3>Breakout Room Events (Server → Client)</h3>
+<table>
+  <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+  <tr><td><code>breakout:created</code></td><td><code>{ rooms: [{id, name, participantCount}] }</code></td><td>Rooms created successfully</td></tr>
+  <tr><td><code>breakout:updated</code></td><td><code>{ rooms: [{id, name, participantCount, participants}] }</code></td><td>Room participant list updated</td></tr>
+  <tr><td><code>breakout:assigned</code></td><td><code>{ roomId, roomName }</code></td><td>You've been assigned to a room</td></tr>
+  <tr><td><code>breakout:participant-joined</code></td><td><code>{ participantId, roomId }</code></td><td>Someone joined your breakout room</td></tr>
+  <tr><td><code>breakout:participant-left</code></td><td><code>{ participantId }</code></td><td>Someone left your breakout room</td></tr>
+  <tr><td><code>breakout:message</code></td><td><code>{ from, text, timestamp }</code></td><td>Broadcast message from host</td></tr>
+  <tr><td><code>breakout:closed</code></td><td>&mdash;</td><td>Your breakout room is closing</td></tr>
+  <tr><td><code>breakout:all-closed</code></td><td>&mdash;</td><td>All breakout rooms closed</td></tr>
+</table>
+
+<h3>Live Stream Events (Client → Server)</h3>
+<table>
+  <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+  <tr><td><code>stream:start</code></td><td><code>{ url }</code></td><td>Admin starts live broadcast (RTMP URL)</td></tr>
+  <tr><td><code>stream:stop</code></td><td>&mdash;</td><td>Admin stops live broadcast</td></tr>
+</table>
+
+<h3>Live Stream Events (Server → Client)</h3>
+<table>
+  <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+  <tr><td><code>stream:started</code></td><td><code>{ hostName }</code></td><td>Live broadcast started</td></tr>
+  <tr><td><code>stream:stopped</code></td><td>&mdash;</td><td>Live broadcast ended</td></tr>
 </table>
 
 <!-- ─── Waiting Room ────────────────────────────────────────────────── -->
@@ -1095,8 +1138,33 @@ socket.emit("raise-hand", { isHandRaised: true });
 // Emoji reaction
 socket.emit("react", { emoji: "👍" });</code></pre>
 
+<!-- ─── Keyboard Shortcuts ───────────────────────────────────────────── -->
+<h2 id="keyboard">23. Keyboard Shortcuts</h2>
+<p>The meeting UI supports the following keyboard shortcuts. All shortcuts work when focus is not inside a text input or textarea.</p>
+
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><code>M</code></td><td>Toggle microphone mute/unmute</td></tr>
+  <tr><td><code>Space</code></td><td>Push-to-talk (hold to temporarily unmute while muted)</td></tr>
+  <tr><td><code>V</code></td><td>Toggle camera on/off</td></tr>
+  <tr><td><code>S</code></td><td>Toggle screen sharing</td></tr>
+  <tr><td><code>H</code></td><td>Raise or lower hand</td></tr>
+  <tr><td><code>R</code></td><td>Toggle recording (host only)</td></tr>
+  <tr><td><code>C</code></td><td>Toggle chat panel</td></tr>
+  <tr><td><code>B</code></td><td>Toggle background blur</td></tr>
+  <tr><td><code>P</code></td><td>Toggle participants panel</td></tr>
+  <tr><td><code>L</code></td><td>Toggle meeting lock (host only)</td></tr>
+  <tr><td><code>T</code></td><td>Toggle live captions</td></tr>
+  <tr><td><code>U</code></td><td>Toggle UI (hide/show meeting controls)</td></tr>
+  <tr><td><code>?</code></td><td>Show keyboard shortcuts help dialog</td></tr>
+</table>
+
+<div class="note">
+  <strong>Push-to-talk:</strong> Hold the <code>Space</code> bar while muted to temporarily unmute. Releasing the key re-mutes automatically. This does not interfere with the mute button.
+</div>
+
 <!-- ─── Features ────────────────────────────────────────────────────── -->
-<h2 id="features">23. Features Overview</h2>
+<h2 id="features">24. Features Overview</h2>
 <table>
   <tr><th>Category</th><th>Feature</th><th>Description</th></tr>
   <tr><td>Video</td><td>WebRTC video calls</td><td>Full mesh peer-to-peer video; camera device selection</td></tr>
