@@ -665,6 +665,7 @@ function hideLobbyError() { $('#lobbyError').classList.add('hidden'); }
 
 // ─── Meeting timer ────────────────────────────────────────────────────────────
 function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
   meetingStartTime = Date.now();
   timerInterval = setInterval(() => {
     const s = Math.floor((Date.now() - meetingStartTime) / 1000);

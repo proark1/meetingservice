@@ -321,7 +321,7 @@ const MEETING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 setInterval(() => {
   const now = Date.now();
   for (const [id, m] of meetings) {
-    if (m.participants.size === 0 && now - m.createdAt > MEETING_MAX_AGE_MS) {
+    if (m.participants.size === 0 && now - m.createdAt > MEETING_MAX_AGE_MS && !m.gracePeriodTimer) {
       if (m.gracePeriodTimer) clearTimeout(m.gracePeriodTimer);
       meetings.delete(id);
     }
@@ -2549,11 +2549,16 @@ io.on('connection', (socket) => {
     const room = meeting.breakoutRooms.get(roomId);
     if (!room) return;
     const breakoutRoomId = `breakout:${currentMeetingId}:${roomId}`;
-    // Leave all other breakout rooms
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p) return;
+    // Leave all other breakout rooms and update participant maps
     for (const [, r] of meeting.breakoutRooms) {
       const brId = `breakout:${currentMeetingId}:${r.id}`;
       socket.leave(brId);
+      r.participants.delete(currentParticipantId);
     }
+    // Join new room
+    room.participants.set(currentParticipantId, p);
     socket.join(breakoutRoomId);
     // Signal to others in this breakout room
     socket.to(breakoutRoomId).emit('breakout:participant-joined', {
