@@ -102,16 +102,17 @@
     <p class="sub">Start meeting in seconds. Free forever.</p>
 
     <div class="type-toggle">
-      <button class="type-btn active" id="typPersonal" onclick="setType('personal')">
+      <button class="type-btn active" id="typPersonal">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Personal
       </button>
-      <button class="type-btn" id="typCompany" onclick="setType('company')">
+      <button class="type-btn" id="typCompany">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Company
       </button>
     </div>
 
+    <form id="registerForm">
     <div class="company-only" id="companyNameWrap">
       <label for="companyName">Company name</label>
       <input type="text" id="companyName" placeholder="Acme Corp" autocomplete="organization">
@@ -128,12 +129,13 @@
 
     <div class="error" id="errMsg"></div>
 
-    <button class="btn-submit" id="submitBtn" onclick="doRegister()" style="position:relative;">Create account →
+    <button type="submit" class="btn-submit" id="submitBtn" style="position:relative;">Create account →
       <span class="ch-wrap ch-wrap--finger" style="right:10px;bottom:-16px;">
         <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
         <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
       </span>
     </button>
+    </form>
 
     <div class="success-box" id="successBox">
       <h3>
@@ -235,7 +237,9 @@ function showErr(msg) {
   el.textContent = msg; el.style.display = 'block';
 }
 
-document.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); }));
+document.getElementById('registerForm').addEventListener('submit', e => { e.preventDefault(); doRegister(); });
+document.getElementById('typPersonal').addEventListener('click', () => setType('personal'));
+document.getElementById('typCompany').addEventListener('click', () => setType('company'));
 </script>
 </body>
 </html>
