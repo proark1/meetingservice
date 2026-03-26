@@ -6,8 +6,20 @@ All notable changes to onepizza.io are documented in this file.
 
 ### Changed
 - **UI**: Removed hero badge ("Now with company accounts, team billing & USDC payments") from landing page
+- **Performance**: Reduced static file cache from 1 day to 1 hour — prevents stale HTML after deploys
+
+### Security
+- **Email**: Added `esc()` HTML-escape helper to all email templates — prevents XSS via company names, meeting titles, API keys, and reset tokens in transactional emails
+- **Server**: Added path traversal protection on recording download endpoint — validates file path stays within uploads directory
+- **DB**: SSL `rejectUnauthorized` now `true` in production (was `false`) — prevents MITM on database connections
+- **DB**: Silent `.catch(() => {})` on schema migrations replaced with error-logging catch — no longer swallows real failures
 
 ### Fixed
+- **Server**: Null reference crash in change-password when user not found — added `rows[0]` check
+- **Server**: Analytics query days parameter now capped at 365 — prevents unbounded table scans
+- **Email**: Startup warning logged when `RESEND_API_KEY` not set — makes silent email failures visible
+- **Frontend**: Waiting room `renderWaitingParticipants(null, null)` no longer pollutes waitingQueue with null key
+- **Frontend**: Dashboard API keys, members, and webhooks tables converted from per-row `addEventListener` to event delegation — fixes memory leak on re-render
 - **UI**: Converted ALL inline `onclick` handlers to `addEventListener` across every page — fixes buttons not responding to clicks
   - `index.html` — navigation buttons converted to `<a href>` links; scroll button uses addEventListener
   - `register.html` — form wrapped in `<form>` with submit listener; type toggle buttons use addEventListener

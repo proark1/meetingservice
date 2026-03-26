@@ -2494,7 +2494,7 @@ async function adminMuteAll() {
 // ─── Waiting room — render admit/deny UI in side panel ────────────────────────
 const waitingQueue = {};
 function renderWaitingParticipants(socketId, name) {
-  waitingQueue[socketId] = name;
+  if (socketId) waitingQueue[socketId] = name;
   const list = $('#participantsList');
   // Remove existing waiting section if present
   list.querySelector('.waiting-section')?.remove();

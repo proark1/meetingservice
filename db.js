@@ -3,7 +3,9 @@ const bcrypt = require('bcryptjs');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_PUBLIC_URL,
-  ssl: process.env.DATABASE_PUBLIC_URL ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_PUBLIC_URL
+    ? { rejectUnauthorized: process.env.NODE_ENV === 'production' }
+    : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -255,8 +257,8 @@ async function initDB() {
     `);
 
     // NOT NULL on financial amount columns
-    await client.query(`ALTER TABLE stripe_topups ALTER COLUMN amount_usd SET NOT NULL`).catch(() => {});
-    await client.query(`ALTER TABLE usdc_deposits  ALTER COLUMN amount_usd SET NOT NULL`).catch(() => {});
+    await client.query(`ALTER TABLE stripe_topups ALTER COLUMN amount_usd SET NOT NULL`).catch(e => { if (!e.message.includes('already')) console.error('stripe_topups ALTER:', e.message); });
+    await client.query(`ALTER TABLE usdc_deposits  ALTER COLUMN amount_usd SET NOT NULL`).catch(e => { if (!e.message.includes('already')) console.error('usdc_deposits ALTER:', e.message); });
 
     // CHECK constraints (all idempotent via exception handling)
     for (const stmt of [

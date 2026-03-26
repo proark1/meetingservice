@@ -1247,13 +1247,6 @@ function renderKeysList(keys) {
       <td class="text-muted">${fmt(k.created_at)}</td>
       <td>${k.is_active ? `<button class="btn btn-danger btn-sm revoke-key-btn" data-id="${k.id}">Revoke</button>` : '—'}</td>
     </tr>`).join('');
-  // Attach event handlers (safe — no inline script with user data)
-  tbody.querySelectorAll('[data-copy]').forEach(btn => {
-    btn.addEventListener('click', () => navigator.clipboard.writeText(btn.dataset.copy).then(() => toast('Copied!')).catch(() => {}));
-  });
-  tbody.querySelectorAll('.revoke-key-btn').forEach(btn => {
-    btn.addEventListener('click', () => revokeKey(btn.dataset.id, btn));
-  });
 }
 
 async function loadKeys() {
@@ -1559,10 +1552,6 @@ async function loadMembers() {
     <td class="text-muted">${fmt(m.created_at)}</td>
     <td>${isOwner && m.id !== (currentUser?.id) ? `<button class="btn btn-danger btn-sm member-remove-btn" data-id="${m.id}" data-email="${esc(m.email)}">Remove</button>` : ''}</td>
   </tr>`).join('');
-  // Attach handlers — data attributes prevent onclick XSS
-  tbody.querySelectorAll('.member-remove-btn').forEach(btn => {
-    btn.addEventListener('click', () => removeMember(btn.dataset.id, btn.dataset.email, btn));
-  });
 }
 
 async function removeMember(id, email, btn) {
@@ -1596,9 +1585,6 @@ async function loadWebhooks() {
     <td class="text-muted">${fmt(w.created_at)}</td>
     <td><button class="btn btn-danger btn-sm webhook-delete-btn" data-id="${w.id}">Delete</button></td>
   </tr>`).join('');
-  tbody.querySelectorAll('.webhook-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => deleteWebhook(btn.dataset.id, btn));
-  });
 }
 
 async function createWebhook() {
@@ -1668,6 +1654,23 @@ document.getElementById('createMeetingBtn')?.addEventListener('click', createMee
 document.getElementById('joinMeetingBtn')?.addEventListener('click', joinMeeting);
 // API keys
 document.getElementById('createKeyBtn')?.addEventListener('click', createKey);
+// API keys table (event delegation — avoids memory leaks on re-render)
+document.getElementById('keys-tbody')?.addEventListener('click', e => {
+  const copyBtn = e.target.closest('[data-copy]');
+  if (copyBtn) { navigator.clipboard.writeText(copyBtn.dataset.copy).then(() => toast('Copied!')).catch(() => {}); return; }
+  const revokeBtn = e.target.closest('.revoke-key-btn');
+  if (revokeBtn) revokeKey(revokeBtn.dataset.id, revokeBtn);
+});
+// Members table (event delegation)
+document.getElementById('members-tbody')?.addEventListener('click', e => {
+  const btn = e.target.closest('.member-remove-btn');
+  if (btn) removeMember(btn.dataset.id, btn.dataset.email, btn);
+});
+// Webhooks table (event delegation)
+document.getElementById('webhooks-tbody')?.addEventListener('click', e => {
+  const btn = e.target.closest('.webhook-delete-btn');
+  if (btn) deleteWebhook(btn.dataset.id, btn);
+});
 // Company
 document.getElementById('copyInviteBtn')?.addEventListener('click', copyInviteCode);
 document.getElementById('topupNavBtn')?.addEventListener('click', () => goTo('billing'));

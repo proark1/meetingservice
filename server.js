@@ -229,7 +229,7 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
   res.json({ received: true });
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
 app.use(express.json({ limit: '1mb' }));
 
 // ─── Health checks ────────────────────────────────────────────────────────────
@@ -580,6 +580,7 @@ app.post('/api/auth/change-password', requireUserSession, async (req, res) => {
   if (newPassword.length > 128) return res.status(400).json({ error: 'Password too long' });
   try {
     const { rows } = await pool.query(`SELECT password_hash FROM users WHERE id = $1`, [req.session.userId]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     const ok = await bcrypt.compare(currentPassword, rows[0].password_hash);
     if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
     const hash = await bcrypt.hash(newPassword, 12);
@@ -1708,6 +1709,7 @@ app.get('/api/recordings/:id/download', authApiOrSession, async (req, res) => {
     const { rows } = await pool.query('SELECT filename, storage_path FROM recordings WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
     const filePath = path.join(UPLOADS_DIR, rows[0].storage_path);
+    if (!path.resolve(filePath).startsWith(path.resolve(UPLOADS_DIR))) return res.status(403).json({ error: 'Invalid path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
     res.setHeader('Content-Disposition', `attachment; filename="${rows[0].filename}"`);
     res.sendFile(filePath);
@@ -1811,7 +1813,7 @@ app.get('/admin/api/analytics/overview', requireAdminSession, async (_req, res) 
 });
 
 app.get('/admin/api/analytics/events', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT event_type, COUNT(*) AS count,
@@ -1827,7 +1829,7 @@ app.get('/admin/api/analytics/events', requireAdminSession, async (req, res) => 
 });
 
 app.get('/admin/api/analytics/trends', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT date_trunc('day', started_at)::date AS day,
@@ -1955,7 +1957,7 @@ app.post('/admin/api/analytics/support-key', requireAdminSession, async (req, re
 
 // ─── Analytics endpoints ──────────────────────────────────────────────────────
 app.get('/admin/api/analytics/features', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT event_type AS feature,
@@ -1974,7 +1976,7 @@ app.get('/admin/api/analytics/features', requireAdminSession, async (req, res) =
 });
 
 app.get('/admin/api/analytics/errors', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT event_type,
@@ -2055,7 +2057,7 @@ app.get('/admin/api/analytics/health', requireAdminSession, (_req, res) => {
 });
 
 app.get('/admin/api/analytics/peak-hours', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 90;
+  const days = Math.min(parseInt(req.query.days) || 90, 365);
   try {
     const { rows } = await pool.query(`
       SELECT EXTRACT(DOW FROM started_at) AS dow,
