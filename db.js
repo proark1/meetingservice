@@ -11,6 +11,10 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+pool.on('error', (err) => {
+  console.error('[db] Unexpected pool error:', err.message);
+});
+
 async function initDB() {
   const client = await pool.connect();
   try {
@@ -235,6 +239,42 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_recordings_meeting ON recordings(meeting_id);
     `);
 
+    // ─── Audit log ───────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id              BIGSERIAL PRIMARY KEY,
+        user_id         INTEGER,
+        action          VARCHAR(100) NOT NULL,
+        target_type     VARCHAR(50),
+        target_id       VARCHAR(100),
+        meta            JSONB DEFAULT '{}',
+        ip              VARCHAR(45),
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_user    ON audit_log(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_action  ON audit_log(action, created_at DESC);
+    `);
+
+    // ─── Webhook deliveries ─────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id              BIGSERIAL PRIMARY KEY,
+        webhook_id      INTEGER REFERENCES webhooks(id) ON DELETE CASCADE,
+        event           VARCHAR(100) NOT NULL,
+        payload         JSONB NOT NULL,
+        status          VARCHAR(20) DEFAULT 'pending',
+        attempts        INTEGER DEFAULT 0,
+        last_attempt_at TIMESTAMPTZ,
+        next_retry_at   TIMESTAMPTZ,
+        response_code   INTEGER,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_wh_del_status ON webhook_deliveries(status, next_retry_at) WHERE status = 'pending';
+    `);
+
+    // ─── Chat reply_to column ───────────────────────────────────────────────
+    await client.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to BIGINT`);
+
     // Seed platform_config defaults
     for (const [key, value] of [['platform_wallet', ''], ['rpc_url', '']]) {
       await client.query(
@@ -304,6 +344,10 @@ async function initDB() {
       ['crypto_enabled',                       'true'],
       ['meeting_cost_per_participant_minute',   '0.01'],
       ['low_balance_threshold_usd',            '2.00'],
+      ['free_tier_max_participants',           '5'],
+      ['free_tier_max_duration_minutes',       '45'],
+      ['captions_enabled',                     'true'],
+      ['guest_meetings_enabled',               'true'],
     ];
     for (const [key, value] of defaults) {
       await client.query(

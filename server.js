@@ -96,6 +96,13 @@ function trackAiUsage(model, module, endpoint, promptTokens, completionTokens, c
   ).catch(err => console.error(`trackAiUsage [${module}]:`, err.message));
 }
 
+function auditLog(userId, action, targetType, targetId, meta = {}, ip = null) {
+  return pool.query(
+    `INSERT INTO audit_log (user_id, action, target_type, target_id, meta, ip) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [userId || null, action, targetType || null, targetId || null, JSON.stringify(meta), ip]
+  ).catch(err => console.error(`auditLog [${action}]:`, err.message));
+}
+
 const app    = express();
 const server = http.createServer(app);
 
@@ -468,6 +475,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = companyId;
 
+    auditLog(user.id, 'user.register', 'user', String(user.id), { email: user.email, accountType: safeAccountType }, req.ip);
     // Send welcome email (fire-and-forget)
     sendEmail({ to: user.email, subject: 'Welcome to onepizza.io!', html: welcomeEmail(user.email, key) }).catch(() => {});
 
@@ -502,6 +510,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     req.session.email     = user.email;
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = user.company_id || null;
+    auditLog(user.id, 'user.login', 'user', String(user.id), { email: user.email }, req.ip);
     // Explicitly save the session before responding so the client's next
     // request (/api/auth/me) finds the session already in the store.
     req.session.save(err => {
@@ -606,6 +615,7 @@ app.post('/api/auth/change-password', requireUserSession, async (req, res) => {
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, req.session.userId]);
     // Send confirmation email (fire-and-forget)
     sendEmail({ to: req.session.email, subject: 'Your onepizza.io password was changed', html: passwordChangedEmail(req.session.email) }).catch(() => {});
+    auditLog(req.session.userId, 'user.password_changed', 'user', String(req.session.userId), {}, req.ip);
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
@@ -1346,13 +1356,23 @@ async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
     );
     const body = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
     for (const wh of rows) {
+      // Persist delivery before sending
+      const { rows: delRows } = await pool.query(
+        `INSERT INTO webhook_deliveries (webhook_id, event, payload, status) VALUES ($1,$2,$3,'pending') RETURNING id`,
+        [wh.id, event, JSON.stringify(payload)]
+      ).catch(() => ({ rows: [] }));
+      const deliveryId = delRows[0]?.id;
       const sig = 'sha256=' + crypto.createHmac('sha256', wh.secret).update(body).digest('hex');
-      fetchWithRetry(wh.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-OnePizza-Event': event },
-        body,
-        signal: AbortSignal.timeout(8000),
-      });
+      try {
+        await fetchWithRetry(wh.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-OnePizza-Event': event },
+          body,
+        });
+        if (deliveryId) pool.query(`UPDATE webhook_deliveries SET status = 'delivered', attempts = attempts + 1, last_attempt_at = NOW() WHERE id = $1`, [deliveryId]).catch(() => {});
+      } catch (err) {
+        if (deliveryId) pool.query(`UPDATE webhook_deliveries SET status = 'failed', attempts = attempts + 1, last_attempt_at = NOW() WHERE id = $1`, [deliveryId]).catch(() => {});
+      }
     }
   } catch (err) {
     console.error('deliverWebhook error:', err);
@@ -2387,7 +2407,7 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.recording', { action: 'stop' });
   });
 
-  socket.on('chat:message', ({ text }) => {
+  socket.on('chat:message', ({ text, replyTo }) => {
     if (!chatLimiter.check(socket.id)) return socket.emit('error', { message: 'Rate limited — too many messages' });
     if (!text || typeof text !== 'string') return;
     const trimmed = text.trim().slice(0, 500);
@@ -2396,12 +2416,13 @@ io.on('connection', (socket) => {
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
     if (!p) return;
+    const msgId = crypto.randomUUID();
     io.to(currentMeetingId).emit('chat:message', {
       from: currentParticipantId, name: p.name, text: trimmed,
-      timestamp: Date.now(), msgId: crypto.randomUUID(),
+      timestamp: Date.now(), msgId, replyTo: replyTo || null,
     });
-    pool.query('INSERT INTO chat_messages (meeting_id, participant_name, text) VALUES ($1,$2,$3)',
-      [currentMeetingId, p.name, trimmed]).catch(() => {});
+    pool.query('INSERT INTO chat_messages (meeting_id, participant_name, text, reply_to) VALUES ($1,$2,$3,$4)',
+      [currentMeetingId, p.name, trimmed, replyTo || null]).catch(() => {});
     trackEvent(currentUserId, currentCompanyId, 'feature.chat', { length: trimmed.length });
   });
 
@@ -2515,6 +2536,13 @@ function gracefulShutdown(signal) {
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  console.error('[process] Unhandled rejection:', reason?.stack || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[process] Uncaught exception:', err.stack || err);
+  process.exit(1);
+});
 
 // ─── Exports for testing ─────────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'test') {

@@ -4,6 +4,23 @@ All notable changes to onepizza.io are documented in this file.
 
 ## [1.0.0] — 2026-03-26
 
+### Added
+- **Meeting**: Elapsed meeting timer displayed in top bar (HH:MM:SS)
+- **Meeting**: Floating emoji reactions overlay — reactions animate upward and fade out over video grid
+- **Meeting**: Active speaker highlight — green ring around tile of currently speaking participant
+- **Meeting**: Reconnection banner — shows "Reconnecting… (attempt N)" with auto-rejoin on reconnect
+- **Meeting**: ICE restart on `disconnected` state — proactively restarts WebRTC after 3s disconnect
+- **Meeting**: Socket.IO configured with explicit reconnection strategy (1s delay, 5s max, 10 attempts)
+- **Chat**: Message replies — click ↩ to quote-reply to any message; reply context shown inline
+- **Chat**: Rich text formatting — **bold**, *italic*, `code`, and ```code blocks``` via markdown-lite parser
+- **Server**: Audit logging — `audit_log` table tracks login, registration, password changes with user ID, IP, and metadata
+- **Server**: Webhook delivery persistence — `webhook_deliveries` table persists payloads before sending, tracks delivery status
+- **DB**: Free tier settings added — `free_tier_max_participants` (5) and `free_tier_max_duration_minutes` (45) in settings table
+- **DB**: `chat_messages.reply_to` column for message threading
+- **Server**: Global `unhandledRejection` and `uncaughtException` handlers with logging
+- **DB**: `pool.on('error')` handler for database connection failures
+- **Env**: TURN server documentation expanded in `.env.example` with provider recommendations
+
 ### Changed
 - **UI**: Removed hero badge ("Now with company accounts, team billing & USDC payments") from landing page
 - **Performance**: Reduced static file cache from 1 day to 1 hour — prevents stale HTML after deploys

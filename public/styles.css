@@ -693,6 +693,24 @@ input, select { font-family: inherit; }
   100% { opacity: 0; transform: translateY(-90px) scale(0.8); }
 }
 
+/* Global floating reactions (full-screen overlay) */
+.reaction-float-global {
+  position: fixed;
+  font-size: 32px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: reactionFloatGlobal 3s ease-out forwards;
+}
+@keyframes reactionFloatGlobal {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 1; transform: translateY(-120px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-180px) scale(0.8); }
+}
+
+/* Enhanced speaking highlight */
+.video-tile.speaking { box-shadow: 0 0 0 3px #10b981, 0 0 12px rgba(16,185,129,0.3); }
+.spotlight-main.speaking { box-shadow: 0 0 0 3px #10b981, 0 0 12px rgba(16,185,129,0.3); }
+
 /* ─── Participants panel extras ─────────────────────────────────────────── */
 .mute-all-btn {
   width: calc(100% - 16px); margin: 8px; padding: 8px 12px;

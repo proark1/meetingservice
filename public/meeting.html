@@ -40,6 +40,12 @@
   <span id="recordingConsentText">This meeting is being recorded.</span>
 </div>
 
+<!-- ─── Reconnection banner ────────────────────────────────────────────────── -->
+<div id="reconnectBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:10000;background:rgba(239,68,68,0.95);color:white;padding:10px 20px;font-size:13px;font-weight:600;text-align:center;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(8px);">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+  <span>Reconnecting…</span>
+</div>
+
 <!-- ─── Lobby ─────────────────────────────────────────────────────────────── -->
 <div class="lobby-overlay" id="lobby">
   <div class="lobby-card">
@@ -82,7 +88,7 @@
       </button>
     </div>
     <div class="top-bar-center">
-      <span class="meeting-timer" id="meetingTimer">0:00</span>
+      <span class="meeting-timer" id="meetingTimer" style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);font-family:'SF Mono',monospace;letter-spacing:0.05em;">00:00:00</span>
     </div>
     <div class="top-bar-right">
       <!-- Layout switcher -->
@@ -164,6 +170,7 @@
         </div>
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages"></div>
+          <div id="chatReplyPreview" style="display:none;padding:4px 10px;font-size:11px;background:rgba(0,0,0,0.05);border-left:2px solid var(--primary,#4361ee);margin:0 8px;border-radius:4px;align-items:center;gap:4px;"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Send a message…" maxlength="500" aria-label="Chat message">
             <button id="chatSendBtn">Send</button>
@@ -381,7 +388,30 @@ const ICONS = {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const meetingId = window.location.pathname.split('/').pop();
-const socket = io();
+const socket = io({
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 10,
+  transports: ['websocket', 'polling'],
+});
+
+socket.on('reconnect_attempt', (attempt) => {
+  const banner = document.getElementById('reconnectBanner');
+  if (banner) { banner.style.display = 'flex'; banner.querySelector('span').textContent = `Reconnecting… (attempt ${attempt})`; }
+});
+socket.on('reconnect', () => {
+  const banner = document.getElementById('reconnectBanner');
+  if (banner) banner.style.display = 'none';
+  // Re-join meeting room
+  if (typeof meetingId !== 'undefined' && meetingId) {
+    socket.emit('join-meeting', { meetingId, name: sessionStorage.getItem('userName') || '', adminToken: sessionStorage.getItem(`admin_${meetingId}`) || undefined });
+  }
+});
+socket.on('reconnect_failed', () => {
+  const banner = document.getElementById('reconnectBanner');
+  if (banner) { banner.querySelector('span').textContent = 'Connection lost. Please refresh the page.'; }
+});
 
 let localStream     = null;
 let screenStream    = null;
@@ -559,12 +589,10 @@ function startTimer() {
   meetingStartTime = Date.now();
   timerInterval = setInterval(() => {
     const s = Math.floor((Date.now() - meetingStartTime) / 1000);
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    const txt = h > 0
-      ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
-      : `${m}:${String(sec).padStart(2,'0')}`;
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    const txt = `${h}:${m}:${sec}`;
     (UI.meetingTimer || $('#meetingTimer')).textContent = txt;
     const bar = UI.meetingTimerBar || $('#meetingTimerBar');
     if (bar) bar.textContent = txt;
@@ -609,9 +637,14 @@ setInterval(() => {
     const speaking = avg > 10 && participants[pid] && !participants[pid].isMuted;
     if (speaking) lastSpoke[pid] = Date.now();
     const tile = _getCachedTile(pid);
-    if (tile) tile.classList.toggle('is-speaking', speaking);
+    if (tile) {
+      tile.classList.toggle('is-speaking', speaking);
+      tile.classList.toggle('speaking', speaking);
+    }
     if (pid === pinnedParticipant) {
-      (UI.spotlightMain || $('#spotlightMain'))?.classList.toggle('is-speaking', speaking);
+      const spotlight = UI.spotlightMain || $('#spotlightMain');
+      spotlight?.classList.toggle('is-speaking', speaking);
+      spotlight?.classList.toggle('speaking', speaking);
     }
   }
 }, 150);
@@ -878,6 +911,7 @@ socket.on('recording:stopped', () => {
 // Reactions
 socket.on('react', ({ participantId, emoji }) => {
   showReactionFloat(participantId, emoji);
+  showGlobalFloatingReaction(emoji);
 });
 
 function showReactionFloat(pid, emoji) {
@@ -891,6 +925,16 @@ function showReactionFloat(pid, emoji) {
   el.style.left = (15 + Math.random() * 65) + '%';
   container.appendChild(el);
   setTimeout(() => el.remove(), 2400);
+}
+
+function showGlobalFloatingReaction(emoji) {
+  const el = document.createElement('div');
+  el.className = 'reaction-float-global';
+  el.textContent = emoji;
+  el.style.left = (20 + Math.random() * 60) + 'vw';
+  el.style.bottom = '80px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
 }
 
 // ─── WebRTC ───────────────────────────────────────────────────────────────────
@@ -925,7 +969,15 @@ function createPeerConnection(participantId, initiator) {
 
   pc.oniceconnectionstatechange = () => {
     if (pc.iceConnectionState === 'failed') pc.restartIce();
-    if (pc.iceConnectionState === 'disconnected') showToast('Peer connection unstable…', 'error');
+    if (pc.iceConnectionState === 'disconnected') {
+      showToast('Peer connection unstable…', 'error');
+      // Attempt ICE restart after 3 seconds if still disconnected
+      setTimeout(() => {
+        if (pc.iceConnectionState === 'disconnected') {
+          pc.restartIce();
+        }
+      }, 3000);
+    }
     if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') applyVideoQuality(pc);
   };
 
@@ -1817,29 +1869,63 @@ function sendChat() {
   const text = $('#chatInput').value.trim();
   if (!text) return;
   lastChatSent = now;
-  socket.emit('chat:message', { text });
+  socket.emit('chat:message', { text, replyTo: chatReplyTo || undefined });
   $('#chatInput').value = '';
+  chatReplyTo = null;
+  const preview = $('#chatReplyPreview');
+  if (preview) preview.style.display = 'none';
 }
 
-socket.on('chat:message', ({ from, name, text, timestamp, msgId }) => {
+// ─── Chat rich text (markdown-lite) ────────────────────────────────────────────
+function formatChatText(text) {
+  let s = escapeHtml(text);
+  s = s.replace(/```([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.15);padding:6px 8px;border-radius:4px;font-size:12px;margin:4px 0;overflow-x:auto;white-space:pre-wrap;">$1</pre>');
+  s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  return s;
+}
+
+let chatReplyTo = null;
+function setChatReply(msgId, name, text) {
+  chatReplyTo = msgId;
+  const preview = $('#chatReplyPreview');
+  if (preview) {
+    preview.style.display = 'flex';
+    preview.innerHTML = `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${escapeHtml(name)}</strong>: ${escapeHtml(text.slice(0, 80))}</span><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;" id="cancelReplyBtn">✕</button>`;
+    preview.querySelector('#cancelReplyBtn')?.addEventListener('click', () => { chatReplyTo = null; preview.style.display = 'none'; });
+  }
+  $('#chatInput')?.focus();
+}
+
+socket.on('chat:message', ({ from, name, text, timestamp, msgId, replyTo }) => {
   const container = $('#chatMessages');
   const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const isOwn = from === myParticipantId;
   const id = msgId || (Date.now() + Math.random()).toString(36);
-  chatLog.push({ msgId: id, pid: from, name, text, ts: timestamp });
+  chatLog.push({ msgId: id, pid: from, name, text, ts: timestamp, replyTo });
   if (chatLog.length > 500) chatLog.shift();
+  // Build reply quote if replying to a previous message
+  let replyHtml = '';
+  if (replyTo) {
+    const original = chatLog.find(m => m.msgId === replyTo);
+    if (original) {
+      replyHtml = `<div style="font-size:11px;color:var(--text-muted);border-left:2px solid var(--primary,#4361ee);padding:2px 8px;margin-bottom:4px;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${escapeHtml(original.name)}</strong>: ${escapeHtml(original.text.slice(0, 60))}</div>`;
+    }
+  }
   const div = document.createElement('div');
   div.className = `chat-msg${isOwn ? ' chat-msg-own' : ''}`;
   div.dataset.msgId = id;
   div.innerHTML = `
+    ${replyHtml}
     <div class="chat-author">${escapeHtml(name)}${isOwn ? ' <span style="color:var(--text-muted);font-weight:400">(You)</span>' : ''}</div>
-    <div class="chat-text">${escapeHtml(text)}</div>
+    <div class="chat-text">${formatChatText(text)}</div>
     <div class="chat-msg-footer">
       <span class="chat-time">${time}</span>
+      <button class="chat-reply-btn" data-msg-id="${id}" data-name="${escapeHtml(name)}" data-text="${escapeHtml(text.slice(0, 80))}" title="Reply" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);">↩</button>
       <button class="chat-react-trigger" title="React">+</button>
     </div>
     <div class="chat-reactions"></div>`;
-  // Chat react uses event delegation on container (see setupChatDelegation below)
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   const chatOpen = !$('#sidePanel').classList.contains('hidden') &&
@@ -2601,6 +2687,12 @@ setInterval(checkConnectionQuality, 5000);
   const container = document.getElementById('chatMessages');
   if (!container) return;
   container.addEventListener('click', (e) => {
+    const replyBtn = e.target.closest('.chat-reply-btn');
+    if (replyBtn) {
+      e.stopPropagation();
+      setChatReply(replyBtn.dataset.msgId, replyBtn.dataset.name, replyBtn.dataset.text);
+      return;
+    }
     const trigger = e.target.closest('.chat-react-trigger');
     if (trigger) {
       e.stopPropagation();
