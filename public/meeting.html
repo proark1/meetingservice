@@ -428,10 +428,11 @@
         <button id="closeStreamModal" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted);">&#10005;</button>
       </div>
       <div id="streamSetup">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">RTMP Stream URL</label>
-        <input type="url" id="streamUrlInput" placeholder="rtmp://live.twitch.tv/app/your-stream-key" style="width:100%;padding:10px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;margin-bottom:12px;box-sizing:border-box;">
-        <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">Enter the RTMP ingest URL from your streaming platform (YouTube Live, Twitch, etc.)</p>
-        <button id="streamStartBtn" style="width:100%;background:var(--primary,#1C2340);color:white;border:none;padding:10px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">Start streaming</button>
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Stream destination URL</label>
+        <input type="url" id="streamUrlInput" placeholder="rtmp://live.twitch.tv/app/your-stream-key" style="width:100%;padding:10px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Enter the RTMP ingest URL from your streaming platform (YouTube Live, Twitch, etc.). All participants will see a LIVE indicator.</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px;padding:8px;background:rgba(0,0,0,0.04);border-radius:6px;">Note: Use OBS or a WebRTC-to-RTMP bridge to forward the meeting video to your stream. This enables live broadcast mode and notifies all participants.</p>
+        <button id="streamStartBtn" style="width:100%;background:var(--primary,#1C2340);color:white;border:none;padding:10px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">Start live broadcast</button>
       </div>
       <div id="streamActive" style="display:none;text-align:center;">
         <div style="width:48px;height:48px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
@@ -2930,9 +2931,12 @@ document.getElementById('streamStartBtn')?.addEventListener('click', () => {
   document.getElementById('streamSetup').style.display = 'none';
   document.getElementById('streamActive').style.display = 'block';
   streamTimerInterval = setInterval(() => {
-    const s = Math.floor((Date.now() - streamStartTime) / 1000);
+    const elapsed = Math.floor((Date.now() - streamStartTime) / 1000);
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
     const el = document.getElementById('streamTimer');
-    if (el) el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    if (el) el.textContent = h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
   }, 1000);
   showToast('Live stream started');
 });
@@ -2948,13 +2952,22 @@ document.getElementById('streamStopBtn')?.addEventListener('click', () => {
 });
 
 socket.on('stream:started', ({ hostName }) => {
+  isStreaming = true;
   const banner = document.getElementById('streamBanner');
   if (banner) banner.style.display = 'flex';
-  showToast(`${hostName} started live streaming`);
+  showToast(`${escapeHtml(hostName)} started live streaming`);
 });
 
 socket.on('stream:stopped', () => {
-  document.getElementById('streamBanner').style.display = 'none';
+  isStreaming = false;
+  if (streamTimerInterval) { clearInterval(streamTimerInterval); streamTimerInterval = null; }
+  const banner = document.getElementById('streamBanner');
+  if (banner) banner.style.display = 'none';
+  // Reset modal UI
+  const setup = document.getElementById('streamSetup');
+  const active = document.getElementById('streamActive');
+  if (setup) setup.style.display = 'block';
+  if (active) active.style.display = 'none';
   showToast('Live stream ended');
 });
 

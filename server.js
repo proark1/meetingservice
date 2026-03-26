@@ -1212,6 +1212,19 @@ async function removeParticipantFromMeeting(meeting, participantId, io) {
     meeting.recordingParticipantId = null;
     io.to(meeting.id).emit('recording:stopped');
   }
+  // Clear streaming state if the streamer disconnected without stopping
+  if (meeting.streamingParticipantId === participantId) {
+    meeting.isStreaming = false;
+    meeting.streamUrl = null;
+    meeting.streamingParticipantId = null;
+    io.to(meeting.id).emit('stream:stopped');
+  }
+  // Remove from breakout room if in one
+  if (meeting.breakoutRooms) {
+    for (const [, r] of meeting.breakoutRooms) {
+      r.participants.delete(participantId);
+    }
+  }
   io.to(meeting.id).emit('participant:left', { participantId, name: p ? p.name : 'Unknown' });
 
   // Fire participant.left webhook — use cached owner IDs
@@ -2560,6 +2573,7 @@ io.on('connection', (socket) => {
     if (!currentMeetingId) return;
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
+    if (meeting.isStreaming) return socket.emit('error', { message: 'Stream already active' });
     const p = meeting.participants.get(currentParticipantId);
     if (!p || !p.isAdmin) return;
     const safeUrl = ((url || '') + '').trim().slice(0, 500);
