@@ -313,8 +313,12 @@ async function initDB() {
     }
 
     // ─── Seed admin user ──────────────────────────────────────────────────────
-    const adminEmail    = process.env.ADMIN_EMAIL    || 'assad.dar@gmail.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Test321!';
+    const adminEmail    = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+      console.warn('[db] ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin seed');
+      return;
+    }
     const { rows: existing } = await client.query(
       'SELECT id FROM users WHERE email = $1', [adminEmail]
     );
@@ -332,10 +336,14 @@ async function initDB() {
       adminId = existing[0].id;
     }
 
-    await client.query(
-      `INSERT INTO api_keys (user_id, key, label) VALUES ($1, $2, $3) ON CONFLICT (key) DO NOTHING`,
-      [adminId, 'mk_default_test_key', 'Default Test Key']
-    );
+    const defaultApiKey = process.env.DEFAULT_API_KEY || `mk_${require('crypto').randomBytes(24).toString('hex')}`;
+    const { rows: existingKeys } = await client.query('SELECT id FROM api_keys WHERE user_id = $1 LIMIT 1', [adminId]);
+    if (existingKeys.length === 0) {
+      await client.query(
+        `INSERT INTO api_keys (user_id, key, label) VALUES ($1, $2, $3) ON CONFLICT (key) DO NOTHING`,
+        [adminId, defaultApiKey, 'Default Key']
+      );
+    }
 
   } finally {
     client.release();

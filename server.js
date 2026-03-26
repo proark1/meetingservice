@@ -309,6 +309,18 @@ const scheduledMeetingPoller = setInterval(() => {
   }
 }, 15000);
 
+// Cleanup abandoned meetings (no participants for 24h) every 30 minutes
+const MEETING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, m] of meetings) {
+    if (m.participants.size === 0 && now - m.createdAt > MEETING_MAX_AGE_MS) {
+      if (m.gracePeriodTimer) clearTimeout(m.gracePeriodTimer);
+      meetings.delete(id);
+    }
+  }
+}, 30 * 60 * 1000);
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function generateMeetingId() {
   const seg = (n) => crypto.randomBytes(n).toString('hex').slice(0, n);
@@ -425,16 +437,23 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     if (safeAccountType === 'company') {
       inviteCode = generateInviteCode();
-      // Assign HD wallet index
-      const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index), -1) + 1 AS next FROM companies`);
-      const hdIdx = idxRows[0].next;
-      const walletAddr = getHDAddress(hdIdx);
-      const { rows: compRows } = await pool.query(
-        `INSERT INTO companies (name, owner_id, invite_code, hd_wallet_index, wallet_address) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [companyName.trim(), user.id, inviteCode, hdIdx, walletAddr]
-      );
-      companyId = compRows[0].id;
-      await pool.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [companyId, user.id]);
+      // Assign HD wallet index (advisory lock prevents concurrent duplicate)
+      const client = await pool.connect();
+      try {
+        await client.query('SELECT pg_advisory_lock(42)');
+        const { rows: idxRows } = await client.query(`SELECT COALESCE(MAX(hd_wallet_index), -1) + 1 AS next FROM companies`);
+        const hdIdx = idxRows[0].next;
+        const walletAddr = getHDAddress(hdIdx);
+        const { rows: compRows } = await client.query(
+          `INSERT INTO companies (name, owner_id, invite_code, hd_wallet_index, wallet_address) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [companyName.trim(), user.id, inviteCode, hdIdx, walletAddr]
+        );
+        companyId = compRows[0].id;
+        await client.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [companyId, user.id]);
+        await client.query('SELECT pg_advisory_unlock(42)');
+      } finally {
+        client.release();
+      }
     }
 
     // Auto-create default API key
@@ -685,8 +704,11 @@ app.get('/admin/api/stats', requireAdminSession, async (_req, res) => {
   });
 });
 
-app.get('/admin/api/meetings', requireAdminSession, (_req, res) => {
-  const list = [...meetings.values()].map(m => ({
+app.get('/admin/api/meetings', requireAdminSession, (req, res) => {
+  const limit  = Math.min(parseInt(req.query.limit)  || 100, 500);
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+  const all = [...meetings.values()];
+  const list = all.slice(offset, offset + limit).map(m => ({
     meetingId:        m.id,
     title:            m.title,
     createdAt:        m.createdAt,
@@ -696,7 +718,7 @@ app.get('/admin/api/meetings', requireAdminSession, (_req, res) => {
     })),
     settings: m.settings,
   }));
-  res.json({ meetings: list });
+  res.json({ meetings: list, total: all.length });
 });
 
 app.delete('/admin/api/meetings/:meetingId', requireAdminSession, (req, res) => {
@@ -1064,13 +1086,20 @@ app.get('/api/billing/usdc/address', requireUserSession, async (req, res) => {
     } else {
       const { rows } = await pool.query(`SELECT wallet_address FROM users WHERE id = $1`, [req.session.userId]);
       if (!rows[0]?.wallet_address) {
-        // Assign a new HD address
-        const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index),-1)+1 AS next FROM companies`);
-        const hdIdx = (idxRows[0].next || 0) + 10000; // offset to avoid collision with company indices
-        const addr  = getHDAddress(hdIdx);
-        if (addr) {
-          await pool.query(`UPDATE users SET wallet_address = $1 WHERE id = $2`, [addr, req.session.userId]);
-          address = addr;
+        // Assign a new HD address (advisory lock prevents concurrent duplicate)
+        const client = await pool.connect();
+        try {
+          await client.query('SELECT pg_advisory_lock(42)');
+          const { rows: idxRows } = await client.query(`SELECT COALESCE(MAX(hd_wallet_index),-1)+1 AS next FROM companies`);
+          const hdIdx = (idxRows[0].next || 0) + 10000; // offset to avoid collision with company indices
+          const addr  = getHDAddress(hdIdx);
+          if (addr) {
+            await client.query(`UPDATE users SET wallet_address = $1 WHERE id = $2`, [addr, req.session.userId]);
+            address = addr;
+          }
+          await client.query('SELECT pg_advisory_unlock(42)');
+        } finally {
+          client.release();
         }
       } else {
         address = rows[0].wallet_address;
@@ -1255,14 +1284,19 @@ async function chargeMeeting(meeting) {
       [meeting.peakParticipants || 1, parseFloat(mins.toFixed(2)), cost, meeting.logId]
     );
 
+    // Look up receipt email before committing (avoids post-commit pool query)
+    let receiptEmail = notifyEmail;
+    if (!receiptEmail) {
+      const { rows: emailRows } = await client.query('SELECT email FROM users WHERE id = $1', [user_id]);
+      receiptEmail = emailRows[0]?.email;
+    }
+
     await client.query('COMMIT');
 
     // Non-transactional: email, webhook, analytics (fire-and-forget)
     if (notifyEmail) {
       sendEmail({ to: notifyEmail, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, notifyEmail) }).catch(() => {});
     }
-    // Send meeting receipt email
-    const receiptEmail = notifyEmail || (await pool.query('SELECT email FROM users WHERE id = $1', [user_id]).catch(() => ({ rows: [] }))).rows[0]?.email;
     if (receiptEmail && cost >= 0.01) {
       sendEmail({
         to: receiptEmail,
@@ -1292,7 +1326,7 @@ async function chargeMeeting(meeting) {
 async function fetchWithRetry(url, options, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await fetch(url, options);
+      const res = await fetch(url, { ...options, signal: AbortSignal.timeout(5000) });
       if (res.ok || res.status < 500) return; // success or client error — don't retry
     } catch (err) {
       if (i === retries - 1) {

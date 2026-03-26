@@ -7,6 +7,12 @@ All notable changes to onepizza.io are documented in this file.
 ### Changed
 - **UI**: Removed hero badge ("Now with company accounts, team billing & USDC payments") from landing page
 - **Performance**: Reduced static file cache from 1 day to 1 hour — prevents stale HTML after deploys
+- **DB**: Admin seed now requires `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars — no hardcoded credentials; generates cryptographically random API key instead of hardcoded test key
+- **Server**: Admin meeting list now supports `?limit=N&offset=N` pagination (max 500) and returns `total` count
+- **Server**: Webhook delivery uses 5-second timeout per attempt via `AbortSignal.timeout()` — prevents blocking on slow/dead endpoints
+- **Server**: HD wallet index assignment now uses PostgreSQL advisory lock to prevent duplicate indices from concurrent requests
+- **Server**: chargeMeeting receipt email lookup moved inside transaction (before COMMIT) to avoid post-commit pool query failure
+- **Server**: Abandoned meetings (no participants, older than 24h) automatically cleaned up every 30 minutes
 
 ### Security
 - **Email**: Added `esc()` HTML-escape helper to all email templates — prevents XSS via company names, meeting titles, API keys, and reset tokens in transactional emails
