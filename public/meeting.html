@@ -74,7 +74,7 @@
     </div>
     <input type="text" id="lobbyName" placeholder="Enter your name">
     <p class="lobby-error hidden" id="lobbyError"></p>
-    <button class="btn btn-primary" id="lobbyJoinBtn" onclick="typeof joinMeeting==='function'&&joinMeeting()">Join Meeting</button>
+    <button class="btn btn-primary" id="lobbyJoinBtn">Join Meeting</button>
   </div>
 </div>
 
@@ -2868,15 +2868,15 @@ document.getElementById('breakoutCloseBtn')?.addEventListener('click', () => {
 document.getElementById('breakoutReturnBtn')?.addEventListener('click', () => {
   socket.emit('breakout:leave');
   currentBreakoutRoom = null;
-  document.getElementById('breakoutBanner')?.style.display = 'none';
+  { const _el = document.getElementById("breakoutBanner"); if (_el) _el.style.display = "none"; }
 });
 
 // Breakout socket handlers
 socket.on('breakout:created', ({ rooms }) => {
   breakoutRooms = rooms;
   renderBreakoutRooms();
-  document.getElementById('breakoutBroadcast')?.style.display = 'block';
-  document.getElementById('breakoutCloseWrap')?.style.display = 'block';
+  { const _el = document.getElementById("breakoutBroadcast"); if (_el) _el.style.display = "block"; }
+  { const _el = document.getElementById("breakoutCloseWrap"); if (_el) _el.style.display = "block"; }
   showToast(`${rooms.length} breakout rooms created`);
 });
 
@@ -2891,23 +2891,23 @@ socket.on('breakout:assigned', ({ roomId, roomName }) => {
   const banner = document.getElementById('breakoutBanner');
   if (banner) {
     banner.style.display = 'flex';
-    document.getElementById('breakoutBannerText')?.textContent = `In: ${roomName}`;
+    { const _el = document.getElementById("breakoutBannerText"); if (_el) _el.textContent = `In: ${roomName}`; }
   }
   showToast(`You've been assigned to ${roomName}`);
 });
 
 socket.on('breakout:closed', () => {
   currentBreakoutRoom = null;
-  document.getElementById('breakoutBanner')?.style.display = 'none';
+  { const _el = document.getElementById("breakoutBanner"); if (_el) _el.style.display = "none"; }
   showToast('Breakout rooms closed — returning to main meeting');
 });
 
 socket.on('breakout:all-closed', () => {
   breakoutRooms = [];
   currentBreakoutRoom = null;
-  document.getElementById('breakoutBanner')?.style.display = 'none';
-  document.getElementById('breakoutBroadcast')?.style.display = 'none';
-  document.getElementById('breakoutCloseWrap')?.style.display = 'none';
+  { const _el = document.getElementById("breakoutBanner"); if (_el) _el.style.display = "none"; }
+  { const _el = document.getElementById("breakoutBroadcast"); if (_el) _el.style.display = "none"; }
+  { const _el = document.getElementById("breakoutCloseWrap"); if (_el) _el.style.display = "none"; }
   renderBreakoutRooms();
 });
 
