@@ -1579,7 +1579,7 @@ document.getElementById('createBtn')?.addEventListener('click', async () => {
     if (!res.ok) { showToast(data.error || 'Could not create meeting — please try again', 'error'); return; }
     sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
     sessionStorage.setItem('userName', name);
-    window.location.href = `/join/${data.meetingId}`;
+    window.location.href = `/join/${data.meetingId}?name=${encodeURIComponent(name)}`;
   } catch(e) {
     showToast('Could not create meeting — please try again', 'error');
   } finally {
@@ -1593,7 +1593,7 @@ document.getElementById('joinBtn')?.addEventListener('click', () => {
   if (!code) { showToast('Please enter a meeting code', 'error'); return; }
   if (!name) { showToast('Please enter your name', 'error'); return; }
   sessionStorage.setItem('userName', name);
-  window.location.href = `/join/${code}`;
+  window.location.href = `/join/${code}?name=${encodeURIComponent(name)}`;
 });
 
 // Redirect already-logged-in users straight to the dashboard

@@ -735,10 +735,8 @@ setInterval(() => {
 
 // ─── Lobby ────────────────────────────────────────────────────────────────────
 const lobbyNameInput = $('#lobbyName');
-const _urlName = new URLSearchParams(location.search).get('name');
-lobbyNameInput.value = _urlName
-  ? decodeURIComponent(_urlName).slice(0, 60)
-  : (sessionStorage.getItem('userName') || '');
+const _urlName = new URLSearchParams(location.search).get('name') || sessionStorage.getItem('userName') || '';
+lobbyNameInput.value = _urlName ? decodeURIComponent(_urlName).slice(0, 60) : '';
 if (_urlName) updateLobbyInitial();
 $('#lobbyCode').textContent = meetingId;
 

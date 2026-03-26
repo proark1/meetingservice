@@ -1303,7 +1303,7 @@ async function createMeeting() {
     if (!res.ok) { toast(data.error || 'Could not create meeting', 'error'); return; }
     sessionStorage.setItem(`admin_${data.meetingId}`, data.adminToken);
     sessionStorage.setItem('userName', name);
-    window.location.href = `/join/${data.meetingId}`;
+    window.location.href = `/join/${data.meetingId}?name=${encodeURIComponent(name)}`;
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Start meeting →'; }
   }
@@ -1315,7 +1315,7 @@ function joinMeeting() {
   if (!code) { toast('Please enter a meeting code', 'error'); return; }
   if (!name) { toast('Please enter your name', 'error'); return; }
   sessionStorage.setItem('userName', name);
-  window.location.href = `/join/${code}`;
+  window.location.href = `/join/${code}?name=${encodeURIComponent(name)}`;
 }
 
 // ─── Company ──────────────────────────────────────────────────────────────────

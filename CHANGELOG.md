@@ -47,6 +47,7 @@ All notable changes to onepizza.io are documented in this file.
 - **DB**: Silent `.catch(() => {})` on schema migrations replaced with error-logging catch — no longer swallows real failures
 
 ### Fixed
+- **UI**: Join meeting now works after creating — navigation from dashboard and landing page includes `?name=` parameter so meeting page auto-joins; meeting.html also falls back to sessionStorage name if URL param is missing
 - **Server**: Null reference crash in change-password when user not found — added `rows[0]` check
 - **Server**: Analytics query days parameter now capped at 365 — prevents unbounded table scans
 - **Email**: Startup warning logged when `RESEND_API_KEY` not set — makes silent email failures visible
