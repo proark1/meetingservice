@@ -74,7 +74,7 @@
     </div>
     <input type="text" id="lobbyName" placeholder="Enter your name">
     <p class="lobby-error hidden" id="lobbyError"></p>
-    <button class="btn btn-primary" id="lobbyJoinBtn">Join Meeting</button>
+    <button class="btn btn-primary" id="lobbyJoinBtn" onclick="typeof joinMeeting==='function'&&joinMeeting()">Join Meeting</button>
   </div>
 </div>
 
@@ -455,6 +455,13 @@
 </div><!-- end meeting-container -->
 
 <script>
+// Global error handler — show crash errors in lobby instead of failing silently
+window.addEventListener('error', (e) => {
+  console.error('Script error:', e.message, e.filename, e.lineno);
+  const el = document.getElementById('lobbyError');
+  if (el) { el.textContent = 'Something went wrong: ' + e.message; el.classList.remove('hidden'); }
+});
+
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const ICONS = {
   micOn:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`,
