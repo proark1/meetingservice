@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Meeting</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1C2340">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <script src="/socket.io/socket.io.js"></script>
@@ -366,6 +368,8 @@
         <tr><td><kbd>B</kbd></td><td>Background effects</td></tr>
         <tr><td><kbd>P</kbd></td><td>Picture-in-Picture pop-out</td></tr>
         <tr><td><kbd>L</kbd></td><td>Lock / unlock meeting (host)</td></tr>
+        <tr><td><kbd>T</kbd></td><td>Toggle chat panel</td></tr>
+        <tr><td><kbd>U</kbd></td><td>Toggle participants panel</td></tr>
         <tr><td><kbd>?</kbd></td><td>Show / hide this panel</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Close panels / exit focus view</td></tr>
       </table>
@@ -1024,6 +1028,12 @@ $('#micBtn').addEventListener('click', () => {
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
   if (participants[myParticipantId]) participants[myParticipantId].isMuted = isMuted;
   socket.emit('media:toggle-audio', { isMuted });
+  // Auto-lower hand on unmute
+  if (!isMuted && isHandRaised) {
+    isHandRaised = false;
+    if (participants[myParticipantId]) participants[myParticipantId].isHandRaised = false;
+    socket.emit('raise-hand', { isHandRaised: false });
+  }
   updateControlButtons(); syncParticipantTile(myParticipantId);
 });
 
@@ -2065,6 +2075,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'b' || e.key === 'B') $('#blurBtn').click();
   else if (e.key === 'l' || e.key === 'L') { if (isAdmin) $('#lockBtn').click(); }
   else if (e.key === 'p' || e.key === 'P') togglePiP();
+  else if (e.key === 't' || e.key === 'T') toggleSidePanel('chat');
+  else if (e.key === 'u' || e.key === 'U') toggleSidePanel('participants');
   else if (e.key === '?') toggleShortcutsModal();
 });
 

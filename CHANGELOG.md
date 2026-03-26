@@ -5,6 +5,13 @@ All notable changes to onepizza.io are documented in this file.
 ## [1.0.0] — 2026-03-26
 
 ### Added
+- **SEO**: Open Graph image (`og:image`) and Twitter card image meta tags for social sharing previews
+- **SEO**: JSON-LD structured data (Schema.org/SoftwareApplication) for search engine rich results
+- **PWA**: Web app manifest (`manifest.json`) enabling "Add to Home Screen" on mobile devices
+- **PWA**: `theme-color` meta tag and apple-mobile-web-app-capable for native mobile feel
+- **Meeting**: Keyboard shortcut `T` to toggle chat panel, `U` to toggle participants panel
+- **Meeting**: Hand raise auto-clears when participant unmutes — prevents stale raised hands
+- **Accessibility**: `prefers-reduced-motion` CSS — disables all animations for users with motion sensitivity
 - **Meeting**: Elapsed meeting timer displayed in top bar (HH:MM:SS)
 - **Meeting**: Floating emoji reactions overlay — reactions animate upward and fade out over video grid
 - **Meeting**: Active speaker highlight — green ring around tile of currently speaking participant

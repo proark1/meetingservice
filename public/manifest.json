@@ -1,0 +1,12 @@
+{
+  "name": "onepizza.io — Video Meetings",
+  "short_name": "onepizza",
+  "description": "Video meetings built for modern teams",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EBE3DB",
+  "theme_color": "#1C2340",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
