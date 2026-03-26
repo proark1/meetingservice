@@ -386,7 +386,7 @@
   </div>
 
   <!-- Breakout Rooms Modal -->
-  <div id="breakoutModal" class="modal-overlay hidden" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+  <div id="breakoutModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
     <div style="background:var(--surface,#fff);border-radius:16px;padding:24px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h3 style="font-size:16px;font-weight:700;">Breakout Rooms</h3>
@@ -422,7 +422,7 @@
   </div>
 
   <!-- Live Stream Modal -->
-  <div id="streamModal" class="modal-overlay hidden" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+  <div id="streamModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
     <div style="background:var(--surface,#fff);border-radius:16px;padding:24px;width:90%;max-width:420px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h3 style="font-size:16px;font-weight:700;">Live Stream</h3>
@@ -2817,10 +2817,12 @@ let currentBreakoutRoom = null;
 let breakoutRooms = [];
 
 function openBreakoutModal() {
-  document.getElementById('breakoutModal')?.classList.remove('hidden');
+  const el = document.getElementById('breakoutModal');
+  if (el) el.style.display = 'flex';
 }
 function closeBreakoutModalFn() {
-  document.getElementById('breakoutModal')?.classList.add('hidden');
+  const el = document.getElementById('breakoutModal');
+  if (el) el.style.display = 'none';
 }
 
 document.getElementById('moreBreakoutOpt')?.addEventListener('click', () => {
@@ -2937,10 +2939,12 @@ let streamStartTime = null;
 
 document.getElementById('moreStreamOpt')?.addEventListener('click', () => {
   document.getElementById('morePanel')?.classList.add('hidden');
-  document.getElementById('streamModal')?.classList.remove('hidden');
+  const el = document.getElementById('streamModal');
+  if (el) el.style.display = 'flex';
 });
 document.getElementById('closeStreamModal')?.addEventListener('click', () => {
-  document.getElementById('streamModal')?.classList.add('hidden');
+  const el = document.getElementById('streamModal');
+  if (el) el.style.display = 'none';
 });
 
 document.getElementById('streamStartBtn')?.addEventListener('click', () => {
@@ -2966,9 +2970,9 @@ document.getElementById('streamStopBtn')?.addEventListener('click', () => {
   isStreaming = false;
   if (streamTimerInterval) clearInterval(streamTimerInterval);
   socket.emit('stream:stop');
-  document.getElementById('streamSetup').style.display = 'block';
-  document.getElementById('streamActive').style.display = 'none';
-  document.getElementById('streamModal')?.classList.add('hidden');
+  { const _s = document.getElementById('streamSetup'); if (_s) _s.style.display = 'block'; }
+  { const _a = document.getElementById('streamActive'); if (_a) _a.style.display = 'none'; }
+  { const _m = document.getElementById('streamModal'); if (_m) _m.style.display = 'none'; }
   showToast('Live stream stopped');
 });
 
