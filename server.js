@@ -236,7 +236,17 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
   res.json({ received: true });
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  setHeaders(res, filePath) {
+    // No cache on HTML files — prevents stale code after deploys
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day for assets
+    }
+  },
+}));
 app.use(express.json({ limit: '1mb' }));
 
 // ─── Health checks ────────────────────────────────────────────────────────────
@@ -2154,13 +2164,15 @@ app.get('/api/config/ice-servers', (_req, res) => {
 });
 
 // ─── HTML Routes ──────────────────────────────────────────────────────────────
-app.get('/',         (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/docs',     (_req, res) => res.sendFile(path.join(__dirname, 'public', 'docs.html')));
-app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
-app.get('/reset',    (_req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
-app.get('/dashboard',(_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
-app.get('/billing',  requireUserSession, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'billing.html')));
-app.get('/join/:meetingId', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'meeting.html')));
+// ─── HTML routes (no-cache to prevent stale code after deploys) ──────────────
+const sendHtml = (file) => (_req, res) => { res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(__dirname, 'public', file)); };
+app.get('/',         sendHtml('index.html'));
+app.get('/docs',     sendHtml('docs.html'));
+app.get('/register', sendHtml('register.html'));
+app.get('/reset',    sendHtml('reset.html'));
+app.get('/dashboard', sendHtml('dashboard.html'));
+app.get('/billing',  requireUserSession, sendHtml('billing.html'));
+app.get('/join/:meetingId', sendHtml('meeting.html'));
 
 app.get('/admin', (req, res) => {
   if (req.session?.userId && req.session?.isAdmin) return res.redirect('/admin/dashboard');
