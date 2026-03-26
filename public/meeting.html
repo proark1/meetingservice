@@ -10,6 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Fallback: if Socket.IO didn't load from server, load from CDN
+    if (typeof io === 'undefined') {
+      document.write('<scr' + 'ipt src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/scr' + 'ipt>');
+    }
+  </script>
   <script async src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -494,6 +500,11 @@ socket.on('reconnect', () => {
 socket.on('reconnect_failed', () => {
   const banner = document.getElementById('reconnectBanner');
   if (banner) { banner.querySelector('span').textContent = 'Connection lost. Please refresh the page.'; }
+});
+socket.on('connect_error', (err) => {
+  console.error('Socket.IO connect error:', err.message);
+  const errEl = document.getElementById('lobbyError');
+  if (errEl) { errEl.textContent = 'Cannot connect to server — please refresh or try again later'; errEl.classList.remove('hidden'); }
 });
 
 let localStream     = null;
