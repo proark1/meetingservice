@@ -484,7 +484,11 @@ socket.on('reconnect', () => {
   if (banner) banner.style.display = 'none';
   // Re-join meeting room
   if (typeof meetingId !== 'undefined' && meetingId) {
-    socket.emit('join-meeting', { meetingId, name: sessionStorage.getItem('userName') || '', adminToken: sessionStorage.getItem(`admin_${meetingId}`) || undefined });
+    socket.emit('join-meeting', { meetingId, name: myName || sessionStorage.getItem('userName') || '', adminToken: sessionStorage.getItem(`admin_${meetingId}`) || undefined });
+    // Restore breakout room if we were in one
+    if (currentBreakoutRoom) {
+      setTimeout(() => socket.emit('breakout:join', { roomId: currentBreakoutRoom }), 1000);
+    }
   }
 });
 socket.on('reconnect_failed', () => {

@@ -212,11 +212,12 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
     const { userId, companyId, amountUsd } = session.metadata;
     const amt = parseFloat(amountUsd);
     try {
-      // Idempotency: skip if already completed
-      const { rows: existing } = await pool.query(
-        `SELECT status FROM stripe_topups WHERE session_id = $1`, [session.id]
+      // Atomic idempotency: only mark completed if still pending (prevents double-credit)
+      const { rowCount } = await pool.query(
+        `UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1 AND status = 'pending'`, [session.id]
       );
-      if (existing[0]?.status === 'completed') {
+      if (rowCount === 0) {
+        // Already completed or doesn't exist — skip
         return res.json({ received: true });
       }
       if (companyId) {
@@ -224,7 +225,6 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
       } else if (userId) {
         await pool.query(`UPDATE users SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, userId]);
       }
-      await pool.query(`UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1`, [session.id]);
       await pool.query(
         `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, reference_id, description) VALUES ($1, $2, $3, 'stripe_topup', $4, $5)`,
         [userId || null, companyId || null, amt, session.id, `Stripe top-up $${amt}`]
