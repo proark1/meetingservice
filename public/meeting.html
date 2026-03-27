@@ -38,7 +38,7 @@
 </div>
 
 <!-- ─── Recording consent banner ───────────────────────────────────────────── -->
-<div id="recordingConsentBanner" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(15,23,42,0.92);color:white;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;display:none;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);">
+<div id="recordingConsentBanner" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(15,23,42,0.92);color:white;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);">
   <span style="font-size:16px;">⚠️</span>
   <span id="recordingConsentText">This meeting is being recorded.</span>
 </div>
@@ -823,7 +823,7 @@ fetch('/api/config').then(r => r.json()).then(cfg => {
     $('#captionsBtn').style.display = 'none';
 }).catch(() => {});
 
-initPreview().then(() => { if (_urlName) joinMeeting(); });
+initPreview().then(() => { if (_urlName) joinMeeting(); }).catch(() => {});
 
 // ─── Socket events ────────────────────────────────────────────────────────────
 socket.on('error', ({ message }) => {
