@@ -55,6 +55,8 @@ All notable changes to onepizza.io are documented in this file.
 - **Meeting**: Added global `window.error` handler that displays script crash errors in lobby instead of failing silently
 - **Meeting**: Fixed `SyntaxError: Invalid left-hand side in assignment` — 8 instances of `?.style.display = ` replaced with proper null checks; removed inline `onclick` blocked by CSP
 - **Meeting**: Fixed breakout rooms and live stream modals showing on page load — inline `display:flex` was overriding `hidden` class; now uses `display:none` by default and toggled via JS
+- **Meeting**: Added null checks to all remaining bare `getElementById().style/textContent` calls — prevents crashes if DOM elements missing
+- **Server**: Removed unreachable dead code in abandoned meeting cleanup (cleared timer that was already checked as null)
 - **Server**: Null reference crash in change-password when user not found — added `rows[0]` check
 - **Server**: Analytics query days parameter now capped at 365 — prevents unbounded table scans
 - **Email**: Startup warning logged when `RESEND_API_KEY` not set — makes silent email failures visible

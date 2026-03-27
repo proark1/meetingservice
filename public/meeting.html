@@ -476,8 +476,8 @@ const ICONS = {
 // ─── State ────────────────────────────────────────────────────────────────────
 const meetingId = window.location.pathname.split('/').pop();
 if (typeof io === 'undefined') {
-  document.getElementById('lobbyError').textContent = 'Failed to load — please hard refresh (Ctrl+Shift+R)';
-  document.getElementById('lobbyError').classList.remove('hidden');
+  const _le = document.getElementById('lobbyError');
+  if (_le) { _le.textContent = 'Failed to load — please hard refresh (Ctrl+Shift+R)'; _le.classList.remove('hidden'); }
   throw new Error('Socket.IO not loaded');
 }
 const socket = io({
@@ -868,9 +868,9 @@ socket.on('joined', (data) => {
   if (data.settings?.locked) isLocked = data.settings.locked;
   if (data.isRecording) {
     const banner = document.getElementById('recordingConsentBanner');
-    document.getElementById('recordingConsentText').textContent =
-      `This meeting is being recorded${data.recordingHostName ? ' by ' + data.recordingHostName : ''}.`;
-    banner.style.display = 'flex';
+    const _rct = document.getElementById("recordingConsentText");
+    if (_rct) _rct.textContent = `This meeting is being recorded${data.recordingHostName ? ' by ' + data.recordingHostName : ''}.`;
+    if (banner) banner.style.display = 'flex';
     setTimeout(() => { banner.style.display = 'none'; }, 8000);
   }
   renderVideoGrid();
@@ -968,19 +968,19 @@ socket.on('admin:kick', ({ reason }) => {
 
 // ─── Waiting room events ──────────────────────────────────────────────────────
 socket.on('waiting-room:waiting', () => {
-  document.getElementById('lobby').style.display = 'none';
-  document.getElementById('waitingRoomOverlay').style.display = 'flex';
+  { const _e1 = document.getElementById("lobby"); if (_e1) _e1.style.display = "none"; }
+  { const _e2 = document.getElementById("waitingRoomOverlay"); if (_e2) _e2.style.display = "flex"; }
 });
 
 socket.on('waiting-room:admitted', () => {
-  document.getElementById('waitingRoomOverlay').style.display = 'none';
+  { const _e3 = document.getElementById("waitingRoomOverlay"); if (_e3) _e3.style.display = "none"; }
   // Proceed with normal join flow — the server will send 'joined' after admission
 });
 
 socket.on('waiting-room:denied', ({ message }) => {
-  document.getElementById('waitingRoomOverlay').style.display = 'none';
+  { const _e4 = document.getElementById("waitingRoomOverlay"); if (_e4) _e4.style.display = "none"; }
   showLobbyError(message || 'You were not admitted to this meeting.');
-  document.getElementById('lobby').style.display = 'flex';
+  { const _e5 = document.getElementById("lobby"); if (_e5) _e5.style.display = "flex"; }
   $('#lobbyJoinBtn').disabled = false;
   $('#lobbyJoinBtn').textContent = 'Join Meeting';
 });
@@ -998,14 +998,14 @@ socket.on('waiting-room:participant-waiting', ({ socketId, name, count, removed 
 socket.on('recording:started', ({ hostName }) => {
   if (isRecording) return; // own recording, don't show banner to self
   const banner = document.getElementById('recordingConsentBanner');
-  document.getElementById('recordingConsentText').textContent =
-    `This meeting is being recorded${hostName ? ' by ' + hostName : ''}.`;
-  banner.style.display = 'flex';
+  const _rct2 = document.getElementById("recordingConsentText");
+  if (_rct2) _rct2.textContent = `This meeting is being recorded${hostName ? ' by ' + hostName : ''}.`;
+  if (banner) banner.style.display = 'flex';
   setTimeout(() => { banner.style.display = 'none'; }, 8000);
 });
 
 socket.on('recording:stopped', () => {
-  document.getElementById('recordingConsentBanner').style.display = 'none';
+  { const _e6 = document.getElementById("recordingConsentBanner"); if (_e6) _e6.style.display = "none"; }
 });
 
 // Reactions
@@ -2953,8 +2953,8 @@ document.getElementById('streamStartBtn')?.addEventListener('click', () => {
   isStreaming = true;
   streamStartTime = Date.now();
   socket.emit('stream:start', { url });
-  document.getElementById('streamSetup').style.display = 'none';
-  document.getElementById('streamActive').style.display = 'block';
+  { const _ss = document.getElementById('streamSetup'); if (_ss) _ss.style.display = 'none'; }
+  { const _sa = document.getElementById('streamActive'); if (_sa) _sa.style.display = 'block'; }
   streamTimerInterval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - streamStartTime) / 1000);
     const h = Math.floor(elapsed / 3600);

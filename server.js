@@ -332,7 +332,6 @@ setInterval(() => {
   const now = Date.now();
   for (const [id, m] of meetings) {
     if (m.participants.size === 0 && now - m.createdAt > MEETING_MAX_AGE_MS && !m.gracePeriodTimer) {
-      if (m.gracePeriodTimer) clearTimeout(m.gracePeriodTimer);
       meetings.delete(id);
     }
   }
