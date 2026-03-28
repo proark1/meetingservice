@@ -1293,13 +1293,14 @@ async function createMeeting() {
   const title = document.getElementById('nm-title').value.trim() || 'Untitled Meeting';
   const name  = document.getElementById('nm-name').value.trim();
   if (!name) { toast('Please enter your name', 'error'); return; }
-  if (!userApiKey) { toast('Please create an API key in Settings → API Keys first', 'error'); return; }
   const btn = document.querySelector('#sec-meeting .btn-blue.btn-full');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (userApiKey) headers['x-api-key'] = userApiKey;
     const res  = await fetch('/api/meetings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': userApiKey },
+      headers,
       body: JSON.stringify({ title }),
     });
     const data = await res.json();

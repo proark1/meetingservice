@@ -2,6 +2,13 @@
 
 All notable changes to onepizza.io are documented in this file.
 
+## [1.0.0] — 2026-03-28
+
+### Fixed
+- **Meeting History**: Meetings created from the dashboard now appear in Meeting History — `meetings_log` was previously only populated for API-key-authenticated requests, session-based (UI) users were skipped
+- **Meeting History**: Dashboard no longer requires an API key to create meetings — session cookie auth is used as fallback
+- **Billing**: Scheduled meetings now get a `meetings_log` entry when they activate, so billing (`chargeMeeting`) and history work correctly
+
 ## [1.0.0] — 2026-03-25
 
 ### Fixed
