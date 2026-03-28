@@ -4,6 +4,10 @@ All notable changes to onepizza.io are documented in this file.
 
 ## [1.2.0] — 2026-03-28
 
+### Added
+- **Docs**: Created `README.md` with quick start guide, feature list, project structure, and environment variable reference
+- **Docs**: Bumped version to 1.2.0 in `package.json` and `public/docs.html`
+
 ### Changed
 - **UI**: World-class UI/UX overhaul across all pages — polished micro-interactions, glassmorphism effects, refined animations, and consistent design language
 - **UI (styles.css)**: Enhanced design tokens with transition variables, spring-easing curves; glassmorphism control bar, device selector, reactions tray, more panel, and background panel; animated speaking indicator pulse; polished lobby card with deeper shadows; spring-animated toasts; enhanced chat bubbles with hover states; improved tile entrance animation with spring physics
