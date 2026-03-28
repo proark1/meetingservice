@@ -312,11 +312,15 @@ async function initDB() {
       { name: 'Interview', description: 'Waiting room enabled for candidate screening', settings: { muteOnJoin: false, videoOffOnJoin: false, maxParticipants: 5, waitingRoom: true } },
     ];
     for (const tpl of defaultTemplates) {
-      await client.query(
-        `INSERT INTO meeting_templates (user_id, name, description, settings, is_default)
-         SELECT NULL, $1, $2, $3, TRUE WHERE NOT EXISTS (SELECT 1 FROM meeting_templates WHERE name = $1 AND is_default = TRUE)`,
-        [tpl.name, tpl.description, JSON.stringify(tpl.settings)]
+      const { rows: exists } = await client.query(
+        `SELECT 1 FROM meeting_templates WHERE name = $1 AND is_default = TRUE`, [tpl.name]
       );
+      if (exists.length === 0) {
+        await client.query(
+          `INSERT INTO meeting_templates (user_id, name, description, settings, is_default) VALUES (NULL, $1, $2, $3::jsonb, TRUE)`,
+          [tpl.name, tpl.description, JSON.stringify(tpl.settings)]
+        );
+      }
     }
 
     // ─── Audit log ───────────────────────────────────────────────────────────
