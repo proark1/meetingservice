@@ -242,6 +242,8 @@
     .btn-danger:hover { background: var(--danger); color: white; }
     .btn-success { background: rgba(16,185,129,0.1); color: var(--success); border: none; }
     .btn-success:hover { background: var(--success); color: white; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--surface3); }
     .btn-sm { padding: 5px 12px; font-size: 12px; }
     .btn-full { width: 100%; justify-content: center; padding: 13px; font-size: 15px; }
 
@@ -1268,18 +1270,24 @@ function renderKeysList(keys) {
     </td></tr>`;
     return;
   }
-  tbody.innerHTML = keys.map(k => `
+  tbody.innerHTML = keys.map(k => {
+    const masked = k.key.length > 12 ? k.key.slice(0, 8) + '…' + k.key.slice(-4) : k.key;
+    return `
     <tr>
       <td>
-        <span class="key-mono">${esc(k.key)}</span>
+        <span class="key-mono">${esc(masked)}</span>
         <button class="btn btn-ghost btn-sm" style="margin-left:6px;" data-copy="${esc(k.key)}">Copy</button>
-      </td>
+      </td>`;
+  }).map((row, i) => {
+    const k = keys[i];
+    return row + `
       <td>${esc(k.label)}</td>
       <td><span class="badge ${k.is_active ? 'badge-green' : 'badge-red'}">${k.is_active ? 'Active' : 'Revoked'}</span></td>
       <td class="text-muted">${fmtFull(k.last_used_at)}</td>
       <td class="text-muted">${fmt(k.created_at)}</td>
       <td>${k.is_active ? `<button class="btn btn-danger btn-sm revoke-key-btn" data-id="${k.id}">Revoke</button>` : '—'}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   // Attach event handlers (safe — no inline script with user data)
   tbody.querySelectorAll('[data-copy]').forEach(btn => {
     btn.addEventListener('click', () => navigator.clipboard.writeText(btn.dataset.copy).then(() => toast('Copied!')).catch(() => {}));
@@ -1388,7 +1396,9 @@ async function joinCompany() {
   const meRes = await fetch('/api/auth/me');
   if (meRes.ok) { currentUser = await meRes.json(); }
   loadCompanySection();
-  populateOverview();
+  const keysRes = await fetch('/api/user/keys').catch(() => ({ ok: false }));
+  const keysData = keysRes.ok ? await keysRes.json().catch(() => ({ keys: [] })) : { keys: [] };
+  populateOverview(keysData.keys);
 }
 
 function copyInviteCode() {
@@ -1647,9 +1657,19 @@ async function createWebhook() {
   });
   const data = await res.json();
   if (!res.ok) { toast(data.error || 'Failed to create webhook', 'error'); return; }
-  if (data.secret) toast(`Webhook created! Secret: ${data.secret.slice(0,12)}… (save this)`);
-  else toast('Webhook created!');
+  toast('Webhook created!');
   document.getElementById('wh-url').value = '';
+  if (data.secret) {
+    const secretBox = document.createElement('div');
+    secretBox.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0;';
+    secretBox.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">⚠ WEBHOOK SECRET — copy now, it won't be shown again</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <code style="flex:1;background:var(--bg);padding:8px 12px;border-radius:6px;font-size:13px;font-family:monospace;word-break:break-all;">${esc(data.secret)}</code>
+        <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(data.secret)}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000);">Copy</button>
+      </div>`;
+    const whSection = document.getElementById('wh-url').closest('.card');
+    if (whSection) whSection.insertBefore(secretBox, whSection.querySelector('table')?.parentNode || null);
+  }
   loadWebhooks();
 }
 

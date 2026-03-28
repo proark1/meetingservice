@@ -408,6 +408,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .top-bar { padding: 8px 12px; }
   .top-bar .meeting-id { display: none; }
   .device-selector { left: 8px; right: 8px; min-width: auto; }
+  /* Show pin/focus buttons always on touch devices (no hover) */
+  .pin-btn, .focus-btn { opacity: 0.7; width: 36px; height: 36px; }
+  .video-tile:hover .pin-btn, .video-tile:hover .focus-btn { opacity: 1; }
+  /* Ensure admin action buttons meet 44px touch target */
+  .video-tile .admin-actions button { width: 36px; height: 36px; }
+  .participant-actions button { width: 36px; height: 36px; min-width: 36px; }
+  .layout-btn { width: 36px; height: 36px; }
 }
 
 @media (max-width: 480px) {

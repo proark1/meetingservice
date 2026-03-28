@@ -16,6 +16,7 @@ const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordCh
 const crypto = require('crypto');
 const multer = require('multer');
 const fs     = require('fs');
+const dns    = require('dns').promises;
 
 // ─── Structured logging ─────────────────────────────────────────────────────
 function log(level, msg, meta = {}) {
@@ -1655,8 +1656,26 @@ function authApiOrSession(req, res, next) {
   return authApi(req, res, next);
 }
 
+// ─── Meeting ownership check (for transcripts/recordings) ───────────────────
+async function requireMeetingOwnership(req, res, next) {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  const companyId = req.apiUser?.companyId || req.session?.companyId;
+  if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM meetings_log WHERE meeting_id = $1 AND (user_id = $2 OR company_id = $3) LIMIT 1',
+      [req.params.meetingId, userId, companyId || null]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'Access denied' });
+    next();
+  } catch (err) {
+    console.error('Meeting ownership check error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 // ─── Chat transcript ─────────────────────────────────────────────────────────
-app.get('/api/meetings/:meetingId/transcript', authApiOrSession, async (req, res) => {
+app.get('/api/meetings/:meetingId/transcript', authApiOrSession, requireMeetingOwnership, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
@@ -1669,7 +1688,7 @@ app.get('/api/meetings/:meetingId/transcript', authApiOrSession, async (req, res
   }
 });
 
-app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async (req, res) => {
+app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, requireMeetingOwnership, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
@@ -1691,7 +1710,7 @@ app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async 
 });
 
 // ─── Recording upload & download ─────────────────────────────────────────────
-app.post('/api/meetings/:meetingId/recordings', authApiOrSession, (req, res) => {
+app.post('/api/meetings/:meetingId/recordings', authApiOrSession, requireMeetingOwnership, (req, res) => {
   upload.single('recording')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -1710,7 +1729,7 @@ app.post('/api/meetings/:meetingId/recordings', authApiOrSession, (req, res) => 
   });
 });
 
-app.get('/api/meetings/:meetingId/recordings', authApiOrSession, async (req, res) => {
+app.get('/api/meetings/:meetingId/recordings', authApiOrSession, requireMeetingOwnership, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT id, filename, size_bytes, created_at FROM recordings WHERE meeting_id = $1 ORDER BY created_at DESC',
@@ -1751,7 +1770,7 @@ app.post('/api/webhooks', requireUserSession, async (req, res) => {
   if (!url) return res.status(400).json({ error: 'url required' });
   let parsedUrl;
   try { parsedUrl = new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
-  // Block SSRF: reject private/loopback/link-local hostnames
+  // Block SSRF: reject private/loopback/link-local hostnames + DNS resolution check
   const host = parsedUrl.hostname.toLowerCase();
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0' ||
       host.endsWith('.local') || host.endsWith('.internal') ||
@@ -1759,6 +1778,19 @@ app.post('/api/webhooks', requireUserSession, async (req, res) => {
       host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
     return res.status(400).json({ error: 'Webhook URL must not point to private/internal addresses' });
   }
+  // Resolve DNS and check resolved IPs against private ranges (prevents DNS rebinding)
+  try {
+    const addrs = await dns.resolve4(host).catch(() => []);
+    const addrs6 = await dns.resolve6(host).catch(() => []);
+    const allAddrs = [...addrs, ...addrs6];
+    for (const ip of allAddrs) {
+      if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
+          /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.)/.test(ip) ||
+          ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe80') || ip.startsWith('::ffff:127') || ip.startsWith('::ffff:10.') || ip.startsWith('::ffff:192.168.')) {
+        return res.status(400).json({ error: 'Webhook URL resolves to a private/internal address' });
+      }
+    }
+  } catch (_dnsErr) { /* allow if DNS resolution fails — will fail on delivery anyway */ }
   if (!['https:', 'http:'].includes(parsedUrl.protocol)) {
     return res.status(400).json({ error: 'Webhook URL must use http or https' });
   }

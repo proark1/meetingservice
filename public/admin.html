@@ -984,6 +984,15 @@ function closeSidebar() {
   document.getElementById('sidebarOverlay').classList.remove('active');
 }
 
+// ─── Escape key: close modals + sidebar ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('createKeyModal');
+    if (!modal.classList.contains('hidden')) { modal.classList.add('hidden'); return; }
+    closeSidebar();
+  }
+});
+
 // ─── Navigation ──────────────────────────────────────────────────────────────
 document.querySelectorAll('.nav-item[data-section]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1023,9 +1032,13 @@ function fmt(ts) {
 // ─── Overview ────────────────────────────────────────────────────────────────
 async function loadOverview() {
   const [stats, mtgs] = await Promise.all([
-    fetch('/admin/api/stats').then(r => r.json()),
-    fetch('/admin/api/meetings').then(r => r.json()),
-  ]);
+    fetch('/admin/api/stats').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+    fetch('/admin/api/meetings').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+  ]).catch(err => {
+    if (String(err).includes('401') || String(err).includes('403')) window.location.href = '/';
+    toast('Failed to load data', 'error');
+    return [{ activeMeetings: 0, totalUsers: 0, activeApiKeys: 0 }, { meetings: [] }];
+  });
   document.getElementById('stat-meetings').textContent  = stats.activeMeetings;
   document.getElementById('stat-users').textContent     = stats.totalUsers;
   document.getElementById('stat-keys').textContent      = stats.activeApiKeys;
@@ -1040,11 +1053,11 @@ async function loadOverview() {
   }
   tbody.innerHTML = mtgs.meetings.map(m => `
     <tr>
-      <td><code style="font-size:12px">${m.meetingId}</code></td>
+      <td><code style="font-size:12px">${esc(m.meetingId)}</code></td>
       <td>${esc(m.title)}</td>
       <td>${m.participantCount}</td>
       <td>${fmt(m.createdAt)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${m.meetingId}')">End</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${esc(m.meetingId)}')">End</button></td>
     </tr>`).join('');
 }
 
@@ -1058,12 +1071,12 @@ async function loadMeetings() {
   }
   tbody.innerHTML = meetings.map(m => `
     <tr>
-      <td><code style="font-size:12px">${m.meetingId}</code></td>
+      <td><code style="font-size:12px">${esc(m.meetingId)}</code></td>
       <td>${esc(m.title)}</td>
       <td>${m.participantCount}</td>
       <td>${m.settings.locked ? '<span class="badge red">Locked</span>' : '<span class="badge green">Open</span>'}</td>
       <td>${fmt(m.createdAt)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${m.meetingId}')">End</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${esc(m.meetingId)}')">End</button></td>
     </tr>`).join('');
 }
 
@@ -1105,6 +1118,7 @@ async function loadUsers() {
 }
 
 async function toggleUser(id, currently) {
+  if (currently && !confirm('Disable this user? They will lose access.')) return;
   await fetch(`/admin/api/users/${id}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ isActive: !currently }),
@@ -1141,8 +1155,8 @@ async function loadKeys() {
   }
   tbody.innerHTML = keys.map(k => `
     <tr>
-      <td><code style="font-size:11px">${k.key}</code>
-        <button onclick="copyText('${k.key}')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
+      <td><code style="font-size:11px">${esc(k.key)}</code>
+        <button onclick="copyText('${esc(k.key)}')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
       </td>
       <td>${esc(k.label || '—')}</td>
       <td>${esc(k.user_email)}</td>

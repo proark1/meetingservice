@@ -63,6 +63,30 @@ All notable changes to onepizza.io are documented in this file.
 - **Mobile (index.html)**: Added hamburger menu for mobile navigation — previously `.nav-links` was hidden with no alternative access to Features, Pricing, Developers, API Docs
 - **Bug (index.html)**: Added `will-change: transform` to orbFloat animation for GPU optimization
 
+### Security (Audit Round 3)
+- **Security (server.js)**: Added `requireMeetingOwnership` middleware to transcript and recording endpoints — previously any authenticated user could access any meeting's data
+- **Security (server.js)**: SSRF protection now resolves DNS and validates resolved IPs against private ranges — prevents DNS rebinding attacks on webhook URLs
+- **Security (meeting.html)**: Screen share start/stop, `switchCamera`, `switchMic`, `switchVideoQuality` all now use `Promise.allSettled` for `replaceTrack` — one peer failure no longer aborts remaining peers
+- **Security (meeting.html)**: `startBlur()` now returns Promise and is awaited in `setBgMode()` — prevents race condition with concurrent `replaceTrack` calls
+- **Security (admin.html)**: Escaped `meetingId` and `key` values in `onclick` handlers and `innerHTML` to prevent XSS
+
+### Fixed (Audit Round 3)
+- **Bug (meeting.html)**: `playSound()` now reuses a single `AudioContext` instead of creating one per call — prevents browser limit (Chrome ~6) and "AudioContext not allowed" errors on rapid joins
+- **Bug (meeting.html)**: `recTimerInterval` now cleared in recording error path — prevented leaked interval on failed recording start
+- **Bug (meeting.html)**: Socket.IO reconnect events changed from `socket.on('reconnect')` to `socket.io.on('reconnect')` — deprecated in Socket.IO v4
+- **Bug (meeting.html)**: `_soundCtx` AudioContext now cleaned up in `cleanupMeeting()`
+- **Bug (admin.html)**: Added error handling on initial `loadOverview()` fetch — redirects to login on 401/403 instead of showing broken page
+- **Bug (admin.html)**: Added Escape key handler to close modals and sidebar
+- **Bug (admin.html)**: Added confirmation dialog before disabling a user account
+- **Bug (dashboard.html)**: `populateOverview()` after company join now fetches keys first — previously showed 0 active keys
+- **Bug (dashboard.html)**: Added missing `.btn-secondary` CSS class — "Generate Support Key" button was unstyled
+- **Bug (dashboard.html)**: Webhook secret now displayed in persistent, copyable block instead of 3.5s auto-dismiss toast
+- **Bug (dashboard.html)**: API keys now display masked (`mk_abc1…xyz9`) instead of full key — reduces exposure risk
+- **Bug (index.html)**: Removed non-functional Node.js and Python code tabs (only cURL example exists)
+- **Mobile (index.html)**: Footer link touch targets increased from 3px to 8px padding
+- **Mobile (styles.css)**: Pin/focus buttons now always visible on mobile (were hidden behind `:hover` which doesn't work on touch)
+- **Mobile (styles.css)**: Admin action, participant action, and layout buttons enlarged to 36px on mobile for better touch targets
+
 ## [1.0.0] — 2026-03-25
 
 ### Fixed
