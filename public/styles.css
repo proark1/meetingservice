@@ -177,43 +177,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   font-size: 28px; font-weight: 600;
   text-transform: uppercase; color: white;
 }
-.video-tile .tile-label {
-  position: absolute; bottom: 8px; left: 8px;
-  background: rgba(0,0,0,0.6);
-  padding: 4px 10px; border-radius: 6px;
-  font-size: 13px; display: flex; align-items: center; gap: 6px;
-  color: white;
-}
-.video-tile .tile-label .muted-icon { color: var(--danger); }
-.video-tile .screen-share-badge {
-  position: absolute; top: 8px; left: 8px;
-  background: var(--success); color: white;
-  padding: 2px 8px; border-radius: 4px;
-  font-size: 11px; font-weight: 600;
-}
 .video-tile.is-local video { transform: scaleX(-1); }
-
-/* Admin badge on tile */
-.video-tile .admin-actions {
-  position: absolute; top: 8px; right: 8px;
-  display: flex; gap: 4px;
-}
-.video-tile .admin-actions button {
-  background: rgba(0,0,0,0.6);
-  border: none; color: white;
-  width: 32px; height: 32px;
-  border-radius: 50%; font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: background 0.15s;
-}
-.video-tile .admin-actions button:hover { background: rgba(0,0,0,0.8); }
-
-/* Bottom controls — overridden by Meeting UI control bar below */
-.controls-center { display: flex; gap: 12px; align-items: center; }
-.controls-right {
-  position: absolute; right: 16px;
-  display: flex; gap: 8px;
-}
 
 /* Leave button — main definition in Meeting UI control bar section below */
 

@@ -1132,7 +1132,7 @@ function toast(msg, type = 'success') {
 function fmt(ts) { if (!ts) return '—'; return new Date(ts).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
 function fmtFull(ts) { if (!ts) return '—'; return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }); }
 function fmtUsd(v) { return '$' + parseFloat(v || 0).toFixed(2); }
-function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', history: 'Meeting History', recordings: 'Recordings & Transcripts', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
@@ -1455,9 +1455,9 @@ function copyUsdcAddress() {
 async function changePassword() {
   const current  = document.getElementById('pw-current').value;
   const newPw    = document.getElementById('pw-new').value;
-  const confirm  = document.getElementById('pw-confirm').value;
+  const confirmPw = document.getElementById('pw-confirm').value;
   if (!current || !newPw) { toast('Please fill all fields', 'error'); return; }
-  if (newPw !== confirm) { toast('Passwords do not match', 'error'); return; }
+  if (newPw !== confirmPw) { toast('Passwords do not match', 'error'); return; }
   if (newPw.length < 8) { toast('Password must be at least 8 characters', 'error'); return; }
   const res = await fetch('/api/auth/change-password', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },

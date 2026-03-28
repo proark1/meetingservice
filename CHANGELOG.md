@@ -33,6 +33,34 @@ All notable changes to onepizza.io are documented in this file.
 - **Bug (admin.html)**: Added `position:relative` to `.an-hm-cell` so `z-index` on hover works correctly for heatmap cells
 - **Bug (docs.html)**: Removed `white-space: nowrap` from mobile table CSS that forced all content to one line; tables now use `min-width` + overflow scroll instead
 - **Bug (docs.html)**: Added 480px nav breakpoint for very small mobile screens
+
+### Security
+- **Security (server.js)**: Stripe webhook double-credit race condition — replaced read-then-update with atomic `UPDATE ... WHERE status='pending' RETURNING id` to prevent duplicate credits on webhook retry
+- **Security (server.js)**: Path traversal in recording download — added `path.resolve` check to ensure file stays within uploads directory; sanitized filename in Content-Disposition header
+- **Security (server.js)**: Meeting settings PATCH — added type validation (booleans cast with `!!`, maxParticipants clamped to 1-100 integer, title sliced to 100 chars) to prevent type confusion
+- **Security (server.js)**: Timing-safe admin token comparison in Socket.IO `join-meeting` handler — replaced `===` with `crypto.timingSafeEqual` to match REST middleware pattern
+- **Security (server.js)**: Caption spoofing — `captions:update` handler now overrides client-sent `pid` with server-side `currentParticipantId` to prevent impersonation
+- **Security (server.js)**: Content-Disposition header injection — sanitized meetingId in transcript download filename
+- **Security (meeting.html)**: XSS in admin action buttons — participant IDs and socket IDs now escaped via `escapeHtml()` before interpolation into `onclick` attributes
+- **Security (admin.html)**: Replaced DOM-based `esc()` (createElement) with regex-based implementation per codebase convention
+- **Security (dashboard.html)**: Replaced DOM-based `esc()` with regex-based implementation
+
+### Fixed (Audit Round 2)
+- **Bug (server.js)**: Admin `DELETE /admin/api/meetings` now calls `chargeMeeting()` — previously skipped billing entirely, causing revenue loss
+- **Bug (server.js)**: `chargeMeeting()` double client.release() — removed manual `client.release()` on early returns, letting `finally` block handle all releases
+- **Bug (server.js)**: Added `captions_enabled`, `guest_meetings_enabled`, `meeting_cost_per_participant_minute`, `low_balance_threshold_usd` to admin settings allowlist with decimal validation
+- **Bug (server.js)**: Wrapped `/api/auth/me` in try/catch to prevent unhandled promise rejection on DB failure
+- **Bug (meeting.html)**: Speaking detection and connection quality `setInterval`s now stored and cleared in `cleanupMeeting()` — prevented leaked intervals after leaving meeting
+- **Bug (meeting.html)**: `speakerInterval` now cleared in `cleanupMeeting()`
+- **Bug (meeting.html)**: `renderWaitingParticipants()` guards against null socketId — prevented phantom "null" entry in waiting queue when called from admit/deny
+- **Bug (styles.css)**: Removed 4 duplicate CSS selector blocks (`.tile-label`, `.screen-share-badge`, `.admin-actions`, `.controls-center`) that were overridden by later definitions
+- **Bug (admin.html)**: Nav click handler now scoped to `[data-section]` items — prevented runtime error when clicking sidebar footer links (Dashboard/Home)
+- **Bug (admin.html)**: Realtime analytics polling now checks `classList.contains('active')` instead of `style.display` — polling was never gated previously
+- **Bug (admin.html)**: Fixed broken `#socketio` anchor links → `#realtime` to match actual docs.html section ID
+- **Bug (admin.html)**: Heatmap mobile `min-width` moved off scrollable container to prevent overflow
+- **Bug (dashboard.html)**: Renamed `confirm` variable in `changePassword()` to `confirmPw` to avoid shadowing `window.confirm`
+- **Bug (index.html)**: Added missing `@keyframes slideIn` for toast animation
+- **Mobile (index.html)**: Added hamburger menu for mobile navigation — previously `.nav-links` was hidden with no alternative access to Features, Pricing, Developers, API Docs
 - **Bug (index.html)**: Added `will-change: transform` to orbFloat animation for GPU optimization
 
 ## [1.0.0] — 2026-03-25

@@ -266,7 +266,7 @@
       .sub-tab { flex-shrink: 0; }
       .config-row { flex-direction: column; }
       .an-bar-label { width: 100px; font-size: 11px; }
-      .an-heatmap { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: 600px; }
+      .an-heatmap { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: 0; }
     }
     @media (max-width: 480px) {
       .stat-grid { grid-template-columns: 1fr; gap: 8px; }
@@ -878,7 +878,7 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <a href="/docs" target="_blank" class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;text-decoration:none;">Open full API docs</a>
           <a href="/docs#quickstart" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Quick Start guide</a>
-          <a href="/docs#socketio" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Socket.IO events</a>
+          <a href="/docs#realtime" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Socket.IO events</a>
         </div>
       </div>
 
@@ -949,7 +949,7 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</code></pre>
             </tbody>
           </table>
         </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">See <a href="/docs#socketio" target="_blank" style="color:var(--primary);">full Socket.IO reference</a> for all server&rarr;client events.</div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">See <a href="/docs#realtime" target="_blank" style="color:var(--primary);">full Socket.IO reference</a> for all server&rarr;client events.</div>
       </div>
     </div>
 
@@ -985,9 +985,9 @@ function closeSidebar() {
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
-document.querySelectorAll('.nav-item').forEach(btn => {
+document.querySelectorAll('.nav-item[data-section]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[data-section]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     btn.classList.add('active');
     const section = btn.dataset.section;
@@ -1234,8 +1234,7 @@ async function saveSettings() {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function esc(str) {
-  if (!str) return '';
-  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function copyText(text) {
@@ -1817,7 +1816,7 @@ function startAnRealtimeRefresh() {
   anRealtimeInterval = setInterval(() => {
     // Skip polling when page is hidden (saves battery + network)
     if (document.hidden) return;
-    if (document.getElementById('section-analytics').style.display !== 'none') loadAnRealtime();
+    if (document.getElementById('section-analytics').classList.contains('active')) loadAnRealtime();
   }, 30000);
 }
 startAnRealtimeRefresh();

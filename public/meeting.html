@@ -596,7 +596,7 @@ function _getCachedTile(pid) {
 }
 function _invalidateTileCache() { for (const k in _tileCache) delete _tileCache[k]; }
 
-setInterval(() => {
+const speakDetectInterval = setInterval(() => {
   for (const [pid, { analyser, data }] of Object.entries(speakAnalysers)) {
     analyser.getByteFrequencyData(data);
     // Fast average: sample every 4th value instead of all 128
@@ -1933,6 +1933,9 @@ function cleanupMeeting() {
   if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   if (blurStream)   { blurStream.getTracks().forEach(t => t.stop()); blurStream = null; }
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (speakerInterval) { clearInterval(speakerInterval); speakerInterval = null; }
+  if (speakDetectInterval) clearInterval(speakDetectInterval);
+  if (connQualityInterval) clearInterval(connQualityInterval);
   if (speakAudioCtx) { speakAudioCtx.close().catch(() => {}); speakAudioCtx = null; }
   if (recAudioCtx)   { recAudioCtx.close().catch(() => {}); recAudioCtx = null; }
   socket.disconnect();
@@ -2356,11 +2359,12 @@ function syncVideoTile(tile, pid) {
   const adminActions = tile._adminActions || tile.querySelector('.admin-actions');
   if (adminActions) {
     if (isAdmin && !isLocal) {
+      const safePid = escapeHtml(pid);
       adminActions.innerHTML = `
-        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">
+        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${safePid}',${!!p.isMuted})">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>'}</svg>
         </button>
-        <button title="Remove" onclick="adminKick('${pid}')">
+        <button title="Remove" onclick="adminKick('${safePid}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>`;
       adminActions.style.display = 'flex';
@@ -2409,10 +2413,10 @@ function renderParticipantsList() {
       </div>
       ${isAdmin && !isLocal ? `
       <div class="participant-actions">
-        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${pid}',${p.isMuted})">
+        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${escapeHtml(pid)}',${!!p.isMuted})">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>'}</svg>
         </button>
-        <button title="Remove" onclick="adminKick('${pid}')">
+        <button title="Remove" onclick="adminKick('${escapeHtml(pid)}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>` : ''}`;
@@ -2491,7 +2495,7 @@ async function adminMuteAll() {
 // ─── Waiting room — render admit/deny UI in side panel ────────────────────────
 const waitingQueue = {};
 function renderWaitingParticipants(socketId, name) {
-  waitingQueue[socketId] = name;
+  if (socketId != null) waitingQueue[socketId] = name;
   const list = $('#participantsList');
   // Remove existing waiting section if present
   list.querySelector('.waiting-section')?.remove();
@@ -2500,11 +2504,12 @@ function renderWaitingParticipants(socketId, name) {
   section.style.cssText = 'border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px;';
   section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:0.08em;padding:6px 0 8px;">Waiting (${Object.keys(waitingQueue).length})</div>`;
   for (const [sid, nm] of Object.entries(waitingQueue)) {
+    const safeSid = escapeHtml(sid);
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;gap:8px;';
     row.innerHTML = `<span style="font-size:13px;font-weight:500;flex:1;">${escapeHtml(nm)}</span>
-      <button onclick="admitWaiting('${sid}')" style="background:#1C2340;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
-      <button onclick="denyWaiting('${sid}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
+      <button onclick="admitWaiting('${safeSid}')" style="background:#1C2340;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
+      <button onclick="denyWaiting('${safeSid}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
     section.appendChild(row);
   }
   list.prepend(section);
@@ -2516,14 +2521,14 @@ function admitWaiting(socketId) {
   socket.emit('waiting-room:admit', { meetingId, socketId });
   delete waitingQueue[socketId];
   document.querySelector(`.waiting-section`)?.remove();
-  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants();
 }
 
 function denyWaiting(socketId) {
   socket.emit('waiting-room:deny', { meetingId, socketId });
   delete waitingQueue[socketId];
   document.querySelector(`.waiting-section`)?.remove();
-  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants();
 }
 
 // ─── Picture-in-Picture ───────────────────────────────────────────────────────
@@ -2591,7 +2596,7 @@ function updateQualityBadge(pid, quality) {
   badge.title = `Connection: ${labels[quality]}`;
 }
 
-setInterval(checkConnectionQuality, 5000);
+const connQualityInterval = setInterval(checkConnectionQuality, 5000);
 
 // ─── Chat event delegation (single listener instead of per-message) ───────────
 (function setupChatDelegation() {

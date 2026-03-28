@@ -205,19 +205,19 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
     const { userId, companyId, amountUsd } = session.metadata;
     const amt = parseFloat(amountUsd);
     try {
-      // Idempotency: skip if already completed
-      const { rows: existing } = await pool.query(
-        `SELECT status FROM stripe_topups WHERE session_id = $1`, [session.id]
+      // Atomic idempotency: only mark completed if still pending (prevents double-credit on webhook retry)
+      const { rows: updated } = await pool.query(
+        `UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1 AND status = 'pending' RETURNING id`,
+        [session.id]
       );
-      if (existing[0]?.status === 'completed') {
-        return res.json({ received: true });
+      if (!updated.length) {
+        return res.json({ received: true }); // already completed or missing
       }
       if (companyId) {
         await pool.query(`UPDATE companies SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, companyId]);
       } else if (userId) {
         await pool.query(`UPDATE users SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, userId]);
       }
-      await pool.query(`UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1`, [session.id]);
       await pool.query(
         `INSERT INTO credit_transactions (user_id, company_id, amount_usd, type, reference_id, description) VALUES ($1, $2, $3, 'stripe_topup', $4, $5)`,
         [userId || null, companyId || null, amt, session.id, `Stripe top-up $${amt}`]
@@ -505,17 +505,22 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/auth/me', requireUserSession, async (req, res) => {
-  const { rows } = await pool.query(
-    `SELECT u.id, u.email, u.is_admin, u.account_type, u.company_id, u.credits_usd, u.created_at,
-            c.name AS company_name, c.credits_usd AS company_credits, c.invite_code, c.plan
-     FROM users u
-     LEFT JOIN companies c ON c.id = u.company_id
-     WHERE u.id = $1`, [req.session.userId]
-  );
-  if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
-  const u = rows[0];
-  req.session.companyId = u.company_id;
-  res.json(u);
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.is_admin, u.account_type, u.company_id, u.credits_usd, u.created_at,
+              c.name AS company_name, c.credits_usd AS company_credits, c.invite_code, c.plan
+       FROM users u
+       LEFT JOIN companies c ON c.id = u.company_id
+       WHERE u.id = $1`, [req.session.userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const u = rows[0];
+    req.session.companyId = u.company_id;
+    res.json(u);
+  } catch (err) {
+    console.error('Auth me error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // ─── Password Reset ───────────────────────────────────────────────────────────
@@ -703,6 +708,7 @@ app.delete('/admin/api/meetings/:meetingId', requireAdminSession, (req, res) => 
   if (!m) return res.status(404).json({ error: 'Meeting not found' });
   io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by administrator' });
   meetings.delete(m.id);
+  chargeMeeting(m).catch(err => console.error('Failed to charge meeting on admin delete:', m.id, err));
   res.json({ message: 'Meeting ended' });
 });
 
@@ -780,11 +786,15 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
   const booleanSettings = new Set([
     'recording_enabled','screen_share_enabled','blur_enabled',
     'registration_enabled','stripe_enabled','crypto_enabled',
+    'captions_enabled','guest_meetings_enabled',
   ]);
   const numericSettings = new Set([
     'max_participants_default','meeting_auto_delete_minutes',
   ]);
-  const allowed = new Set([...booleanSettings, ...numericSettings]);
+  const decimalSettings = new Set([
+    'meeting_cost_per_participant_minute','low_balance_threshold_usd',
+  ]);
+  const allowed = new Set([...booleanSettings, ...numericSettings, ...decimalSettings]);
   const entries = Object.entries(req.body).filter(([k]) => allowed.has(k));
   if (entries.length === 0) return res.status(400).json({ error: 'No valid settings provided' });
 
@@ -796,6 +806,10 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
       if (safeValue !== 'true' && safeValue !== 'false') return res.status(400).json({ error: `${key} must be true or false` });
     } else if (numericSettings.has(key)) {
       const num = Number(safeValue);
+      if (!Number.isFinite(num) || num < 0) return res.status(400).json({ error: `${key} must be a non-negative number` });
+      safeValue = String(num);
+    } else if (decimalSettings.has(key)) {
+      const num = parseFloat(safeValue);
       if (!Number.isFinite(num) || num < 0) return res.status(400).json({ error: `${key} must be a non-negative number` });
       safeValue = String(num);
     }
@@ -1205,12 +1219,12 @@ function calculateMeetingCost(durationMinutes, peakParticipants, rate) {
 async function chargeMeeting(meeting) {
   const client = await pool.connect();
   try {
-    if (!meeting.logId) { client.release(); return; }
+    if (!meeting.logId) return;
     const mins = (Date.now() - meeting.createdAt) / 60000;
     const s = await getSettings();
     const rate = parseFloat(s.meeting_cost_per_participant_minute) || 0.01;
     const cost = calculateMeetingCost(mins, meeting.peakParticipants || 1, rate);
-    if (cost < 0.0001) { client.release(); return; }
+    if (cost < 0.0001) return;
 
     // Use cached owner IDs (set when meeting was created) — falls back to DB
     let user_id = meeting.ownerId, company_id = meeting.ownerCompanyId;
@@ -1218,7 +1232,7 @@ async function chargeMeeting(meeting) {
       const { rows } = await client.query(
         `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
       );
-      if (!rows.length) { client.release(); return; }
+      if (!rows.length) return;
       user_id = rows[0].user_id; company_id = rows[0].company_id;
     }
 
@@ -1532,12 +1546,16 @@ app.delete('/api/meetings/:meetingId', authApi, (req, res) => {
 });
 
 app.patch('/api/meetings/:meetingId/settings', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
-  const allowed = ['muteOnJoin','videoOffOnJoin','maxParticipants','locked','title'];
-  for (const key of allowed) {
-    if (req.body[key] !== undefined) {
-      if (key === 'title') req.meeting.title = req.body[key];
-      else req.meeting.settings[key] = req.body[key];
-    }
+  const boolKeys = ['muteOnJoin','videoOffOnJoin','locked'];
+  for (const key of boolKeys) {
+    if (req.body[key] !== undefined) req.meeting.settings[key] = !!req.body[key];
+  }
+  if (req.body.maxParticipants !== undefined) {
+    const n = parseInt(req.body.maxParticipants, 10);
+    if (Number.isFinite(n) && n >= 1 && n <= 100) req.meeting.settings.maxParticipants = n;
+  }
+  if (req.body.title !== undefined) {
+    req.meeting.title = String(req.body.title || '').trim().slice(0, 100);
   }
   io.to(req.meeting.id).emit('meeting:settings-updated', req.meeting.settings);
   res.json({ settings: req.meeting.settings, title: req.meeting.title });
@@ -1663,7 +1681,8 @@ app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async 
       return `[${ts}] ${r.participant_name}: ${r.text}`;
     });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="transcript-${req.params.meetingId}.txt"`);
+    const safeMeetingId = req.params.meetingId.replace(/[^\w\-]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="transcript-${safeMeetingId}.txt"`);
     res.send(lines.join('\n'));
   } catch (err) {
     console.error('Transcript download error:', err);
@@ -1707,9 +1726,11 @@ app.get('/api/recordings/:id/download', authApiOrSession, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT filename, storage_path FROM recordings WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
-    const filePath = path.join(UPLOADS_DIR, rows[0].storage_path);
+    const filePath = path.resolve(path.join(UPLOADS_DIR, rows[0].storage_path));
+    if (!filePath.startsWith(path.resolve(UPLOADS_DIR))) return res.status(403).json({ error: 'Invalid path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
-    res.setHeader('Content-Disposition', `attachment; filename="${rows[0].filename}"`);
+    const safeFilename = rows[0].filename.replace(/[^\w.\-]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
     res.sendFile(filePath);
   } catch (err) {
     res.status(500).json({ error: 'Failed to download recording' });
@@ -2152,7 +2173,12 @@ io.on('connection', (socket) => {
       return socket.emit('error', { message: 'Meeting not found' });
     }
 
-    if (meeting.settings.locked && !(isAdmin && adminToken === meeting.adminToken)) {
+    const tokenMatch = (() => {
+      const provided = Buffer.from(String(adminToken || ''));
+      const expected = Buffer.from(String(meeting.adminToken || ''));
+      return provided.length > 0 && provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
+    })();
+    if (meeting.settings.locked && !(isAdmin && tokenMatch)) {
       return socket.emit('error', { message: 'Meeting is locked' });
     }
     if (meeting.participants.size >= meeting.settings.maxParticipants) {
@@ -2168,7 +2194,7 @@ io.on('connection', (socket) => {
       isVideoOff:    meeting.settings.videoOffOnJoin,
       isScreenSharing: false,
       isHandRaised:  false,
-      isAdmin:       isAdmin && adminToken === meeting.adminToken,
+      isAdmin:       isAdmin && tokenMatch,
       joinedAt:      Date.now(),
     };
 
@@ -2378,11 +2404,11 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.chat_reaction', { emoji: safeEmoji });
   });
 
-  socket.on('captions:update', ({ pid, text, final }) => {
+  socket.on('captions:update', ({ text, final }) => {
     if (!captionLimiter.check(socket.id)) return;
     if (!currentMeetingId || typeof text !== 'string') return;
     socket.to(currentMeetingId).emit('captions:update', {
-      pid, text: text.slice(0, 300), final: !!final,
+      pid: currentParticipantId, text: text.slice(0, 300), final: !!final,
     });
     trackEvent(currentUserId, currentCompanyId, 'feature.captions', {});
   });
