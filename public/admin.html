@@ -148,7 +148,7 @@
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,.4);
       backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center; z-index: 100;
+      display: flex; align-items: center; justify-content: center; z-index: 200;
     }
     .modal-backdrop.hidden { display: none; }
     .modal {
@@ -298,7 +298,7 @@
     .an-realtime-label { font-size:11px; color:var(--text-muted); font-weight:400; }
     /* Heatmap */
     .an-heatmap { display:grid; grid-template-columns:40px repeat(24,1fr); gap:2px; font-size:10px; }
-    .an-hm-cell { aspect-ratio:1; border-radius:3px; min-width:12px; cursor:pointer; transition:transform .1s; }
+    .an-hm-cell { aspect-ratio:1; border-radius:3px; min-width:12px; cursor:pointer; transition:transform .1s; position:relative; }
     .an-hm-cell:hover { transform:scale(1.3); z-index:1; }
     .an-hm-label { display:flex; align-items:center; color:var(--text-muted); font-size:10px; padding-right:4px; }
     .an-hm-hour { text-align:center; color:var(--text-xmuted); font-size:9px; padding:2px 0; }
@@ -1432,8 +1432,8 @@ async function confirmDeposit(id, amount) {
     body: JSON.stringify({ amountUsd: amount }),
   });
   const data = await r.json();
-  if (r.ok) { showToast(`Deposit #${id} confirmed — $${parseFloat(data.amountUsd).toFixed(4)} credited`); loadCryptoDeposits(); }
-  else showToast(data.error || 'Failed to confirm deposit', 'error');
+  if (r.ok) { toast(`Deposit #${id} confirmed — $${parseFloat(data.amountUsd).toFixed(4)} credited`); loadCryptoDeposits(); }
+  else toast(data.error || 'Failed to confirm deposit', 'error');
 }
 
 async function loadUnmatchedTransfers() {

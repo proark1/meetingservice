@@ -28,6 +28,9 @@ All notable changes to onepizza.io are documented in this file.
 - **Bug (dashboard.html)**: Sidebar overlay now uses a clickable backdrop div instead of box-shadow trick — users can tap outside sidebar to close it on mobile
 - **Bug (meeting.html)**: Moved `dot-bounce` keyframe animation from inline `<style>` to styles.css so `prefers-reduced-motion` media query properly disables it
 - **Bug (meeting.html)**: Fixed duplicate `display:none` in recording consent banner inline style
+- **Bug (admin.html)**: Fixed `showToast()` → `toast()` undefined function call on crypto deposit confirmation (line 1435) — caused runtime crash
+- **Bug (admin.html)**: Fixed z-index conflict between sidebar (100) and modal overlay (now 200) so modals always appear above the mobile sidebar
+- **Bug (admin.html)**: Added `position:relative` to `.an-hm-cell` so `z-index` on hover works correctly for heatmap cells
 - **Bug (docs.html)**: Removed `white-space: nowrap` from mobile table CSS that forced all content to one line; tables now use `min-width` + overflow scroll instead
 - **Bug (docs.html)**: Added 480px nav breakpoint for very small mobile screens
 - **Bug (index.html)**: Added `will-change: transform` to orbFloat animation for GPU optimization
