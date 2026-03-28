@@ -2,7 +2,7 @@
 
 ## Project overview
 
-onepizza.io is a SaaS video-meeting platform (Zoom/Meet-style). Users create meetings, share a link, and join via WebRTC. Features: video/audio, screen share, recording (with upload), chat (persisted), live captions, virtual backgrounds (MediaPipe ML), reactions, waiting room, admin controls, MCP server for AI agent integration, and comprehensive analytics. Billing is usage-based (per-participant per-minute) charged at meeting end.
+onepizza.io is a SaaS video-meeting platform (Zoom/Meet-style). Users create meetings, share a link, and join via WebRTC. Features: video/audio, screen share, recording (with upload), chat (with replies & rich text), live captions, virtual backgrounds (MediaPipe ML), reactions (floating overlay), breakout rooms, live streaming (broadcast mode), waiting room, admin controls, meeting timer, active speaker detection, MCP server for AI agent integration, and comprehensive analytics. Billing is usage-based (per-participant per-minute) charged at meeting end. PWA-installable with full keyboard shortcuts.
 
 ## Stack
 
@@ -23,11 +23,12 @@ onepizza.io is a SaaS video-meeting platform (Zoom/Meet-style). Users create mee
 
 | File | Role |
 |---|---|
-| `server.js` | Everything server-side: Express routes, Socket.IO handlers, billing, webhooks, analytics (~2400 lines) |
+| `server.js` | Everything server-side: Express routes, Socket.IO handlers, billing, webhooks, analytics, breakout rooms, live streaming, audit logging (~2800 lines) |
 | `db.js` | PostgreSQL pool, schema init (`initDB()`), settings cache with stampede protection |
 | `email.js` | Transactional email templates (Resend) |
 | `mcp-server.js` | MCP server for AI agent/bot integration — 13 tools, dual transport (stdio/HTTP) |
-| `public/meeting.html` | Full meeting UI: WebRTC, Socket.IO client, MediaPipe, all meeting features (~2600 lines) |
+| `public/meeting.html` | Full meeting UI: WebRTC, Socket.IO client, MediaPipe, breakout rooms, live streaming, chat with replies/rich text (~3000 lines) |
+| `public/manifest.json` | PWA web app manifest for "Add to Home Screen" |
 | `public/dashboard.html` | User dashboard: meetings, API keys, billing, recordings, transcripts, bot guide |
 | `public/admin.html` | Admin panel: users, companies, billing, analytics (6 tabs), settings |
 | `public/index.html` | Landing page with Teams/Developers mode toggle |
@@ -71,6 +72,9 @@ meetings = Map<meetingId, {
   waitingRoom: Map<socketId, { socketId, name }>,
   settings: { muteOnJoin, videoOffOnJoin, maxParticipants, locked, waitingRoom },
   isRecording, recordingHostName, recordingParticipantId,
+  isStreaming, streamUrl, streamingParticipantId,  // live streaming state
+  breakoutRooms: Map<roomId, { id, name, participants: Map }> | null,
+  closingBreakout,           // flag to prevent joins during room close
   peakParticipants, logId,
   ownerId, ownerCompanyId,   // cached for webhooks/analytics (avoids DB lookup)
   gracePeriodTimer,          // setTimeout handle for 60s post-empty charge
@@ -89,6 +93,7 @@ meetings = Map<meetingId, {
 
 - Active meeting: `meetingId` (e.g., `abc-defg-hij`)
 - Waiting room: `waiting:${meetingId}`
+- Breakout room: `breakout:${meetingId}:${roomId}` (e.g., `breakout:abc-defg-hij:br-0`)
 
 ### Auth layers
 
@@ -146,10 +151,58 @@ ONEPIZZA_API_KEY=mk_...                # API key for auth
 - Files stored in `uploads/recordings/` directory
 - Recordings table: `id, meeting_id, user_id, filename, size_bytes, storage_path, created_at`
 
+## Breakout rooms
+
+Admin-only feature. Allows splitting participants into isolated sub-rooms.
+
+### Socket events
+- `breakout:create` — admin creates N rooms (max 20), server creates Map of rooms
+- `breakout:assign` — admin assigns participants to rooms (manual or random round-robin)
+- `breakout:join` — participant joins a room (server updates participant map + Socket.IO room)
+- `breakout:leave` — participant returns to main room
+- `breakout:broadcast` — admin sends message to ALL breakout rooms simultaneously
+- `breakout:close` — admin closes all rooms, moves everyone back to main meeting
+
+### Isolation
+- WebRTC signaling (`signal:offer/answer/ice-candidate`) filtered by `canSignal()` — only allows signaling between participants in the same breakout room
+- Media toggle events (`media:toggle-audio/video`) broadcast only to same-room participants
+- Advisory: `closingBreakout` flag prevents new joins during room close race condition
+
+### Client-side
+- Breakout modal in More menu (admin-only, hidden for non-admins)
+- Assign randomly button excludes admins from distribution
+- Active banner shows room name with "Return to main" button
+- State restored on Socket.IO reconnect
+
+## Live streaming (broadcast mode)
+
+Admin-only feature. Enables "LIVE" indicator for all participants.
+
+### Socket events
+- `stream:start` — admin starts broadcast (stores RTMP URL server-side, emits `stream:started`)
+- `stream:stop` — admin stops broadcast (clears state, emits `stream:stopped`)
+- Duplicate prevention: `stream:start` rejected if already streaming
+- Cleanup: streaming state auto-cleared when streaming admin disconnects
+
+### Client-side
+- Stream modal in More menu (admin-only) — enter RTMP URL, start/stop with timer
+- LIVE badge shown to all participants when streaming active
+- Timer supports hours format (H:MM:SS)
+- Note: Actual media forwarding to RTMP endpoint requires OBS or WebRTC-to-RTMP bridge
+
 ## Chat & transcripts
 
 ### Chat persistence
 Messages are stored in `chat_messages` DB table alongside real-time Socket.IO relay. Both API key and session auth are accepted via `authApiOrSession` middleware.
+
+### Message replies
+- `chat:message` event accepts optional `replyTo` field (message ID to reply to)
+- `reply_to` column in `chat_messages` table stores the referenced message ID
+- Client renders quoted reply context above the message
+
+### Rich text formatting
+- Markdown-lite parser: `**bold**`, `*italic*`, `` `code` ``, ` ```code blocks``` `
+- `formatChatText()` calls `escapeHtml()` first, then applies regex replacements (XSS-safe)
 
 ### Transcript endpoints
 - `GET /api/meetings/:id/transcript` — JSON transcript (all messages)
@@ -159,6 +212,34 @@ Messages are stored in `chat_messages` DB table alongside real-time Socket.IO re
 - Chat log capped at 500 messages in memory
 - Chat reactions with emoji picker (event delegation on container)
 - Unread badge counter on chat tab
+- Reply button (↩) on each message, reply preview above input
+- Keyboard shortcut: `T` to toggle chat panel
+
+## Audit logging
+
+### Database table
+- `audit_log` — `id, user_id, action, target_type, target_id, meta JSONB, ip, created_at`
+- Indexed on `(user_id, created_at DESC)` and `(action, created_at DESC)`
+
+### Tracked actions
+- `user.register` — new account creation (email, account type)
+- `user.login` — successful login (email, IP)
+- `user.password_changed` — password change (IP)
+
+### Helper function
+- `auditLog(userId, action, targetType, targetId, meta, ip)` — fire-and-forget insert
+
+## Webhook delivery persistence
+
+### Database table
+- `webhook_deliveries` — `id, webhook_id, event, payload JSONB, status, attempts, last_attempt_at, next_retry_at, response_code, created_at`
+- Indexed on `(status, next_retry_at) WHERE status = 'pending'`
+
+### Delivery flow
+1. Before sending: INSERT with `status = 'pending'`
+2. On success: UPDATE to `status = 'delivered'`, increment attempts
+3. On failure: UPDATE to `status = 'failed'`, increment attempts
+4. `fetchWithRetry()` uses `AbortSignal.timeout(5000)` per attempt, 3 retries with exponential backoff
 
 ## Analytics & monitoring
 
@@ -167,7 +248,7 @@ Messages are stored in `chat_messages` DB table alongside real-time Socket.IO re
 - `ai_usage_log` — AI token usage (model, module, prompt/completion tokens, cost)
 
 ### Tracked event types
-`meeting.created`, `meeting.participant_joined`, `meeting.ended`, `guest_meeting.created`, `feature.screen_share`, `feature.recording`, `feature.chat`, `feature.reaction`, `feature.captions`, `feature.hand_raise`, `feature.waiting_room`, `feature.background_effect`
+`meeting.created`, `meeting.participant_joined`, `meeting.ended`, `guest_meeting.created`, `feature.screen_share`, `feature.recording`, `feature.chat`, `feature.chat_reaction`, `feature.reaction`, `feature.captions`, `feature.hand_raise`, `feature.waiting_room`, `feature.background_effect`, `feature.breakout_rooms`, `feature.live_stream`, `billing.topup`
 
 ### Admin analytics (6 tabs)
 1. **Overview** — total users, meetings, revenue, event counts (1d/7d/30d)
@@ -193,6 +274,68 @@ Messages are stored in `chat_messages` DB table alongside real-time Socket.IO re
 ### Helper functions
 - `trackEvent(userId, companyId, eventType, meta)` — fire-and-forget analytics insert (logs errors)
 - `trackAiUsage(model, module, endpoint, promptTokens, completionTokens, costUsd)` — AI usage tracking
+
+## Meeting UX features
+
+### Meeting timer
+- Elapsed time displayed as HH:MM:SS in top bar
+- Starts on `joined` event, cleared on reconnect before restart (prevents duplicate intervals)
+
+### Keyboard shortcuts
+| Key | Action |
+|-----|--------|
+| `M` | Mute/unmute mic |
+| `Space` | Push-to-talk (hold while muted) |
+| `V` | Camera on/off |
+| `S` | Screen share |
+| `H` | Raise/lower hand |
+| `R` | Start/stop recording |
+| `C` | Toggle captions |
+| `B` | Background effects |
+| `P` | Picture-in-Picture |
+| `L` | Lock/unlock meeting (admin) |
+| `T` | Toggle chat panel |
+| `U` | Toggle participants panel |
+| `?` | Show shortcuts modal |
+
+### Floating emoji reactions
+- 12 emojis available (👍 ❤️ 😂 🎉 👏 etc.)
+- Float upward with CSS animation `reactionFloat 2.2s`, auto-removed on animationend
+- `showReactionFloat()` and `showGlobalFloatingReaction()` in meeting.html
+
+### Active speaker highlight
+- Audio level analysis via `AnalyserNode.getByteFrequencyData()`
+- Speaking threshold triggers `.speaking` CSS class on video tile (green ring)
+- Checked every 150ms
+
+### Hand raise auto-clear
+- Hand automatically lowered when participant unmutes (emits `raise-hand` with `isHandRaised: false`)
+
+### Socket.IO resilience
+- Client loads from `cdn.socket.io` (primary) with server `/socket.io/socket.io.js` fallback
+- Explicit reconnection strategy: 1s initial delay, 5s max, 10 attempts
+- Reconnection banner shows attempt count, auto-rejoins meeting + breakout room on reconnect
+- `connect_error` handler shows error in lobby
+
+### WebRTC ICE restart
+- Triggers on `disconnected` state (3s delay before restart, verifies still disconnected)
+- Complements existing `failed` state handling
+
+## PWA & accessibility
+
+### PWA
+- `manifest.json` with app name, theme color, SVG icon
+- `<meta name="apple-mobile-web-app-capable">` for iOS home screen
+- `<meta name="theme-color">` on all pages
+
+### Accessibility
+- `@media (prefers-reduced-motion: reduce)` disables all CSS animations
+- 20+ ARIA labels on meeting controls, panels, dialogs
+- Keyboard shortcuts for all major functions
+
+### SEO
+- Open Graph + Twitter Card meta tags with preview image
+- JSON-LD structured data (`Schema.org/SoftwareApplication`)
 
 ## Performance patterns
 
@@ -231,7 +374,14 @@ Messages are stored in `chat_messages` DB table alongside real-time Socket.IO re
 - **Meeting IDs**: generated with `crypto.randomBytes` (not `Math.random`)
 - **Rate limiting**: auth/reset/guest endpoints are rate-limited; do not remove these
 - **SSRF protection**: webhook URLs validated against private/loopback/link-local IPs
-- **CSP headers**: Helmet configured with allowlist for CDN dependencies
+- **CSP headers**: Helmet configured with allowlist for CDN dependencies (no inline onclick — use addEventListener only)
+- **Email XSS prevention**: `esc()` function in email.js escapes all HTML entities in template interpolations
+- **Path traversal protection**: recording download validates path stays within `UPLOADS_DIR` via `path.resolve()` check
+- **Advisory locks**: `pg_advisory_lock(42)` prevents concurrent duplicate HD wallet index assignment
+- **Stripe idempotency**: webhook uses atomic `UPDATE ... WHERE status = 'pending'` to prevent double-credit
+- **HTML no-cache**: HTML files served with `no-cache, no-store, must-revalidate` to prevent stale code after deploys
+- **Global error handlers**: `process.on('unhandledRejection')` and `process.on('uncaughtException')` log and exit cleanly
+- **Audit logging**: `auditLog()` tracks login, registration, password changes with IP and metadata
 
 ### Before every commit
 - **Always** update `CHANGELOG.md` with a summary of changes under the current version heading
@@ -256,7 +406,7 @@ Messages are stored in `chat_messages` DB table alongside real-time Socket.IO re
 - Low balance email notification when credits cross threshold
 
 ### Feature flags
-Settings in the `settings` DB table control feature availability. Check `getSettings()` before adding features that should be admin-toggleable. Current flags: `recording_enabled`, `screen_share_enabled`, `blur_enabled`, `captions_enabled`, `registration_enabled`, `guest_meetings_enabled`, `max_participants_default`, `meeting_cost_per_participant_minute`.
+Settings in the `settings` DB table control feature availability. Check `getSettings()` before adding features that should be admin-toggleable. Current flags: `recording_enabled`, `screen_share_enabled`, `blur_enabled`, `captions_enabled`, `registration_enabled`, `guest_meetings_enabled`, `max_participants_default`, `meeting_cost_per_participant_minute`, `low_balance_threshold_usd`, `free_tier_max_participants`, `free_tier_max_duration_minutes`, `stripe_enabled`, `crypto_enabled`.
 
 ### Scheduled meetings
 Stored in `scheduledMeetings` Map (in-memory, not DB). Individual `setTimeout` per meeting + backup `setInterval` every 15s. `activateScheduledMeeting()` moves them to the live `meetings` Map. Scheduled meetings carry `ownerId`/`ownerCompanyId` through activation.

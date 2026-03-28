@@ -2,14 +2,14 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.0.0] — 2026-03-28T12:00:00Z
+## [1.2.0] — 2026-03-28
 
 ### Changed
 - **UI**: World-class UI/UX overhaul across all pages — polished micro-interactions, glassmorphism effects, refined animations, and consistent design language
 - **UI (styles.css)**: Enhanced design tokens with transition variables, spring-easing curves; glassmorphism control bar, device selector, reactions tray, more panel, and background panel; animated speaking indicator pulse; polished lobby card with deeper shadows; spring-animated toasts; enhanced chat bubbles with hover states; improved tile entrance animation with spring physics
 - **UI (index.html)**: Enhanced nav glassmorphism with saturate filter; gradient hero badge and CTA buttons with active press states; feature cards with cubic-bezier transitions and layered hover shadows; pricing cards with deeper hover shadows; step numbers with gradient and hover scale; stat items with hover; preview card with dramatic layered shadow; floating orb animation on hero background
 - **UI (dashboard.html)**: Sidebar nav items with primary accent bar on active state; glassmorphism topbar; stat cards with hover lift; enhanced quick-action card hover depth; spring-animated toast notifications; login box with refined shadow and border-radius; balance highlight card with three-stop gradient and shadow; improved form input focus rings
-- **UI (admin.html)**: Replaced all emoji icons (📊🎥👥🔑💳🏢🔗⚙️📈) with crisp inline SVG icons matching the design system; sidebar nav items with left accent bar indicator; enhanced stat cards with hover transform; polished table row transitions; spring-animated toasts; glassmorphism modal backdrop; improved modal shadows
+- **UI (admin.html)**: Replaced all emoji icons with crisp inline SVG icons matching the design system; sidebar nav items with left accent bar indicator; enhanced stat cards with hover transform; polished table row transitions; spring-animated toasts; glassmorphism modal backdrop; improved modal shadows
 - **UI (docs.html)**: Glassmorphism sticky navigation; method badges using CSS custom properties; endpoint cards with hover left-border accent and slide; enhanced code blocks with hover shadow; TOC links with indent animation on hover; note/warn boxes with stronger accents; table rows with hover transition
 - **UI (meeting.html)**: Enhanced empty state with gradient icon container and better text hierarchy; polished waiting room dots with staggered bounce animation; replaced recording consent emoji with SVG warning icon
 
@@ -22,75 +22,107 @@ All notable changes to onepizza.io are documented in this file.
 - **Mobile (admin.html)**: Off-canvas sidebar with hamburger toggle, sticky mobile header, responsive stat grid (2-col / 1-col), horizontally scrollable tables, responsive modals, analytics heatmap scroll
 - **Mobile (dashboard.html)**: Enhanced 480px breakpoint for smaller stat values, compact balance card, responsive code blocks, quick-actions single column on tablet, scrollable tables
 - **Mobile (docs.html)**: Responsive nav, endpoint cards, scrollable tables, compact code blocks, method badges, and typography at 768px and 480px breakpoints
-
-### Fixed
-- **Bug (styles.css)**: Removed duplicate `.controls-bar` and `.btn-leave` CSS selectors that created dead code and conflicting dimensions
-- **Bug (dashboard.html)**: Sidebar overlay now uses a clickable backdrop div instead of box-shadow trick — users can tap outside sidebar to close it on mobile
-- **Bug (meeting.html)**: Moved `dot-bounce` keyframe animation from inline `<style>` to styles.css so `prefers-reduced-motion` media query properly disables it
-- **Bug (meeting.html)**: Fixed duplicate `display:none` in recording consent banner inline style
-- **Bug (admin.html)**: Fixed `showToast()` → `toast()` undefined function call on crypto deposit confirmation (line 1435) — caused runtime crash
-- **Bug (admin.html)**: Fixed z-index conflict between sidebar (100) and modal overlay (now 200) so modals always appear above the mobile sidebar
-- **Bug (admin.html)**: Added `position:relative` to `.an-hm-cell` so `z-index` on hover works correctly for heatmap cells
-- **Bug (docs.html)**: Removed `white-space: nowrap` from mobile table CSS that forced all content to one line; tables now use `min-width` + overflow scroll instead
-- **Bug (docs.html)**: Added 480px nav breakpoint for very small mobile screens
+- **Mobile (index.html)**: Hamburger menu for mobile navigation
+- **Mobile (styles.css)**: Pin/focus buttons visible on touch devices; enlarged touch targets for admin/participant/layout buttons
 
 ### Security
-- **Security (server.js)**: Stripe webhook double-credit race condition — replaced read-then-update with atomic `UPDATE ... WHERE status='pending' RETURNING id` to prevent duplicate credits on webhook retry
-- **Security (server.js)**: Path traversal in recording download — added `path.resolve` check to ensure file stays within uploads directory; sanitized filename in Content-Disposition header
-- **Security (server.js)**: Meeting settings PATCH — added type validation (booleans cast with `!!`, maxParticipants clamped to 1-100 integer, title sliced to 100 chars) to prevent type confusion
-- **Security (server.js)**: Timing-safe admin token comparison in Socket.IO `join-meeting` handler — replaced `===` with `crypto.timingSafeEqual` to match REST middleware pattern
-- **Security (server.js)**: Caption spoofing — `captions:update` handler now overrides client-sent `pid` with server-side `currentParticipantId` to prevent impersonation
-- **Security (server.js)**: Content-Disposition header injection — sanitized meetingId in transcript download filename
-- **Security (meeting.html)**: XSS in admin action buttons — participant IDs and socket IDs now escaped via `escapeHtml()` before interpolation into `onclick` attributes
-- **Security (admin.html)**: Replaced DOM-based `esc()` (createElement) with regex-based implementation per codebase convention
-- **Security (dashboard.html)**: Replaced DOM-based `esc()` with regex-based implementation
-
-### Fixed (Audit Round 2)
-- **Bug (server.js)**: Admin `DELETE /admin/api/meetings` now calls `chargeMeeting()` — previously skipped billing entirely, causing revenue loss
-- **Bug (server.js)**: `chargeMeeting()` double client.release() — removed manual `client.release()` on early returns, letting `finally` block handle all releases
-- **Bug (server.js)**: Added `captions_enabled`, `guest_meetings_enabled`, `meeting_cost_per_participant_minute`, `low_balance_threshold_usd` to admin settings allowlist with decimal validation
-- **Bug (server.js)**: Wrapped `/api/auth/me` in try/catch to prevent unhandled promise rejection on DB failure
-- **Bug (meeting.html)**: Speaking detection and connection quality `setInterval`s now stored and cleared in `cleanupMeeting()` — prevented leaked intervals after leaving meeting
-- **Bug (meeting.html)**: `speakerInterval` now cleared in `cleanupMeeting()`
-- **Bug (meeting.html)**: `renderWaitingParticipants()` guards against null socketId — prevented phantom "null" entry in waiting queue when called from admit/deny
-- **Bug (styles.css)**: Removed 4 duplicate CSS selector blocks (`.tile-label`, `.screen-share-badge`, `.admin-actions`, `.controls-center`) that were overridden by later definitions
-- **Bug (admin.html)**: Nav click handler now scoped to `[data-section]` items — prevented runtime error when clicking sidebar footer links (Dashboard/Home)
-- **Bug (admin.html)**: Realtime analytics polling now checks `classList.contains('active')` instead of `style.display` — polling was never gated previously
-- **Bug (admin.html)**: Fixed broken `#socketio` anchor links → `#realtime` to match actual docs.html section ID
-- **Bug (admin.html)**: Heatmap mobile `min-width` moved off scrollable container to prevent overflow
-- **Bug (dashboard.html)**: Renamed `confirm` variable in `changePassword()` to `confirmPw` to avoid shadowing `window.confirm`
-- **Bug (index.html)**: Added missing `@keyframes slideIn` for toast animation
-- **Mobile (index.html)**: Added hamburger menu for mobile navigation — previously `.nav-links` was hidden with no alternative access to Features, Pricing, Developers, API Docs
-- **Bug (index.html)**: Added `will-change: transform` to orbFloat animation for GPU optimization
-
-### Security (Audit Round 3)
-- **Security (server.js)**: Added `requireMeetingOwnership` middleware to transcript and recording endpoints — previously any authenticated user could access any meeting's data
-- **Security (server.js)**: SSRF protection now resolves DNS and validates resolved IPs against private ranges — prevents DNS rebinding attacks on webhook URLs
-- **Security (meeting.html)**: Screen share start/stop, `switchCamera`, `switchMic`, `switchVideoQuality` all now use `Promise.allSettled` for `replaceTrack` — one peer failure no longer aborts remaining peers
-- **Security (meeting.html)**: `startBlur()` now returns Promise and is awaited in `setBgMode()` — prevents race condition with concurrent `replaceTrack` calls
-- **Security (admin.html)**: Escaped `meetingId` and `key` values in `onclick` handlers and `innerHTML` to prevent XSS
-
-### Fixed (Audit Round 3)
-- **Bug (meeting.html)**: `playSound()` now reuses a single `AudioContext` instead of creating one per call — prevents browser limit (Chrome ~6) and "AudioContext not allowed" errors on rapid joins
-- **Bug (meeting.html)**: `recTimerInterval` now cleared in recording error path — prevented leaked interval on failed recording start
-- **Bug (meeting.html)**: Socket.IO reconnect events changed from `socket.on('reconnect')` to `socket.io.on('reconnect')` — deprecated in Socket.IO v4
-- **Bug (meeting.html)**: `_soundCtx` AudioContext now cleaned up in `cleanupMeeting()`
-- **Bug (admin.html)**: Added error handling on initial `loadOverview()` fetch — redirects to login on 401/403 instead of showing broken page
-- **Bug (admin.html)**: Added Escape key handler to close modals and sidebar
-- **Bug (admin.html)**: Added confirmation dialog before disabling a user account
-- **Bug (dashboard.html)**: `populateOverview()` after company join now fetches keys first — previously showed 0 active keys
-- **Bug (dashboard.html)**: Added missing `.btn-secondary` CSS class — "Generate Support Key" button was unstyled
-- **Bug (dashboard.html)**: Webhook secret now displayed in persistent, copyable block instead of 3.5s auto-dismiss toast
-- **Bug (dashboard.html)**: API keys now display masked (`mk_abc1…xyz9`) instead of full key — reduces exposure risk
-- **Bug (index.html)**: Removed non-functional Node.js and Python code tabs (only cURL example exists)
-- **Mobile (index.html)**: Footer link touch targets increased from 3px to 8px padding
-- **Mobile (styles.css)**: Pin/focus buttons now always visible on mobile (were hidden behind `:hover` which doesn't work on touch)
-- **Mobile (styles.css)**: Admin action, participant action, and layout buttons enlarged to 36px on mobile for better touch targets
-
-## [1.0.0] — 2026-03-25
+- **Security (server.js)**: Stripe webhook double-credit race condition — atomic `UPDATE ... WHERE status='pending' RETURNING id`
+- **Security (server.js)**: Path traversal in recording download — `path.resolve` containment check + sanitized Content-Disposition filename
+- **Security (server.js)**: Meeting settings PATCH — type validation on all fields (booleans, maxParticipants 1-100, title sliced to 100)
+- **Security (server.js)**: Timing-safe admin token comparison in Socket.IO `join-meeting` handler
+- **Security (server.js)**: Caption spoofing prevention — server overrides client-sent `pid` with `currentParticipantId`
+- **Security (server.js)**: Content-Disposition header injection fix in transcript download
+- **Security (server.js)**: Added `requireMeetingOwnership` middleware to transcript/recording endpoints
+- **Security (server.js)**: SSRF DNS rebinding defense — resolves webhook URLs and validates IPs against private ranges
+- **Security (meeting.html)**: XSS in admin action buttons — `escapeHtml()` on pid/socketId in onclick attributes
+- **Security (meeting.html)**: `Promise.allSettled` for all `replaceTrack` operations (screen share, camera/mic switch, quality, blur)
+- **Security (meeting.html)**: `startBlur()` now async + awaited in `setBgMode()` — prevents replaceTrack race condition
+- **Security (admin.html + dashboard.html)**: Regex-based `esc()` replacing DOM createElement per codebase convention
+- **Security (admin.html)**: Escaped meetingId/key values in onclick handlers and innerHTML
 
 ### Fixed
-- **UI**: Landing page navigation buttons (Sign in, Get started free, and all CTA buttons) converted from `<button onclick>` to `<a href>` links — fixes buttons not navigating when clicked
+- **Bug (styles.css)**: Removed duplicate `.controls-bar`, `.btn-leave`, `.tile-label`, `.screen-share-badge`, `.admin-actions`, `.controls-center` CSS selectors
+- **Bug (dashboard.html)**: Sidebar overlay clickable backdrop; `confirm` variable no longer shadows `window.confirm`
+- **Bug (dashboard.html)**: API keys masked in display; webhook secret in persistent copyable block; `.btn-secondary` class added
+- **Bug (dashboard.html)**: `populateOverview()` fetches keys after company join
+- **Bug (meeting.html)**: Intervals cleaned up on leave (speaking detection, connection quality, speakerInterval, soundCtx)
+- **Bug (meeting.html)**: `renderWaitingParticipants()` null corruption guard; `recTimerInterval` cleared on error
+- **Bug (meeting.html)**: Socket.IO v4 reconnect events (`socket.io.on`); `playSound()` reuses single AudioContext
+- **Bug (admin.html)**: `showToast()` → `toast()` fix; z-index conflict; heatmap position:relative; nav handler scoped to `[data-section]`; realtime polling condition; broken `#socketio` anchor; Escape key for modals; confirmation before disabling users; error handling on initial load
+- **Bug (admin.html)**: Missing settings in admin allowlist (captions, guest, cost rate, low balance threshold)
+- **Bug (server.js)**: Admin delete meeting now calls `chargeMeeting()`; double client.release fix; `/api/auth/me` try/catch
+- **Bug (index.html)**: Missing `@keyframes slideIn`; removed non-functional code tabs; footer touch targets enlarged
+- **Bug (docs.html)**: Mobile table fix; 480px nav breakpoint
+
+## [1.1.0] — 2026-03-26
+
+### Added
+- **API**: OpenAPI 3.0 specification at `/openapi.json` with all endpoints, schemas, and security schemes
+- **Docs**: Link to OpenAPI spec at top of API documentation page
+- **Meeting**: Breakout rooms — admin can create up to 20 rooms, assign participants (manually or randomly), broadcast messages to all rooms, and close rooms to bring everyone back; WebRTC signaling and media state isolated per room; participants see a banner with room name and "Return to main" button
+- **Meeting**: Live streaming broadcast mode — admin can start live broadcast, all participants see "LIVE" indicator; stream timer supports hours; clarified that OBS/WebRTC-RTMP bridge handles actual media forwarding
+- **SEO**: Open Graph image (`og:image`) and Twitter card image meta tags for social sharing previews
+- **SEO**: JSON-LD structured data (Schema.org/SoftwareApplication) for search engine rich results
+- **PWA**: Web app manifest (`manifest.json`) enabling "Add to Home Screen" on mobile devices
+- **PWA**: `theme-color` meta tag and apple-mobile-web-app-capable for native mobile feel
+- **Meeting**: Keyboard shortcut `T` to toggle chat panel, `U` to toggle participants panel
+- **Meeting**: Hand raise auto-clears when participant unmutes — prevents stale raised hands
+- **Accessibility**: `prefers-reduced-motion` CSS — disables all animations for users with motion sensitivity
+- **Meeting**: Elapsed meeting timer displayed in top bar (HH:MM:SS)
+- **Meeting**: Floating emoji reactions overlay — reactions animate upward and fade out over video grid
+- **Meeting**: Active speaker highlight — green ring around tile of currently speaking participant
+- **Meeting**: Reconnection banner — shows "Reconnecting… (attempt N)" with auto-rejoin on reconnect
+- **Meeting**: ICE restart on `disconnected` state — proactively restarts WebRTC after 3s disconnect
+- **Meeting**: Socket.IO configured with explicit reconnection strategy (1s delay, 5s max, 10 attempts)
+- **Chat**: Message replies — click ↩ to quote-reply to any message; reply context shown inline
+- **Chat**: Rich text formatting — **bold**, *italic*, `code`, and ```code blocks``` via markdown-lite parser
+- **Server**: Audit logging — `audit_log` table tracks login, registration, password changes with user ID, IP, and metadata
+- **Server**: Webhook delivery persistence — `webhook_deliveries` table persists payloads before sending, tracks delivery status
+- **DB**: Free tier settings added — `free_tier_max_participants` (5) and `free_tier_max_duration_minutes` (45) in settings table
+- **DB**: `chat_messages.reply_to` column for message threading
+- **Server**: Global `unhandledRejection` and `uncaughtException` handlers with logging
+- **DB**: `pool.on('error')` handler for database connection failures
+- **Env**: TURN server documentation expanded in `.env.example` with provider recommendations
+
+### Changed
+- **UI**: Removed hero badge ("Now with company accounts, team billing & USDC payments") from landing page
+- **Performance**: Reduced static file cache from 1 day to 1 hour — prevents stale HTML after deploys
+- **DB**: Admin seed now requires `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars — no hardcoded credentials; generates cryptographically random API key instead of hardcoded test key
+- **Server**: Admin meeting list now supports `?limit=N&offset=N` pagination (max 500) and returns `total` count
+- **Server**: Webhook delivery uses 5-second timeout per attempt via `AbortSignal.timeout()` — prevents blocking on slow/dead endpoints
+- **Server**: HD wallet index assignment now uses PostgreSQL advisory lock to prevent duplicate indices from concurrent requests
+- **Server**: chargeMeeting receipt email lookup moved inside transaction (before COMMIT) to avoid post-commit pool query failure
+- **Server**: Abandoned meetings (no participants, older than 24h) automatically cleaned up every 30 minutes
+
+### Security
+- **Email**: Added `esc()` HTML-escape helper to all email templates — prevents XSS via company names, meeting titles, API keys, and reset tokens in transactional emails
+- **Server**: Added path traversal protection on recording download endpoint — validates file path stays within uploads directory
+- **DB**: SSL `rejectUnauthorized` now `true` in production (was `false`) — prevents MITM on database connections
+- **DB**: Silent `.catch(() => {})` on schema migrations replaced with error-logging catch — no longer swallows real failures
+
+### Fixed
+- **UI**: Join meeting now works after creating — navigation includes `?name=` parameter; meeting.html falls back to sessionStorage name
+- **Server**: HTML pages served with `no-cache, no-store, must-revalidate` headers — prevents stale cached code after deploys; CSS/JS/images still cached for 1 day
+- **Meeting**: Socket.IO client now loads from CDN as primary source (cdn.socket.io) with server `/socket.io/socket.io.js` as fallback — fixes crash when server script fails to load; added safety check with user-visible error if both fail
+- **Meeting**: Added global `window.error` handler that displays script crash errors in lobby instead of failing silently
+- **Meeting**: Fixed `SyntaxError: Invalid left-hand side in assignment` — 8 instances of `?.style.display = ` replaced with proper null checks; removed inline `onclick` blocked by CSP
+- **Meeting**: Fixed breakout rooms and live stream modals showing on page load — inline `display:flex` was overriding `hidden` class; now uses `display:none` by default and toggled via JS
+- **Meeting**: Added null checks to all remaining bare `getElementById().style/textContent` calls — prevents crashes if DOM elements missing
+- **Server**: Removed unreachable dead code in abandoned meeting cleanup (cleared timer that was already checked as null)
+- **Server**: Null reference crash in change-password when user not found — added `rows[0]` check
+- **Server**: Analytics query days parameter now capped at 365 — prevents unbounded table scans
+- **Email**: Startup warning logged when `RESEND_API_KEY` not set — makes silent email failures visible
+- **Frontend**: Waiting room `renderWaitingParticipants(null, null)` no longer pollutes waitingQueue with null key
+- **Frontend**: Dashboard API keys, members, and webhooks tables converted from per-row `addEventListener` to event delegation — fixes memory leak on re-render
+- **UI**: Converted ALL inline `onclick` handlers to `addEventListener` across every page — fixes buttons not responding to clicks
+  - `index.html` — navigation buttons converted to `<a href>` links; scroll button uses addEventListener
+  - `register.html` — form wrapped in `<form>` with submit listener; type toggle buttons use addEventListener
+  - `reset.html` — form wrapped in `<form>` with submit listener
+  - `dashboard.html` — login form, sidebar nav (event delegation), and all 44 action buttons use addEventListener
+  - `billing.html` — tab buttons, amount buttons (event delegation), pay/copy buttons use addEventListener
+  - `meeting.html` — leave button converted to `<a>` link; layout/PiP/shortcuts buttons use addEventListener; admin/waiting room dynamic buttons use event delegation with `data-action` attributes
+  - `admin.html` — all static buttons use addEventListener; dynamic buttons in render functions use event delegation with `data-action` attributes on parent containers
+- **UI**: Added optional chaining (`?.`) to all `getElementById().addEventListener()` calls — prevents a missing element from crashing the script and breaking login/init
 
 ## [1.0.0] — 2026-03-24T21:30:00+01:00
 

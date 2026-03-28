@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Meeting</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1C2340">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script>if (typeof io === 'undefined') document.write('<scr'+'ipt src="/socket.io/socket.io.js"><\/scr'+'ipt>');</script>
   <script async src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -25,7 +28,7 @@
       <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#4B6BFB,#1C2340);animation:dot-bounce 1.4s ease-in-out 0.2s infinite;"></span>
       <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#4B6BFB,#1C2340);animation:dot-bounce 1.4s ease-in-out 0.4s infinite;"></span>
     </div>
-    <button onclick="window.location.href='/'" style="margin-top:24px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Leave</button>
+    <a href="/" style="display:inline-block;text-decoration:none;margin-top:24px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Leave</a>
   </div>
 </div>
 
@@ -33,6 +36,12 @@
 <div id="recordingConsentBanner" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(15,23,42,0.92);color:white;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
   <span id="recordingConsentText">This meeting is being recorded.</span>
+</div>
+
+<!-- ─── Reconnection banner ────────────────────────────────────────────────── -->
+<div id="reconnectBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:10000;background:rgba(239,68,68,0.95);color:white;padding:10px 20px;font-size:13px;font-weight:600;text-align:center;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(8px);">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+  <span>Reconnecting…</span>
 </div>
 
 <!-- ─── Lobby ─────────────────────────────────────────────────────────────── -->
@@ -77,18 +86,18 @@
       </button>
     </div>
     <div class="top-bar-center">
-      <span class="meeting-timer" id="meetingTimer">0:00</span>
+      <span class="meeting-timer" id="meetingTimer" style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);font-family:'SF Mono',monospace;letter-spacing:0.05em;">00:00:00</span>
     </div>
     <div class="top-bar-right">
       <!-- Layout switcher -->
       <div class="layout-btns" id="layoutBtns">
-        <button class="layout-btn active" id="layoutAuto" title="Auto layout" onclick="setLayout('auto')">
+        <button class="layout-btn active" id="layoutAuto" title="Auto layout">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         </button>
-        <button class="layout-btn" id="layoutSpeaker" title="Speaker view" onclick="setLayout('speaker')">
+        <button class="layout-btn" id="layoutSpeaker" title="Speaker view">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="14" height="14" rx="1"/><rect x="18" y="3" width="4" height="4" rx="1"/><rect x="18" y="9" width="4" height="4" rx="1"/><rect x="18" y="15" width="4" height="4" rx="1"/></svg>
         </button>
-        <button class="layout-btn" id="layoutGallery" title="Gallery view" onclick="setLayout('gallery')">
+        <button class="layout-btn" id="layoutGallery" title="Gallery view">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
         </button>
       </div>
@@ -113,7 +122,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 10c0 2.7-1.7 5.2-3.5 7.1M12 23S3 17 3 10a9 9 0 0 1 4-7.5"/></svg>
         Unpin
       </button>
-      <button class="pip-btn" id="pipBtn" title="Picture-in-Picture (P)" onclick="togglePiP()">
+      <button class="pip-btn" id="pipBtn" title="Picture-in-Picture (P)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="10" width="8" height="6" rx="1" fill="currentColor" stroke="none"/></svg>
         Pop out
       </button>
@@ -161,6 +170,7 @@
         </div>
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages"></div>
+          <div id="chatReplyPreview" style="display:none;padding:4px 10px;font-size:11px;background:rgba(0,0,0,0.05);border-left:2px solid var(--primary,#4361ee);margin:0 8px;border-radius:4px;align-items:center;gap:4px;"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Send a message…" maxlength="500" aria-label="Chat message">
             <button id="chatSendBtn">Send</button>
@@ -217,6 +227,14 @@
       <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
       <span class="more-opt-title">Background effects</span>
       <span class="more-opt-badge hidden" id="moreEffectsBadge">On</span>
+    </button>
+    <button class="more-opt hidden" id="moreBreakoutOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg></span>
+      <span class="more-opt-title">Breakout rooms</span>
+    </button>
+    <button class="more-opt hidden" id="moreStreamOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></span>
+      <span class="more-opt-title">Live stream</span>
     </button>
     <div class="more-panel-sep"></div>
     <button class="more-opt" id="moreDevicesOpt">
@@ -341,7 +359,7 @@
     <div class="shortcuts-card">
       <div class="shortcuts-header">
         <span>Keyboard shortcuts</span>
-        <button onclick="toggleShortcutsModal()">
+        <button id="shortcutsCloseBtn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -356,15 +374,91 @@
         <tr><td><kbd>B</kbd></td><td>Background effects</td></tr>
         <tr><td><kbd>P</kbd></td><td>Picture-in-Picture pop-out</td></tr>
         <tr><td><kbd>L</kbd></td><td>Lock / unlock meeting (host)</td></tr>
+        <tr><td><kbd>T</kbd></td><td>Toggle chat panel</td></tr>
+        <tr><td><kbd>U</kbd></td><td>Toggle participants panel</td></tr>
         <tr><td><kbd>?</kbd></td><td>Show / hide this panel</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Close panels / exit focus view</td></tr>
       </table>
     </div>
   </div>
 
+  <!-- Breakout Rooms Modal -->
+  <div id="breakoutModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:var(--surface,#fff);border-radius:16px;padding:24px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;">Breakout Rooms</h3>
+        <button id="closeBreakoutModal" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted);">&#10005;</button>
+      </div>
+      <!-- Create phase -->
+      <div id="breakoutCreate">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Number of rooms</label>
+        <input type="number" id="breakoutCount" value="2" min="2" max="20" style="width:80px;padding:8px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:14px;">
+        <button id="breakoutCreateBtn" style="margin-left:8px;background:var(--primary,#1C2340);color:white;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Create rooms</button>
+        <button id="breakoutRandomBtn" style="margin-left:8px;background:var(--surface2,#F2ECE5);color:var(--text,#1C2340);border:1px solid var(--border,#D5CDC4);padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Assign randomly</button>
+      </div>
+      <!-- Active rooms list -->
+      <div id="breakoutRoomsList" style="margin-top:16px;"></div>
+      <!-- Broadcast message -->
+      <div id="breakoutBroadcast" style="margin-top:16px;display:none;">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="breakoutMsgInput" placeholder="Broadcast message to all rooms…" maxlength="500" style="flex:1;padding:8px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;">
+          <button id="breakoutMsgSend" style="background:var(--primary,#1C2340);color:white;border:none;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Send</button>
+        </div>
+      </div>
+      <!-- Close rooms button -->
+      <div id="breakoutCloseWrap" style="margin-top:16px;display:none;">
+        <button id="breakoutCloseBtn" style="width:100%;background:#ef4444;color:white;border:none;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Close all rooms &amp; return everyone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breakout room active banner -->
+  <div id="breakoutBanner" style="display:none;position:fixed;top:44px;left:50%;transform:translateX(-50%);z-index:9997;background:var(--primary,#1C2340);color:white;padding:8px 20px;border-radius:99px;font-size:13px;font-weight:600;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+    <span id="breakoutBannerText">In: Room 1</span>
+    <button id="breakoutReturnBtn" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Return to main</button>
+  </div>
+
+  <!-- Live Stream Modal -->
+  <div id="streamModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:var(--surface,#fff);border-radius:16px;padding:24px;width:90%;max-width:420px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;">Live Stream</h3>
+        <button id="closeStreamModal" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted);">&#10005;</button>
+      </div>
+      <div id="streamSetup">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Stream destination URL</label>
+        <input type="url" id="streamUrlInput" placeholder="rtmp://live.twitch.tv/app/your-stream-key" style="width:100%;padding:10px;border:1.5px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Enter the RTMP ingest URL from your streaming platform (YouTube Live, Twitch, etc.). All participants will see a LIVE indicator.</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px;padding:8px;background:rgba(0,0,0,0.04);border-radius:6px;">Note: Use OBS or a WebRTC-to-RTMP bridge to forward the meeting video to your stream. This enables live broadcast mode and notifies all participants.</p>
+        <button id="streamStartBtn" style="width:100%;background:var(--primary,#1C2340);color:white;border:none;padding:10px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">Start live broadcast</button>
+      </div>
+      <div id="streamActive" style="display:none;text-align:center;">
+        <div style="width:48px;height:48px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <div style="width:12px;height:12px;background:#ef4444;border-radius:50%;animation:recPulse 1.5s infinite;"></div>
+        </div>
+        <p style="font-size:15px;font-weight:700;margin-bottom:4px;">Streaming live</p>
+        <p id="streamTimer" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">0:00</p>
+        <button id="streamStopBtn" style="width:100%;background:#ef4444;color:white;border:none;padding:10px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">Stop streaming</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live stream banner -->
+  <div id="streamBanner" style="display:none;position:fixed;top:44px;right:20px;z-index:9997;background:rgba(239,68,68,0.95);color:white;padding:6px 14px;border-radius:99px;font-size:12px;font-weight:600;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+    <div style="width:8px;height:8px;background:white;border-radius:50%;animation:recPulse 1.5s infinite;"></div>
+    LIVE
+  </div>
+
 </div><!-- end meeting-container -->
 
 <script>
+// Global error handler — show crash errors in lobby instead of failing silently
+window.addEventListener('error', (e) => {
+  console.error('Script error:', e.message, e.filename, e.lineno);
+  const el = document.getElementById('lobbyError');
+  if (el) { el.textContent = 'Something went wrong: ' + e.message; el.classList.remove('hidden'); }
+});
+
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const ICONS = {
   micOn:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`,
@@ -378,7 +472,44 @@ const ICONS = {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const meetingId = window.location.pathname.split('/').pop();
-const socket = io();
+if (typeof io === 'undefined') {
+  const _le = document.getElementById('lobbyError');
+  if (_le) { _le.textContent = 'Failed to load — please hard refresh (Ctrl+Shift+R)'; _le.classList.remove('hidden'); }
+  throw new Error('Socket.IO not loaded');
+}
+const socket = io({
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 10,
+  transports: ['websocket', 'polling'],
+});
+
+socket.on('reconnect_attempt', (attempt) => {
+  const banner = document.getElementById('reconnectBanner');
+  if (banner) { banner.style.display = 'flex'; banner.querySelector('span').textContent = `Reconnecting… (attempt ${attempt})`; }
+});
+socket.on('reconnect', () => {
+  const banner = document.getElementById('reconnectBanner');
+  if (banner) banner.style.display = 'none';
+  // Re-join meeting room
+  if (typeof meetingId !== 'undefined' && meetingId) {
+    socket.emit('join-meeting', { meetingId, name: myName || sessionStorage.getItem('userName') || '', adminToken: sessionStorage.getItem(`admin_${meetingId}`) || undefined });
+    // Restore breakout room if we were in one
+    if (currentBreakoutRoom) {
+      setTimeout(() => socket.emit('breakout:join', { roomId: currentBreakoutRoom }), 1000);
+    }
+  }
+});
+socket.on('reconnect_failed', () => {
+  const banner = document.getElementById('reconnectBanner');
+  if (banner) { banner.querySelector('span').textContent = 'Connection lost. Please refresh the page.'; }
+});
+socket.on('connect_error', (err) => {
+  console.error('Socket.IO connect error:', err.message);
+  const errEl = document.getElementById('lobbyError');
+  if (errEl) { errEl.textContent = 'Cannot connect to server — please refresh or try again later'; errEl.classList.remove('hidden'); }
+});
 
 let localStream     = null;
 let screenStream    = null;
@@ -553,15 +684,14 @@ function hideLobbyError() { $('#lobbyError').classList.add('hidden'); }
 
 // ─── Meeting timer ────────────────────────────────────────────────────────────
 function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
   meetingStartTime = Date.now();
   timerInterval = setInterval(() => {
     const s = Math.floor((Date.now() - meetingStartTime) / 1000);
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    const txt = h > 0
-      ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
-      : `${m}:${String(sec).padStart(2,'0')}`;
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    const txt = `${h}:${m}:${sec}`;
     (UI.meetingTimer || $('#meetingTimer')).textContent = txt;
     const bar = UI.meetingTimerBar || $('#meetingTimerBar');
     if (bar) bar.textContent = txt;
@@ -606,19 +736,22 @@ const speakDetectInterval = setInterval(() => {
     const speaking = avg > 10 && participants[pid] && !participants[pid].isMuted;
     if (speaking) lastSpoke[pid] = Date.now();
     const tile = _getCachedTile(pid);
-    if (tile) tile.classList.toggle('is-speaking', speaking);
+    if (tile) {
+      tile.classList.toggle('is-speaking', speaking);
+      tile.classList.toggle('speaking', speaking);
+    }
     if (pid === pinnedParticipant) {
-      (UI.spotlightMain || $('#spotlightMain'))?.classList.toggle('is-speaking', speaking);
+      const spotlight = UI.spotlightMain || $('#spotlightMain');
+      spotlight?.classList.toggle('is-speaking', speaking);
+      spotlight?.classList.toggle('speaking', speaking);
     }
   }
 }, 150);
 
 // ─── Lobby ────────────────────────────────────────────────────────────────────
 const lobbyNameInput = $('#lobbyName');
-const _urlName = new URLSearchParams(location.search).get('name');
-lobbyNameInput.value = _urlName
-  ? decodeURIComponent(_urlName).slice(0, 60)
-  : (sessionStorage.getItem('userName') || '');
+const _urlName = new URLSearchParams(location.search).get('name') || sessionStorage.getItem('userName') || '';
+lobbyNameInput.value = _urlName ? decodeURIComponent(_urlName).slice(0, 60) : '';
 if (_urlName) updateLobbyInitial();
 $('#lobbyCode').textContent = meetingId;
 
@@ -687,7 +820,7 @@ fetch('/api/config').then(r => r.json()).then(cfg => {
     $('#captionsBtn').style.display = 'none';
 }).catch(() => {});
 
-initPreview().then(() => { if (_urlName) joinMeeting(); });
+initPreview().then(() => { if (_urlName) joinMeeting(); }).catch(() => {});
 
 // ─── Socket events ────────────────────────────────────────────────────────────
 socket.on('error', ({ message }) => {
@@ -732,9 +865,9 @@ socket.on('joined', (data) => {
   if (data.settings?.locked) isLocked = data.settings.locked;
   if (data.isRecording) {
     const banner = document.getElementById('recordingConsentBanner');
-    document.getElementById('recordingConsentText').textContent =
-      `This meeting is being recorded${data.recordingHostName ? ' by ' + data.recordingHostName : ''}.`;
-    banner.style.display = 'flex';
+    const _rct = document.getElementById("recordingConsentText");
+    if (_rct) _rct.textContent = `This meeting is being recorded${data.recordingHostName ? ' by ' + data.recordingHostName : ''}.`;
+    if (banner) banner.style.display = 'flex';
     setTimeout(() => { banner.style.display = 'none'; }, 8000);
   }
   renderVideoGrid();
@@ -832,19 +965,19 @@ socket.on('admin:kick', ({ reason }) => {
 
 // ─── Waiting room events ──────────────────────────────────────────────────────
 socket.on('waiting-room:waiting', () => {
-  document.getElementById('lobby').style.display = 'none';
-  document.getElementById('waitingRoomOverlay').style.display = 'flex';
+  { const _e1 = document.getElementById("lobby"); if (_e1) _e1.style.display = "none"; }
+  { const _e2 = document.getElementById("waitingRoomOverlay"); if (_e2) _e2.style.display = "flex"; }
 });
 
 socket.on('waiting-room:admitted', () => {
-  document.getElementById('waitingRoomOverlay').style.display = 'none';
+  { const _e3 = document.getElementById("waitingRoomOverlay"); if (_e3) _e3.style.display = "none"; }
   // Proceed with normal join flow — the server will send 'joined' after admission
 });
 
 socket.on('waiting-room:denied', ({ message }) => {
-  document.getElementById('waitingRoomOverlay').style.display = 'none';
+  { const _e4 = document.getElementById("waitingRoomOverlay"); if (_e4) _e4.style.display = "none"; }
   showLobbyError(message || 'You were not admitted to this meeting.');
-  document.getElementById('lobby').style.display = 'flex';
+  { const _e5 = document.getElementById("lobby"); if (_e5) _e5.style.display = "flex"; }
   $('#lobbyJoinBtn').disabled = false;
   $('#lobbyJoinBtn').textContent = 'Join Meeting';
 });
@@ -862,19 +995,20 @@ socket.on('waiting-room:participant-waiting', ({ socketId, name, count, removed 
 socket.on('recording:started', ({ hostName }) => {
   if (isRecording) return; // own recording, don't show banner to self
   const banner = document.getElementById('recordingConsentBanner');
-  document.getElementById('recordingConsentText').textContent =
-    `This meeting is being recorded${hostName ? ' by ' + hostName : ''}.`;
-  banner.style.display = 'flex';
+  const _rct2 = document.getElementById("recordingConsentText");
+  if (_rct2) _rct2.textContent = `This meeting is being recorded${hostName ? ' by ' + hostName : ''}.`;
+  if (banner) banner.style.display = 'flex';
   setTimeout(() => { banner.style.display = 'none'; }, 8000);
 });
 
 socket.on('recording:stopped', () => {
-  document.getElementById('recordingConsentBanner').style.display = 'none';
+  { const _e6 = document.getElementById("recordingConsentBanner"); if (_e6) _e6.style.display = "none"; }
 });
 
 // Reactions
 socket.on('react', ({ participantId, emoji }) => {
   showReactionFloat(participantId, emoji);
+  showGlobalFloatingReaction(emoji);
 });
 
 function showReactionFloat(pid, emoji) {
@@ -888,6 +1022,16 @@ function showReactionFloat(pid, emoji) {
   el.style.left = (15 + Math.random() * 65) + '%';
   container.appendChild(el);
   setTimeout(() => el.remove(), 2400);
+}
+
+function showGlobalFloatingReaction(emoji) {
+  const el = document.createElement('div');
+  el.className = 'reaction-float-global';
+  el.textContent = emoji;
+  el.style.left = (20 + Math.random() * 60) + 'vw';
+  el.style.bottom = '80px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
 }
 
 // ─── WebRTC ───────────────────────────────────────────────────────────────────
@@ -922,7 +1066,15 @@ function createPeerConnection(participantId, initiator) {
 
   pc.oniceconnectionstatechange = () => {
     if (pc.iceConnectionState === 'failed') pc.restartIce();
-    if (pc.iceConnectionState === 'disconnected') showToast('Peer connection unstable…', 'error');
+    if (pc.iceConnectionState === 'disconnected') {
+      showToast('Peer connection unstable…', 'error');
+      // Attempt ICE restart after 3 seconds if still disconnected
+      setTimeout(() => {
+        if (pc.iceConnectionState === 'disconnected') {
+          pc.restartIce();
+        }
+      }, 3000);
+    }
     if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') applyVideoQuality(pc);
   };
 
@@ -969,6 +1121,12 @@ $('#micBtn').addEventListener('click', () => {
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
   if (participants[myParticipantId]) participants[myParticipantId].isMuted = isMuted;
   socket.emit('media:toggle-audio', { isMuted });
+  // Auto-lower hand on unmute
+  if (!isMuted && isHandRaised) {
+    isHandRaised = false;
+    if (participants[myParticipantId]) participants[myParticipantId].isHandRaised = false;
+    socket.emit('raise-hand', { isHandRaised: false });
+  }
   updateControlButtons(); syncParticipantTile(myParticipantId);
 });
 
@@ -1254,7 +1412,7 @@ async function startRecording() {
       lastRecordingBlob = blob;
       lastRecordingFilename = a.download;
       const uploadBtn = $('#uploadRecordingBtn');
-      if (uploadBtn) { uploadBtn.classList.remove('hidden'); uploadBtn.onclick = () => uploadRecording(); }
+      if (uploadBtn) { uploadBtn.classList.remove('hidden'); uploadBtn.addEventListener('click', () => uploadRecording()); }
     };
     mediaRecorder.start(1000);
     isRecording = true; updateControlButtons();
@@ -1628,7 +1786,7 @@ $('#deviceBtn').addEventListener('click', async () => {
   soundRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;';
   soundRow.innerHTML = `<span style="font-size:13px;">Meeting sounds</span>
     <input type="checkbox" id="soundsToggle" style="cursor:pointer;width:16px;height:16px;" ${soundsEnabled ? 'checked' : ''}>`;
-  soundRow.querySelector('#soundsToggle').addEventListener('change', (e) => {
+  soundRow.querySelector('#soundsToggle')?.addEventListener('change', (e) => {
     soundsEnabled = e.target.checked;
     localStorage.setItem('soundsEnabled', soundsEnabled);
   });
@@ -1639,7 +1797,7 @@ $('#deviceBtn').addEventListener('click', async () => {
   noiseRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;';
   noiseRow.innerHTML = `<span style="font-size:13px;">Noise suppression</span>
     <input type="checkbox" id="noiseToggle" style="cursor:pointer;width:16px;height:16px;" ${noiseEnabled ? 'checked' : ''}>`;
-  noiseRow.querySelector('#noiseToggle').addEventListener('change', async (e) => {
+  noiseRow.querySelector('#noiseToggle')?.addEventListener('change', async (e) => {
     const enabled = e.target.checked;
     localStorage.setItem('noiseSuppression', enabled);
     if (localStream) {
@@ -1815,29 +1973,63 @@ function sendChat() {
   const text = $('#chatInput').value.trim();
   if (!text) return;
   lastChatSent = now;
-  socket.emit('chat:message', { text });
+  socket.emit('chat:message', { text, replyTo: chatReplyTo || undefined });
   $('#chatInput').value = '';
+  chatReplyTo = null;
+  const preview = $('#chatReplyPreview');
+  if (preview) preview.style.display = 'none';
 }
 
-socket.on('chat:message', ({ from, name, text, timestamp, msgId }) => {
+// ─── Chat rich text (markdown-lite) ────────────────────────────────────────────
+function formatChatText(text) {
+  let s = escapeHtml(text);
+  s = s.replace(/```([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.15);padding:6px 8px;border-radius:4px;font-size:12px;margin:4px 0;overflow-x:auto;white-space:pre-wrap;">$1</pre>');
+  s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  return s;
+}
+
+let chatReplyTo = null;
+function setChatReply(msgId, name, text) {
+  chatReplyTo = msgId;
+  const preview = $('#chatReplyPreview');
+  if (preview) {
+    preview.style.display = 'flex';
+    preview.innerHTML = `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${escapeHtml(name)}</strong>: ${escapeHtml(text.slice(0, 80))}</span><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;" id="cancelReplyBtn">✕</button>`;
+    preview.querySelector('#cancelReplyBtn')?.addEventListener('click', () => { chatReplyTo = null; preview.style.display = 'none'; });
+  }
+  $('#chatInput')?.focus();
+}
+
+socket.on('chat:message', ({ from, name, text, timestamp, msgId, replyTo }) => {
   const container = $('#chatMessages');
   const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const isOwn = from === myParticipantId;
   const id = msgId || (Date.now() + Math.random()).toString(36);
-  chatLog.push({ msgId: id, pid: from, name, text, ts: timestamp });
+  chatLog.push({ msgId: id, pid: from, name, text, ts: timestamp, replyTo });
   if (chatLog.length > 500) chatLog.shift();
+  // Build reply quote if replying to a previous message
+  let replyHtml = '';
+  if (replyTo) {
+    const original = chatLog.find(m => m.msgId === replyTo);
+    if (original) {
+      replyHtml = `<div style="font-size:11px;color:var(--text-muted);border-left:2px solid var(--primary,#4361ee);padding:2px 8px;margin-bottom:4px;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${escapeHtml(original.name)}</strong>: ${escapeHtml(original.text.slice(0, 60))}</div>`;
+    }
+  }
   const div = document.createElement('div');
   div.className = `chat-msg${isOwn ? ' chat-msg-own' : ''}`;
   div.dataset.msgId = id;
   div.innerHTML = `
+    ${replyHtml}
     <div class="chat-author">${escapeHtml(name)}${isOwn ? ' <span style="color:var(--text-muted);font-weight:400">(You)</span>' : ''}</div>
-    <div class="chat-text">${escapeHtml(text)}</div>
+    <div class="chat-text">${formatChatText(text)}</div>
     <div class="chat-msg-footer">
       <span class="chat-time">${time}</span>
+      <button class="chat-reply-btn" data-msg-id="${id}" data-name="${escapeHtml(name)}" data-text="${escapeHtml(text.slice(0, 80))}" title="Reply" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);">↩</button>
       <button class="chat-react-trigger" title="React">+</button>
     </div>
     <div class="chat-reactions"></div>`;
-  // Chat react uses event delegation on container (see setupChatDelegation below)
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   const chatOpen = !$('#sidePanel').classList.contains('hidden') &&
@@ -1981,6 +2173,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'b' || e.key === 'B') $('#blurBtn').click();
   else if (e.key === 'l' || e.key === 'L') { if (isAdmin) $('#lockBtn').click(); }
   else if (e.key === 'p' || e.key === 'P') togglePiP();
+  else if (e.key === 't' || e.key === 'T') toggleSidePanel('chat');
+  else if (e.key === 'u' || e.key === 'U') toggleSidePanel('participants');
   else if (e.key === '?') toggleShortcutsModal();
 });
 
@@ -2055,10 +2249,12 @@ function updateControlButtons() {
   }
   (UI.moreEffectsOpt || $('#moreEffectsOpt'))?.classList.toggle('active', effectsOn);
 
-  // Lock in More panel (admin only)
+  // Lock, breakout rooms, and live stream in More panel (admin only)
   const moreLockOpt = UI.moreLockOpt || $('#moreLockOpt');
   if (moreLockOpt) {
     moreLockOpt.classList.toggle('hidden', !isAdmin);
+  document.getElementById('moreBreakoutOpt')?.classList.toggle('hidden', !isAdmin);
+  document.getElementById('moreStreamOpt')?.classList.toggle('hidden', !isAdmin);
     const moreLockTitle = UI.moreLockTitle || $('#moreLockTitle');
     if (moreLockTitle) moreLockTitle.textContent = isLocked ? 'Unlock meeting' : 'Lock meeting';
     const lockIconEl = UI.moreLockIcon || $('#moreLockIcon');
@@ -2363,10 +2559,10 @@ function syncVideoTile(tile, pid) {
     if (isAdmin && !isLocal) {
       const safePid = escapeHtml(pid);
       adminActions.innerHTML = `
-        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${safePid}',${!!p.isMuted})">
+        <button title="${p.isMuted?'Unmute':'Mute'}" data-action="mute" data-pid="${safePid}" data-muted="${!!p.isMuted}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>'}</svg>
         </button>
-        <button title="Remove" onclick="adminKick('${safePid}')">
+        <button title="Remove" data-action="kick" data-pid="${safePid}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>`;
       adminActions.style.display = 'flex';
@@ -2384,7 +2580,7 @@ function renderParticipantsList() {
     const muteAllBtn = document.createElement('button');
     muteAllBtn.className = 'mute-all-btn';
     muteAllBtn.innerHTML = `${ICONS.muteAllIcon} Mute everyone`;
-    muteAllBtn.onclick = adminMuteAll;
+    muteAllBtn.addEventListener('click', adminMuteAll);
     frag.appendChild(muteAllBtn);
   }
 
@@ -2415,10 +2611,10 @@ function renderParticipantsList() {
       </div>
       ${isAdmin && !isLocal ? `
       <div class="participant-actions">
-        <button title="${p.isMuted?'Unmute':'Mute'}" onclick="adminToggleMute('${escapeHtml(pid)}',${!!p.isMuted})">
+        <button title="${p.isMuted?'Unmute':'Mute'}" data-action="mute" data-pid="${escapeHtml(pid)}" data-muted="${!!p.isMuted}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>'}</svg>
         </button>
-        <button title="Remove" onclick="adminKick('${escapeHtml(pid)}')">
+        <button title="Remove" data-action="kick" data-pid="${escapeHtml(pid)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>` : ''}`;
@@ -2510,8 +2706,8 @@ function renderWaitingParticipants(socketId, name) {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;gap:8px;';
     row.innerHTML = `<span style="font-size:13px;font-weight:500;flex:1;">${escapeHtml(nm)}</span>
-      <button onclick="admitWaiting('${safeSid}')" style="background:#1C2340;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
-      <button onclick="denyWaiting('${safeSid}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
+      <button data-action="admit" data-sid="${safeSid}" style="background:#1C2340;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
+      <button data-action="deny" data-sid="${safeSid}" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
     section.appendChild(row);
   }
   list.prepend(section);
@@ -2605,6 +2801,12 @@ const connQualityInterval = setInterval(checkConnectionQuality, 5000);
   const container = document.getElementById('chatMessages');
   if (!container) return;
   container.addEventListener('click', (e) => {
+    const replyBtn = e.target.closest('.chat-reply-btn');
+    if (replyBtn) {
+      e.stopPropagation();
+      setChatReply(replyBtn.dataset.msgId, replyBtn.dataset.name, replyBtn.dataset.text);
+      return;
+    }
     const trigger = e.target.closest('.chat-react-trigger');
     if (trigger) {
       e.stopPropagation();
@@ -2613,6 +2815,213 @@ const connQualityInterval = setInterval(checkConnectionQuality, 5000);
     }
   });
 })();
+
+// ─── Breakout Rooms ───────────────────────────────────────────────────────────
+let currentBreakoutRoom = null;
+let breakoutRooms = [];
+
+function openBreakoutModal() {
+  const el = document.getElementById('breakoutModal');
+  if (el) el.style.display = 'flex';
+}
+function closeBreakoutModalFn() {
+  const el = document.getElementById('breakoutModal');
+  if (el) el.style.display = 'none';
+}
+
+document.getElementById('moreBreakoutOpt')?.addEventListener('click', () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  openBreakoutModal();
+});
+document.getElementById('closeBreakoutModal')?.addEventListener('click', closeBreakoutModalFn);
+
+document.getElementById('breakoutCreateBtn')?.addEventListener('click', () => {
+  const count = Math.min(Math.max(parseInt(document.getElementById('breakoutCount')?.value) || 2, 2), 20);
+  const names = Array.from({ length: count }, (_, i) => `Room ${i + 1}`);
+  socket.emit('breakout:create', { rooms: names });
+});
+
+document.getElementById('breakoutRandomBtn')?.addEventListener('click', () => {
+  if (!breakoutRooms.length) return;
+  // Get all non-admin participants (exclude self/admins)
+  const pids = Object.keys(participants).filter(pid => pid !== myParticipantId && !participants[pid]?.isAdmin);
+  // Shuffle
+  for (let i = pids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pids[i], pids[j]] = [pids[j], pids[i]];
+  }
+  // Distribute round-robin
+  const assignments = pids.map((pid, i) => ({
+    participantId: pid,
+    roomId: breakoutRooms[i % breakoutRooms.length].id,
+  }));
+  socket.emit('breakout:assign', { assignments });
+});
+
+document.getElementById('breakoutMsgSend')?.addEventListener('click', () => {
+  const input = document.getElementById('breakoutMsgInput');
+  const msg = input?.value?.trim();
+  if (!msg) return;
+  socket.emit('breakout:broadcast', { message: msg });
+  if (input) input.value = '';
+  showToast('Message broadcast to all rooms');
+});
+
+document.getElementById('breakoutCloseBtn')?.addEventListener('click', () => {
+  socket.emit('breakout:close');
+});
+
+document.getElementById('breakoutReturnBtn')?.addEventListener('click', () => {
+  socket.emit('breakout:leave');
+  currentBreakoutRoom = null;
+  { const _el = document.getElementById("breakoutBanner"); if (_el) _el.style.display = "none"; }
+});
+
+// Breakout socket handlers
+socket.on('breakout:created', ({ rooms }) => {
+  breakoutRooms = rooms;
+  renderBreakoutRooms();
+  { const _el = document.getElementById("breakoutBroadcast"); if (_el) _el.style.display = "block"; }
+  { const _el = document.getElementById("breakoutCloseWrap"); if (_el) _el.style.display = "block"; }
+  showToast(`${rooms.length} breakout rooms created`);
+});
+
+socket.on('breakout:updated', ({ rooms }) => {
+  breakoutRooms = rooms;
+  renderBreakoutRooms();
+});
+
+socket.on('breakout:assigned', ({ roomId, roomName }) => {
+  currentBreakoutRoom = roomId;
+  socket.emit('breakout:join', { roomId });
+  const banner = document.getElementById('breakoutBanner');
+  if (banner) {
+    banner.style.display = 'flex';
+    { const _el = document.getElementById("breakoutBannerText"); if (_el) _el.textContent = `In: ${roomName}`; }
+  }
+  showToast(`You've been assigned to ${roomName}`);
+});
+
+socket.on('breakout:closed', () => {
+  currentBreakoutRoom = null;
+  { const _el = document.getElementById("breakoutBanner"); if (_el) _el.style.display = "none"; }
+  showToast('Breakout rooms closed — returning to main meeting');
+});
+
+socket.on('breakout:all-closed', () => {
+  breakoutRooms = [];
+  currentBreakoutRoom = null;
+  { const _el = document.getElementById("breakoutBanner"); if (_el) _el.style.display = "none"; }
+  { const _el = document.getElementById("breakoutBroadcast"); if (_el) _el.style.display = "none"; }
+  { const _el = document.getElementById("breakoutCloseWrap"); if (_el) _el.style.display = "none"; }
+  renderBreakoutRooms();
+});
+
+socket.on('breakout:message', ({ from, text, timestamp }) => {
+  showToast(`[${from}] ${text}`);
+});
+
+function renderBreakoutRooms() {
+  const list = document.getElementById('breakoutRoomsList');
+  if (!list) return;
+  if (!breakoutRooms.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">No breakout rooms active</p>';
+    return;
+  }
+  list.innerHTML = breakoutRooms.map(r => `
+    <div style="background:var(--surface2,#F2ECE5);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${escapeHtml(r.name)} <span style="color:var(--text-muted);font-weight:400;">(${r.participantCount || 0})</span></div>
+      ${r.participants && r.participants.length ? r.participants.map(p => `<span style="display:inline-block;background:var(--surface,#fff);padding:2px 8px;border-radius:4px;font-size:12px;margin:2px 2px 0 0;">${escapeHtml(p.name)}</span>`).join('') : '<span style="font-size:12px;color:var(--text-muted);">No participants yet</span>'}
+    </div>
+  `).join('');
+}
+
+// ─── Live Streaming ───────────────────────────────────────────────────────────
+let isStreaming = false;
+let streamTimerInterval = null;
+let streamStartTime = null;
+
+document.getElementById('moreStreamOpt')?.addEventListener('click', () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  const el = document.getElementById('streamModal');
+  if (el) el.style.display = 'flex';
+});
+document.getElementById('closeStreamModal')?.addEventListener('click', () => {
+  const el = document.getElementById('streamModal');
+  if (el) el.style.display = 'none';
+});
+
+document.getElementById('streamStartBtn')?.addEventListener('click', () => {
+  const url = document.getElementById('streamUrlInput')?.value?.trim();
+  if (!url) { showToast('Please enter a stream URL', true); return; }
+  isStreaming = true;
+  streamStartTime = Date.now();
+  socket.emit('stream:start', { url });
+  { const _ss = document.getElementById('streamSetup'); if (_ss) _ss.style.display = 'none'; }
+  { const _sa = document.getElementById('streamActive'); if (_sa) _sa.style.display = 'block'; }
+  streamTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - streamStartTime) / 1000);
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const el = document.getElementById('streamTimer');
+    if (el) el.textContent = h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+  }, 1000);
+  showToast('Live stream started');
+});
+
+document.getElementById('streamStopBtn')?.addEventListener('click', () => {
+  isStreaming = false;
+  if (streamTimerInterval) clearInterval(streamTimerInterval);
+  socket.emit('stream:stop');
+  { const _s = document.getElementById('streamSetup'); if (_s) _s.style.display = 'block'; }
+  { const _a = document.getElementById('streamActive'); if (_a) _a.style.display = 'none'; }
+  { const _m = document.getElementById('streamModal'); if (_m) _m.style.display = 'none'; }
+  showToast('Live stream stopped');
+});
+
+socket.on('stream:started', ({ hostName }) => {
+  isStreaming = true;
+  const banner = document.getElementById('streamBanner');
+  if (banner) banner.style.display = 'flex';
+  showToast(`${escapeHtml(hostName)} started live streaming`);
+});
+
+socket.on('stream:stopped', () => {
+  isStreaming = false;
+  if (streamTimerInterval) { clearInterval(streamTimerInterval); streamTimerInterval = null; }
+  const banner = document.getElementById('streamBanner');
+  if (banner) banner.style.display = 'none';
+  // Reset modal UI
+  const setup = document.getElementById('streamSetup');
+  const active = document.getElementById('streamActive');
+  if (setup) setup.style.display = 'block';
+  if (active) active.style.display = 'none';
+  showToast('Live stream ended');
+});
+
+// ─── Static button event listeners ───────────────────────────────────────────
+document.getElementById('layoutAuto')?.addEventListener('click', () => setLayout('auto'));
+document.getElementById('layoutSpeaker')?.addEventListener('click', () => setLayout('speaker'));
+document.getElementById('layoutGallery')?.addEventListener('click', () => setLayout('gallery'));
+document.getElementById('pipBtn')?.addEventListener('click', togglePiP);
+document.getElementById('shortcutsCloseBtn')?.addEventListener('click', toggleShortcutsModal);
+
+// ─── Event delegation for dynamic admin/waiting room buttons ─────────────────
+document.getElementById('videoGrid')?.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'mute') adminToggleMute(btn.dataset.pid, btn.dataset.muted === 'true');
+  if (btn.dataset.action === 'kick') adminKick(btn.dataset.pid);
+});
+document.getElementById('participantsList')?.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'mute') adminToggleMute(btn.dataset.pid, btn.dataset.muted === 'true');
+  if (btn.dataset.action === 'kick') adminKick(btn.dataset.pid);
+  if (btn.dataset.action === 'admit') admitWaiting(btn.dataset.sid);
+  if (btn.dataset.action === 'deny') denyWaiting(btn.dataset.sid);
+});
 
 // ─── Init control icons ───────────────────────────────────────────────────────
 updateControlButtons();

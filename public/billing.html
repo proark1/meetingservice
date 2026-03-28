@@ -126,15 +126,15 @@
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" id="tabCard" onclick="showTab('card')">
+    <button class="tab active" id="tabCard">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
       Credit Card
     </button>
-    <button class="tab" id="tabCrypto" onclick="showTab('crypto')">
+    <button class="tab" id="tabCrypto">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       USDC Crypto
     </button>
-    <button class="tab" id="tabHistory" onclick="showTab('history')">
+    <button class="tab" id="tabHistory">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       History
     </button>
@@ -146,14 +146,14 @@
       <h2>Top up with Credit Card</h2>
       <p>Secure payments powered by Stripe. Your card is never stored on our servers.</p>
       <div class="amounts">
-        <button class="amount-btn active" data-amount="10" onclick="selectAmount(10, this)">$10</button>
-        <button class="amount-btn" data-amount="25" onclick="selectAmount(25, this)">$25</button>
-        <button class="amount-btn" data-amount="50" onclick="selectAmount(50, this)">$50</button>
-        <button class="amount-btn" data-amount="100" onclick="selectAmount(100, this)">$100</button>
+        <button class="amount-btn active" data-amount="10">$10</button>
+        <button class="amount-btn" data-amount="25">$25</button>
+        <button class="amount-btn" data-amount="50">$50</button>
+        <button class="amount-btn" data-amount="100">$100</button>
       </div>
       <label>Or enter a custom amount (min $5)</label>
       <input type="number" id="customAmount" placeholder="Enter amount in USD" min="5" max="1000">
-      <button class="btn-pay" id="stripeBtn" onclick="doStripeCheckout()">
+      <button class="btn-pay" id="stripeBtn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
         Pay $<span id="payAmount">10</span> with card
       </button>
@@ -172,7 +172,7 @@
       </div>
       <label>Your deposit address</label>
       <div class="crypto-addr" id="cryptoAddr">Loading…</div>
-      <button class="copy-btn" id="copyAddrBtn" onclick="copyAddr()">Copy address</button>
+      <button class="copy-btn" id="copyAddrBtn">Copy address</button>
       <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:0;">Exchange rate: 1 USDC = $1.00 USD credit<br>Minimum deposit: $5 USDC</p>
       </div>
@@ -211,7 +211,7 @@ function selectAmount(amt, btn) {
   document.getElementById('payAmount').textContent = amt;
 }
 
-document.getElementById('customAmount').addEventListener('input', function() {
+document.getElementById('customAmount')?.addEventListener('input', function() {
   const v = parseFloat(this.value);
   if (v >= 5) {
     selectedAmount = v;
@@ -277,6 +277,17 @@ if (params.get('cancel')) {
   box.style.display = 'block'; box.style.background = '#fef2f2'; box.style.color = '#dc2626'; box.style.border = '1px solid #fecaca';
   box.textContent = 'Payment cancelled.';
 }
+
+// ─── Event listeners ──────────────────────────────────────────────────────────
+document.getElementById('tabCard')?.addEventListener('click', () => showTab('card'));
+document.getElementById('tabCrypto')?.addEventListener('click', () => showTab('crypto'));
+document.getElementById('tabHistory')?.addEventListener('click', () => showTab('history'));
+document.querySelector('.amounts')?.addEventListener('click', e => {
+  const btn = e.target.closest('.amount-btn');
+  if (btn) selectAmount(Number(btn.dataset.amount), btn);
+});
+document.getElementById('stripeBtn')?.addEventListener('click', doStripeCheckout);
+document.getElementById('copyAddrBtn')?.addEventListener('click', copyAddr);
 
 // Load balance on page load
 (async () => {

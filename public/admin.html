@@ -376,7 +376,7 @@
       <a href="/" class="nav-item" style="margin-bottom:8px;">
         <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="label">Home</span>
       </a>
-      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="logout()">Sign Out</button>
+      <button class="btn btn-ghost btn-sm" style="width:100%;" id="btn-logout">Sign Out</button>
     </div>
   </aside>
 
@@ -412,7 +412,7 @@
       <div class="table-wrap">
         <div class="table-header">
           <h3>Active Meetings</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadOverview()">Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-overview">Refresh</button>
         </div>
         <table>
           <thead><tr><th>Meeting ID</th><th>Title</th><th>Participants</th><th>Created</th><th></th></tr></thead>
@@ -427,7 +427,7 @@
       <div class="table-wrap">
         <div class="table-header">
           <h3>All Active Meetings</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadMeetings()">Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-meetings">Refresh</button>
         </div>
         <table>
           <thead><tr><th>Meeting ID</th><th>Title</th><th>Participants</th><th>Locked</th><th>Created</th><th></th></tr></thead>
@@ -442,7 +442,7 @@
       <div class="table-wrap">
         <div class="table-header">
           <h3>All Users</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-users">Refresh</button>
         </div>
         <table>
           <thead><tr><th>Email</th><th>Type</th><th>Role</th><th>Status</th><th>Credits</th><th>Company</th><th>API Keys</th><th>Joined</th><th></th></tr></thead>
@@ -457,7 +457,7 @@
       <div class="table-wrap">
         <div class="table-header">
           <h3>All API Keys</h3>
-          <button class="btn btn-primary btn-sm" onclick="openCreateKeyModal()">+ Create Key</button>
+          <button class="btn btn-primary btn-sm" id="btn-create-key">+ Create Key</button>
         </div>
         <table>
           <thead><tr><th>Key</th><th>Label</th><th>User</th><th>Status</th><th>Last Used</th><th>Created</th><th></th></tr></thead>
@@ -549,7 +549,7 @@
       </div>
 
       <div class="settings-save">
-        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
       </div>
     </div>
 
@@ -558,16 +558,16 @@
       <div class="page-title">Billing</div>
 
       <div class="sub-tabs">
-        <button class="sub-tab active" data-billing-tab="transactions" onclick="switchBillingTab('transactions')">Transactions</button>
-        <button class="sub-tab" data-billing-tab="stripe" onclick="switchBillingTab('stripe')">Stripe Top-ups</button>
-        <button class="sub-tab" data-billing-tab="credit" onclick="switchBillingTab('credit')">Manual Credit</button>
+        <button class="sub-tab active" data-billing-tab="transactions">Transactions</button>
+        <button class="sub-tab" data-billing-tab="stripe">Stripe Top-ups</button>
+        <button class="sub-tab" data-billing-tab="credit">Manual Credit</button>
       </div>
 
       <div id="billing-tab-transactions">
         <div class="table-wrap">
           <div class="table-header">
             <h3>All Transactions</h3>
-            <button class="btn btn-ghost btn-sm" onclick="loadBillingTransactions()">Refresh</button>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-billing-tx">Refresh</button>
           </div>
           <table>
             <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Type</th><th>Description</th><th>Date</th></tr></thead>
@@ -580,7 +580,7 @@
         <div class="table-wrap">
           <div class="table-header">
             <h3>Stripe Top-ups</h3>
-            <button class="btn btn-ghost btn-sm" onclick="loadBillingStripe()">Refresh</button>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-billing-stripe">Refresh</button>
           </div>
           <table>
             <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Status</th><th>Session ID</th><th>Date</th></tr></thead>
@@ -597,7 +597,7 @@
             <input class="config-input" id="credit-email" type="email" placeholder="User email address">
             <input class="config-input" id="credit-amount" type="number" step="0.01" min="0.01" placeholder="Amount USD (e.g. 10.00)">
             <input class="config-input" id="credit-note" type="text" placeholder="Note (optional)">
-            <button class="btn btn-primary" onclick="grantCredit()" style="align-self:flex-start;">Grant Credits</button>
+            <button class="btn btn-primary" id="btn-grant-credit" style="align-self:flex-start;">Grant Credits</button>
           </div>
         </div>
       </div>
@@ -609,7 +609,7 @@
       <div class="table-wrap">
         <div class="table-header">
           <h3>All Companies</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadCompanies()">Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-companies">Refresh</button>
         </div>
         <table>
           <thead><tr><th>Name</th><th>Owner</th><th>Plan</th><th>Members</th><th>Credits</th><th>Wallet</th><th>Created</th><th></th></tr></thead>
@@ -627,7 +627,7 @@
         <p>Single ETH address where all platform USDC deposits are collected. Must be a valid 0x address.</p>
         <div class="config-row">
           <input class="config-input" id="crypto-wallet-input" placeholder="0x…" maxlength="42">
-          <button class="btn btn-primary btn-sm" onclick="saveCryptoWallet()">Save</button>
+          <button class="btn btn-primary btn-sm" id="btn-save-crypto-wallet">Save</button>
         </div>
       </div>
 
@@ -636,7 +636,7 @@
         <p>Endpoint used by the USDC deposit monitor (e.g. Infura, Alchemy, or your own node).</p>
         <div class="config-row">
           <input class="config-input" id="crypto-rpc-input" placeholder="https://mainnet.infura.io/v3/YOUR_KEY">
-          <button class="btn btn-primary btn-sm" onclick="saveCryptoRpc()">Save</button>
+          <button class="btn btn-primary btn-sm" id="btn-save-crypto-rpc">Save</button>
         </div>
       </div>
 
@@ -645,14 +645,14 @@
         <p>Last scanned Ethereum block: <strong id="crypto-last-block">—</strong>. Reset the checkpoint to force a re-scan from a specific block.</p>
         <div class="config-row">
           <input class="config-input" id="crypto-rescan-block" type="number" min="0" placeholder="Block number to reset to…" style="max-width:240px;">
-          <button class="btn btn-ghost btn-sm" onclick="cryptoRescan()">Reset Checkpoint</button>
+          <button class="btn btn-ghost btn-sm" id="btn-crypto-rescan">Reset Checkpoint</button>
         </div>
       </div>
 
       <div class="table-wrap">
         <div class="table-header">
           <h3>USDC Deposits</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadCryptoDeposits()">Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-crypto-deposits">Refresh</button>
         </div>
         <table>
           <thead><tr><th>ID</th><th>User</th><th>Company</th><th>Amount</th><th>Wallet</th><th>TX Hash</th><th>Status</th><th>Date</th><th></th></tr></thead>
@@ -665,10 +665,10 @@
           <h3>Unmatched USDC Transfers</h3>
           <div style="display:flex;gap:10px;align-items:center;">
             <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px;cursor:pointer;">
-              <input type="checkbox" id="unmatched-hide-resolved" checked onchange="loadUnmatchedTransfers()">
+              <input type="checkbox" id="unmatched-hide-resolved" checked>
               Hide resolved
             </label>
-            <button class="btn btn-ghost btn-sm" onclick="loadUnmatchedTransfers()">Refresh</button>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-unmatched">Refresh</button>
           </div>
         </div>
         <table>
@@ -690,7 +690,7 @@
           <button class="btn btn-ghost btn-sm an-period" data-days="30">30d</button>
           <button class="btn btn-ghost btn-sm an-period" data-days="90">90d</button>
         </div>
-        <button class="btn btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;" onclick="loadAnalytics()">↻ Refresh</button>
+        <button class="btn btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;" id="btn-refresh-analytics">↻ Refresh</button>
       </div>
 
       <!-- Sub-tabs -->
@@ -789,7 +789,7 @@
           <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">User generates a support key from their profile. Valid 24h, single use.</div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <input type="text" id="an-support-key-input" placeholder="Paste support key (32 chars)…" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;">
-            <button class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;" onclick="verifySupportKey()">Unlock</button>
+            <button class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;" id="btn-verify-support-key">Unlock</button>
           </div>
           <div id="an-support-result" style="margin-top:16px;"></div>
         </div>
@@ -967,8 +967,8 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</code></pre>
       <div class="code-box" id="modal-key-value"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeCreateKeyModal()">Close</button>
-      <button class="btn btn-primary" id="modal-create-btn" onclick="createKey()">Create</button>
+      <button class="btn btn-ghost" id="btn-close-key-modal">Close</button>
+      <button class="btn btn-primary" id="modal-create-btn">Create</button>
     </div>
   </div>
 </div>
@@ -1057,7 +1057,7 @@ async function loadOverview() {
       <td>${esc(m.title)}</td>
       <td>${m.participantCount}</td>
       <td>${fmt(m.createdAt)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${esc(m.meetingId)}')">End</button></td>
+      <td><button class="btn btn-danger btn-sm" data-action="end-meeting" data-id="${esc(m.meetingId)}">End</button></td>
     </tr>`).join('');
 }
 
@@ -1076,7 +1076,7 @@ async function loadMeetings() {
       <td>${m.participantCount}</td>
       <td>${m.settings.locked ? '<span class="badge red">Locked</span>' : '<span class="badge green">Open</span>'}</td>
       <td>${fmt(m.createdAt)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="endMeeting('${esc(m.meetingId)}')">End</button></td>
+      <td><button class="btn btn-danger btn-sm" data-action="end-meeting" data-id="${esc(m.meetingId)}">End</button></td>
     </tr>`).join('');
 }
 
@@ -1110,9 +1110,9 @@ async function loadUsers() {
       <td>${u.active_key_count}</td>
       <td>${fmt(u.created_at)}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn btn-ghost btn-sm" onclick="toggleUser(${u.id}, ${u.is_active})">${u.is_active ? 'Disable' : 'Enable'}</button>
-        ${!u.is_admin ? `<button class="btn btn-ghost btn-sm" onclick="makeAdmin(${u.id})">Make Admin</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Delete</button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-user" data-id="${u.id}" data-active="${u.is_active}">${u.is_active ? 'Disable' : 'Enable'}</button>
+        ${!u.is_admin ? `<button class="btn btn-ghost btn-sm" data-action="make-admin" data-id="${u.id}">Make Admin</button>` : ''}
+        <button class="btn btn-danger btn-sm" data-action="delete-user" data-id="${u.id}">Delete</button>
       </td>
     </tr>`).join('');
 }
@@ -1156,14 +1156,14 @@ async function loadKeys() {
   tbody.innerHTML = keys.map(k => `
     <tr>
       <td><code style="font-size:11px">${esc(k.key)}</code>
-        <button onclick="copyText('${esc(k.key)}')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
+        <button data-action="copy-text" data-key="${esc(k.key)}" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
       </td>
       <td>${esc(k.label || '—')}</td>
       <td>${esc(k.user_email)}</td>
       <td>${k.is_active ? '<span class="badge green">Active</span>' : '<span class="badge red">Revoked</span>'}</td>
       <td>${fmt(k.last_used_at)}</td>
       <td>${fmt(k.created_at)}</td>
-      <td>${k.is_active ? `<button class="btn btn-danger btn-sm" onclick="revokeKey(${k.id})">Revoke</button>` : '—'}</td>
+      <td>${k.is_active ? `<button class="btn btn-danger btn-sm" data-action="revoke-key" data-id="${k.id}">Revoke</button>` : '—'}</td>
     </tr>`).join('');
 }
 
@@ -1345,7 +1345,7 @@ async function loadCompanies() {
       <td>$${parseFloat(c.credits_usd || 0).toFixed(2)}</td>
       <td style="font-family:monospace;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${c.wallet_address ? c.wallet_address.slice(0,10)+'…' : '—'}</td>
       <td>${fmt(c.created_at)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="dissolveCompany(${c.id}, '${esc(c.name).replace(/'/g,"\\'")}')">Dissolve</button></td>
+      <td><button class="btn btn-danger btn-sm" data-action="dissolve-company" data-id="${c.id}" data-name="${esc(c.name)}">Dissolve</button></td>
     </tr>`).join('');
 }
 
@@ -1433,7 +1433,7 @@ async function loadCryptoDeposits() {
       <td style="font-family:monospace;font-size:11px;">${d.tx_hash ? d.tx_hash.slice(0,12)+'…' : '—'}</td>
       <td><span class="badge ${d.status==='confirmed'||d.status==='completed'?'green':d.status==='pending'?'orange':'red'}">${d.status}</span></td>
       <td>${fmt(d.created_at)}</td>
-      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#1C2340;color:#fff;" onclick="confirmDeposit(${d.id}, ${parseFloat(d.amount_usd||0).toFixed(4)})">Confirm</button>` : ''}</td>
+      <td>${d.status === 'pending' ? `<button class="btn btn-sm" style="background:#1C2340;color:#fff;" data-action="confirm-deposit" data-id="${d.id}" data-amount="${parseFloat(d.amount_usd||0).toFixed(4)}">Confirm</button>` : ''}</td>
     </tr>`).join('');
 }
 
@@ -1464,7 +1464,7 @@ async function loadUnmatchedTransfers() {
       <td style="font-family:monospace;font-size:11px;">${t.tx_hash ? t.tx_hash.slice(0,12)+'…' : '—'}</td>
       <td>${t.resolved ? '<span class="badge green">Yes</span>' : '<span class="badge orange">No</span>'}</td>
       <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">${esc(t.resolution_note || '—')}</td>
-      <td>${!t.resolved ? `<button class="btn btn-ghost btn-sm" onclick="resolveTransfer(${t.id})">Resolve</button>` : ''}</td>
+      <td>${!t.resolved ? `<button class="btn btn-ghost btn-sm" data-action="resolve-transfer" data-id="${t.id}">Resolve</button>` : ''}</td>
     </tr>`).join('');
 }
 
@@ -1836,6 +1836,83 @@ function startAnRealtimeRefresh() {
 startAnRealtimeRefresh();
 
 function fmt2(n) { return Number(n).toLocaleString(); }
+
+// ─── Static button event listeners ───────────────────────────────────────────
+document.getElementById('btn-logout')?.addEventListener('click', logout);
+document.getElementById('btn-refresh-overview')?.addEventListener('click', loadOverview);
+document.getElementById('btn-refresh-meetings')?.addEventListener('click', loadMeetings);
+document.getElementById('btn-refresh-users')?.addEventListener('click', loadUsers);
+document.getElementById('btn-create-key')?.addEventListener('click', openCreateKeyModal);
+document.getElementById('btn-save-settings')?.addEventListener('click', saveSettings);
+document.getElementById('btn-refresh-billing-tx')?.addEventListener('click', loadBillingTransactions);
+document.getElementById('btn-refresh-billing-stripe')?.addEventListener('click', loadBillingStripe);
+document.getElementById('btn-grant-credit')?.addEventListener('click', grantCredit);
+document.getElementById('btn-refresh-companies')?.addEventListener('click', loadCompanies);
+document.getElementById('btn-save-crypto-wallet')?.addEventListener('click', saveCryptoWallet);
+document.getElementById('btn-save-crypto-rpc')?.addEventListener('click', saveCryptoRpc);
+document.getElementById('btn-crypto-rescan')?.addEventListener('click', cryptoRescan);
+document.getElementById('btn-refresh-crypto-deposits')?.addEventListener('click', loadCryptoDeposits);
+document.getElementById('btn-refresh-unmatched')?.addEventListener('click', loadUnmatchedTransfers);
+document.getElementById('btn-refresh-analytics')?.addEventListener('click', loadAnalytics);
+document.getElementById('btn-verify-support-key')?.addEventListener('click', verifySupportKey);
+document.getElementById('btn-close-key-modal')?.addEventListener('click', closeCreateKeyModal);
+document.getElementById('modal-create-btn')?.addEventListener('click', createKey);
+
+// ─── Billing sub-tab switching ───────────────────────────────────────────────
+document.querySelectorAll('[data-billing-tab]').forEach(btn => {
+  btn.addEventListener('click', () => switchBillingTab(btn.dataset.billingTab));
+});
+
+// ─── Event delegation for dynamic buttons ────────────────────────────────────
+
+// Overview meetings table — end meeting
+document.getElementById('overview-meetings-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="end-meeting"]');
+  if (btn) endMeeting(btn.dataset.id);
+});
+
+// Meetings table — end meeting
+document.getElementById('meetings-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="end-meeting"]');
+  if (btn) endMeeting(btn.dataset.id);
+});
+
+// Users table — toggle, make admin, delete
+document.getElementById('users-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = parseInt(btn.dataset.id);
+  if (action === 'toggle-user') toggleUser(id, btn.dataset.active === 'true');
+  else if (action === 'make-admin') makeAdmin(id);
+  else if (action === 'delete-user') deleteUser(id);
+});
+
+// API keys table — copy, revoke
+document.getElementById('keys-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'copy-text') copyText(btn.dataset.key);
+  else if (btn.dataset.action === 'revoke-key') revokeKey(parseInt(btn.dataset.id));
+});
+
+// Companies table — dissolve
+document.getElementById('companies-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="dissolve-company"]');
+  if (btn) dissolveCompany(parseInt(btn.dataset.id), btn.dataset.name);
+});
+
+// Crypto deposits table — confirm deposit
+document.getElementById('crypto-deposits-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="confirm-deposit"]');
+  if (btn) confirmDeposit(parseInt(btn.dataset.id), parseFloat(btn.dataset.amount));
+});
+
+// Unmatched transfers table — resolve
+document.getElementById('unmatched-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="resolve-transfer"]');
+  if (btn) resolveTransfer(parseInt(btn.dataset.id));
+});
 </script>
 </body>
 </html>

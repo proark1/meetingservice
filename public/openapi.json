@@ -1,0 +1,301 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "onepizza.io API",
+    "version": "1.1.0",
+    "description": "RESTful + WebSocket API for creating and managing video meetings. Built for developers, agents, and teams.\n\nBase URL: https://onepizza.io\n\nAuthentication: API key via x-api-key header, admin token via x-admin-token header, or session cookie.",
+    "contact": { "url": "https://onepizza.io/docs" }
+  },
+  "servers": [{ "url": "https://onepizza.io", "description": "Production" }],
+  "security": [{ "apiKey": [] }],
+  "tags": [
+    { "name": "Auth", "description": "Account registration, login, password management" },
+    { "name": "Meetings", "description": "Create, list, manage meetings" },
+    { "name": "Guest Meetings", "description": "No-auth meeting creation (rate-limited)" },
+    { "name": "Participants", "description": "Mute, unmute, kick participants" },
+    { "name": "Chat & Transcripts", "description": "Chat messages and transcript downloads" },
+    { "name": "Recordings", "description": "Upload and download meeting recordings" },
+    { "name": "Webhooks", "description": "Webhook management and delivery" },
+    { "name": "Billing", "description": "Stripe checkout, USDC deposits, credit history" },
+    { "name": "Company", "description": "Company accounts, team members" },
+    { "name": "API Keys", "description": "Manage API keys" },
+    { "name": "Admin", "description": "Admin panel endpoints (requires admin session)" },
+    { "name": "Health", "description": "Health check endpoints" }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"], "summary": "Register a new account",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "password"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "minLength": 8 }, "accountType": { "type": "string", "enum": ["personal", "company"] }, "companyName": { "type": "string" } } } } } },
+        "responses": { "201": { "description": "Account created" }, "400": { "description": "Validation error" }, "409": { "description": "Email already registered" } }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"], "summary": "Sign in",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "password"], "properties": { "email": { "type": "string" }, "password": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Login successful" }, "401": { "description": "Invalid credentials" } }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"], "summary": "Get current user", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "User profile" }, "401": { "description": "Not authenticated" } }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"], "summary": "Sign out", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Logged out" } }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"], "summary": "Request password reset email",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Reset email sent (if account exists)" } }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "tags": ["Auth"], "summary": "Change password", "security": [{ "session": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["currentPassword", "newPassword"], "properties": { "currentPassword": { "type": "string" }, "newPassword": { "type": "string", "minLength": 8 } } } } } },
+        "responses": { "200": { "description": "Password changed" }, "401": { "description": "Current password incorrect" } }
+      }
+    },
+    "/api/meetings/guest": {
+      "post": {
+        "tags": ["Guest Meetings"], "summary": "Create a guest meeting (no auth, rate-limited)", "security": [],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "title": { "type": "string", "maxLength": 100 } } } } } },
+        "responses": { "201": { "description": "Meeting created", "content": { "application/json": { "schema": { "type": "object", "properties": { "meetingId": { "type": "string" }, "adminToken": { "type": "string" }, "joinUrl": { "type": "string" }, "title": { "type": "string" } } } } } }, "429": { "description": "Rate limited (5/hour)" } }
+      }
+    },
+    "/api/meetings": {
+      "post": {
+        "tags": ["Meetings"], "summary": "Create a meeting",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "title": { "type": "string" }, "scheduledAt": { "type": "string", "format": "date-time", "description": "ISO 8601 for scheduled meetings" }, "settings": { "type": "object", "properties": { "muteOnJoin": { "type": "boolean" }, "videoOffOnJoin": { "type": "boolean" }, "maxParticipants": { "type": "integer" }, "waitingRoom": { "type": "boolean" } } } } } } } },
+        "responses": { "201": { "description": "Meeting created with meetingId, adminToken, joinUrl" } }
+      },
+      "get": {
+        "tags": ["Meetings"], "summary": "List active meetings",
+        "responses": { "200": { "description": "Array of active meetings" } }
+      }
+    },
+    "/api/meetings/{meetingId}": {
+      "get": {
+        "tags": ["Meetings"], "summary": "Get meeting details",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Meeting details" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "tags": ["Meetings"], "summary": "End and delete a meeting",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "Meeting ended" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/meetings/{meetingId}/settings": {
+      "patch": {
+        "tags": ["Meetings"], "summary": "Update meeting settings",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "muteOnJoin": { "type": "boolean" }, "videoOffOnJoin": { "type": "boolean" }, "maxParticipants": { "type": "integer" }, "locked": { "type": "boolean" }, "waitingRoom": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "Settings updated" } }
+      }
+    },
+    "/api/meetings/{meetingId}/participants/{participantId}/mute": {
+      "post": {
+        "tags": ["Participants"], "summary": "Mute a participant",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "participantId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "Participant muted" } }
+      }
+    },
+    "/api/meetings/{meetingId}/participants/{participantId}/unmute": {
+      "post": {
+        "tags": ["Participants"], "summary": "Unmute a participant",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "participantId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "Participant unmuted" } }
+      }
+    },
+    "/api/meetings/{meetingId}/participants/{participantId}/kick": {
+      "post": {
+        "tags": ["Participants"], "summary": "Remove a participant",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "participantId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "Participant removed" } }
+      }
+    },
+    "/api/meetings/{meetingId}/mute-all": {
+      "post": {
+        "tags": ["Participants"], "summary": "Mute all participants",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "All participants muted" } }
+      }
+    },
+    "/api/meetings/{meetingId}/lock": {
+      "post": {
+        "tags": ["Meetings"], "summary": "Lock meeting (prevent new joins)",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "Meeting locked" } }
+      }
+    },
+    "/api/meetings/{meetingId}/unlock": {
+      "post": {
+        "tags": ["Meetings"], "summary": "Unlock meeting",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [{ "apiKey": [], "adminToken": [] }],
+        "responses": { "200": { "description": "Meeting unlocked" } }
+      }
+    },
+    "/api/meetings/{meetingId}/transcript": {
+      "get": {
+        "tags": ["Chat & Transcripts"], "summary": "Get meeting transcript (JSON)",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Array of chat messages with timestamps" } }
+      }
+    },
+    "/api/meetings/{meetingId}/transcript/download": {
+      "get": {
+        "tags": ["Chat & Transcripts"], "summary": "Download transcript as text file",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Plain text file download" } }
+      }
+    },
+    "/api/meetings/{meetingId}/recordings": {
+      "post": {
+        "tags": ["Recordings"], "summary": "Upload a recording (multipart, max 500MB)",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "recording": { "type": "string", "format": "binary" } } } } } },
+        "responses": { "201": { "description": "Recording uploaded" } }
+      },
+      "get": {
+        "tags": ["Recordings"], "summary": "List recordings for a meeting",
+        "parameters": [{ "name": "meetingId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Array of recordings" } }
+      }
+    },
+    "/api/recordings/{id}/download": {
+      "get": {
+        "tags": ["Recordings"], "summary": "Download a recording file",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "File download" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/webhooks": {
+      "get": {
+        "tags": ["Webhooks"], "summary": "List webhooks", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Array of webhooks" } }
+      },
+      "post": {
+        "tags": ["Webhooks"], "summary": "Create a webhook", "security": [{ "session": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["url", "events"], "properties": { "url": { "type": "string", "format": "uri" }, "events": { "type": "array", "items": { "type": "string", "enum": ["meeting.started", "meeting.ended", "participant.joined", "participant.left"] } } } } } } },
+        "responses": { "201": { "description": "Webhook created with id, url, secret" } }
+      }
+    },
+    "/api/webhooks/{id}": {
+      "delete": {
+        "tags": ["Webhooks"], "summary": "Delete a webhook", "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Webhook deleted" } }
+      }
+    },
+    "/api/billing/stripe/checkout": {
+      "post": {
+        "tags": ["Billing"], "summary": "Create Stripe checkout session", "security": [{ "session": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "amount": { "type": "number", "minimum": 5 } } } } } },
+        "responses": { "200": { "description": "Checkout session URL" } }
+      }
+    },
+    "/api/billing/usdc/address": {
+      "get": {
+        "tags": ["Billing"], "summary": "Get USDC deposit address", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Wallet address for USDC deposits" } }
+      }
+    },
+    "/api/billing/history": {
+      "get": {
+        "tags": ["Billing"], "summary": "Get credit transaction history", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Array of credit transactions" } }
+      }
+    },
+    "/api/user/keys": {
+      "get": {
+        "tags": ["API Keys"], "summary": "List API keys", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Array of API keys" } }
+      },
+      "post": {
+        "tags": ["API Keys"], "summary": "Create a new API key", "security": [{ "session": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "label": { "type": "string" } } } } } },
+        "responses": { "201": { "description": "API key created" } }
+      }
+    },
+    "/api/user/keys/{id}": {
+      "delete": {
+        "tags": ["API Keys"], "summary": "Revoke an API key", "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Key revoked" } }
+      }
+    },
+    "/api/company/join": {
+      "post": {
+        "tags": ["Company"], "summary": "Join a company with invite code", "security": [{ "session": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["inviteCode"], "properties": { "inviteCode": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Joined company" } }
+      }
+    },
+    "/api/company/members": {
+      "get": {
+        "tags": ["Company"], "summary": "List company members", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Array of members" } }
+      }
+    },
+    "/api/company/members/{id}": {
+      "delete": {
+        "tags": ["Company"], "summary": "Remove a company member", "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Member removed" } }
+      }
+    },
+    "/api/meetings/history": {
+      "get": {
+        "tags": ["Meetings"], "summary": "Get meeting history", "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Array of past meetings with duration, cost" } }
+      }
+    },
+    "/api/config/ice-servers": {
+      "get": {
+        "tags": ["Meetings"], "summary": "Get ICE/TURN server configuration", "security": [],
+        "responses": { "200": { "description": "ICE server config for WebRTC" } }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"], "summary": "Full health check", "security": [],
+        "responses": { "200": { "description": "Server status, DB status, uptime" } }
+      }
+    },
+    "/health/liveness": {
+      "get": {
+        "tags": ["Health"], "summary": "Liveness probe", "security": [],
+        "responses": { "200": { "description": "Server is running" } }
+      }
+    },
+    "/health/readiness": {
+      "get": {
+        "tags": ["Health"], "summary": "Readiness probe (checks DB)", "security": [],
+        "responses": { "200": { "description": "Server ready" }, "503": { "description": "DB unavailable" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": { "type": "apiKey", "in": "header", "name": "x-api-key", "description": "API key from Dashboard → API Keys" },
+      "adminToken": { "type": "apiKey", "in": "header", "name": "x-admin-token", "description": "Admin token returned when meeting is created" },
+      "session": { "type": "apiKey", "in": "cookie", "name": "connect.sid", "description": "Session cookie (set on login)" }
+    }
+  }
+}

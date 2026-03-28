@@ -3,10 +3,16 @@ const bcrypt = require('bcryptjs');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_PUBLIC_URL,
-  ssl: process.env.DATABASE_PUBLIC_URL ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_PUBLIC_URL
+    ? { rejectUnauthorized: process.env.NODE_ENV === 'production' }
+    : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+});
+
+pool.on('error', (err) => {
+  console.error('[db] Unexpected pool error:', err.message);
 });
 
 async function initDB() {
@@ -233,6 +239,42 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_recordings_meeting ON recordings(meeting_id);
     `);
 
+    // ─── Audit log ───────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id              BIGSERIAL PRIMARY KEY,
+        user_id         INTEGER,
+        action          VARCHAR(100) NOT NULL,
+        target_type     VARCHAR(50),
+        target_id       VARCHAR(100),
+        meta            JSONB DEFAULT '{}',
+        ip              VARCHAR(45),
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_user    ON audit_log(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_action  ON audit_log(action, created_at DESC);
+    `);
+
+    // ─── Webhook deliveries ─────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id              BIGSERIAL PRIMARY KEY,
+        webhook_id      INTEGER REFERENCES webhooks(id) ON DELETE CASCADE,
+        event           VARCHAR(100) NOT NULL,
+        payload         JSONB NOT NULL,
+        status          VARCHAR(20) DEFAULT 'pending',
+        attempts        INTEGER DEFAULT 0,
+        last_attempt_at TIMESTAMPTZ,
+        next_retry_at   TIMESTAMPTZ,
+        response_code   INTEGER,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_wh_del_status ON webhook_deliveries(status, next_retry_at) WHERE status = 'pending';
+    `);
+
+    // ─── Chat reply_to column ───────────────────────────────────────────────
+    await client.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to BIGINT`);
+
     // Seed platform_config defaults
     for (const [key, value] of [['platform_wallet', ''], ['rpc_url', '']]) {
       await client.query(
@@ -255,8 +297,8 @@ async function initDB() {
     `);
 
     // NOT NULL on financial amount columns
-    await client.query(`ALTER TABLE stripe_topups ALTER COLUMN amount_usd SET NOT NULL`).catch(() => {});
-    await client.query(`ALTER TABLE usdc_deposits  ALTER COLUMN amount_usd SET NOT NULL`).catch(() => {});
+    await client.query(`ALTER TABLE stripe_topups ALTER COLUMN amount_usd SET NOT NULL`).catch(e => { if (!e.message.includes('already')) console.error('stripe_topups ALTER:', e.message); });
+    await client.query(`ALTER TABLE usdc_deposits  ALTER COLUMN amount_usd SET NOT NULL`).catch(e => { if (!e.message.includes('already')) console.error('usdc_deposits ALTER:', e.message); });
 
     // CHECK constraints (all idempotent via exception handling)
     for (const stmt of [
@@ -302,6 +344,10 @@ async function initDB() {
       ['crypto_enabled',                       'true'],
       ['meeting_cost_per_participant_minute',   '0.01'],
       ['low_balance_threshold_usd',            '2.00'],
+      ['free_tier_max_participants',           '5'],
+      ['free_tier_max_duration_minutes',       '45'],
+      ['captions_enabled',                     'true'],
+      ['guest_meetings_enabled',               'true'],
     ];
     for (const [key, value] of defaults) {
       await client.query(
@@ -311,8 +357,12 @@ async function initDB() {
     }
 
     // ─── Seed admin user ──────────────────────────────────────────────────────
-    const adminEmail    = process.env.ADMIN_EMAIL    || 'assad.dar@gmail.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Test321!';
+    const adminEmail    = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+      console.warn('[db] ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin seed');
+      return;
+    }
     const { rows: existing } = await client.query(
       'SELECT id FROM users WHERE email = $1', [adminEmail]
     );
@@ -330,10 +380,14 @@ async function initDB() {
       adminId = existing[0].id;
     }
 
-    await client.query(
-      `INSERT INTO api_keys (user_id, key, label) VALUES ($1, $2, $3) ON CONFLICT (key) DO NOTHING`,
-      [adminId, 'mk_default_test_key', 'Default Test Key']
-    );
+    const defaultApiKey = process.env.DEFAULT_API_KEY || `mk_${require('crypto').randomBytes(24).toString('hex')}`;
+    const { rows: existingKeys } = await client.query('SELECT id FROM api_keys WHERE user_id = $1 LIMIT 1', [adminId]);
+    if (existingKeys.length === 0) {
+      await client.query(
+        `INSERT INTO api_keys (user_id, key, label) VALUES ($1, $2, $3) ON CONFLICT (key) DO NOTHING`,
+        [adminId, defaultApiKey, 'Default Key']
+      );
+    }
 
   } finally {
     client.release();

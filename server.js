@@ -97,6 +97,13 @@ function trackAiUsage(model, module, endpoint, promptTokens, completionTokens, c
   ).catch(err => console.error(`trackAiUsage [${module}]:`, err.message));
 }
 
+function auditLog(userId, action, targetType, targetId, meta = {}, ip = null) {
+  return pool.query(
+    `INSERT INTO audit_log (user_id, action, target_type, target_id, meta, ip) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [userId || null, action, targetType || null, targetId || null, JSON.stringify(meta), ip]
+  ).catch(err => console.error(`auditLog [${action}]:`, err.message));
+}
+
 const app    = express();
 const server = http.createServer(app);
 
@@ -230,7 +237,17 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
   res.json({ received: true });
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  setHeaders(res, filePath) {
+    // No cache on HTML files — prevents stale code after deploys
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day for assets
+    }
+  },
+}));
 app.use(express.json({ limit: '1mb' }));
 
 // ─── Health checks ────────────────────────────────────────────────────────────
@@ -309,6 +326,17 @@ const scheduledMeetingPoller = setInterval(() => {
     }
   }
 }, 15000);
+
+// Cleanup abandoned meetings (no participants for 24h) every 30 minutes
+const MEETING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, m] of meetings) {
+    if (m.participants.size === 0 && now - m.createdAt > MEETING_MAX_AGE_MS && !m.gracePeriodTimer) {
+      meetings.delete(id);
+    }
+  }
+}, 30 * 60 * 1000);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function generateMeetingId() {
@@ -426,16 +454,23 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     if (safeAccountType === 'company') {
       inviteCode = generateInviteCode();
-      // Assign HD wallet index
-      const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index), -1) + 1 AS next FROM companies`);
-      const hdIdx = idxRows[0].next;
-      const walletAddr = getHDAddress(hdIdx);
-      const { rows: compRows } = await pool.query(
-        `INSERT INTO companies (name, owner_id, invite_code, hd_wallet_index, wallet_address) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [companyName.trim(), user.id, inviteCode, hdIdx, walletAddr]
-      );
-      companyId = compRows[0].id;
-      await pool.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [companyId, user.id]);
+      // Assign HD wallet index (advisory lock prevents concurrent duplicate)
+      const client = await pool.connect();
+      try {
+        await client.query('SELECT pg_advisory_lock(42)');
+        const { rows: idxRows } = await client.query(`SELECT COALESCE(MAX(hd_wallet_index), -1) + 1 AS next FROM companies`);
+        const hdIdx = idxRows[0].next;
+        const walletAddr = getHDAddress(hdIdx);
+        const { rows: compRows } = await client.query(
+          `INSERT INTO companies (name, owner_id, invite_code, hd_wallet_index, wallet_address) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [companyName.trim(), user.id, inviteCode, hdIdx, walletAddr]
+        );
+        companyId = compRows[0].id;
+        await client.query(`UPDATE users SET company_id = $1 WHERE id = $2`, [companyId, user.id]);
+        await client.query('SELECT pg_advisory_unlock(42)');
+      } finally {
+        client.release();
+      }
     }
 
     // Auto-create default API key
@@ -450,6 +485,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = companyId;
 
+    auditLog(user.id, 'user.register', 'user', String(user.id), { email: user.email, accountType: safeAccountType }, req.ip);
     // Send welcome email (fire-and-forget)
     sendEmail({ to: user.email, subject: 'Welcome to onepizza.io!', html: welcomeEmail(user.email, key) }).catch(() => {});
 
@@ -484,6 +520,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     req.session.email     = user.email;
     req.session.isAdmin   = user.is_admin;
     req.session.companyId = user.company_id || null;
+    auditLog(user.id, 'user.login', 'user', String(user.id), { email: user.email }, req.ip);
     // Explicitly save the session before responding so the client's next
     // request (/api/auth/me) finds the session already in the store.
     req.session.save(err => {
@@ -586,12 +623,14 @@ app.post('/api/auth/change-password', requireUserSession, async (req, res) => {
   if (newPassword.length > 128) return res.status(400).json({ error: 'Password too long' });
   try {
     const { rows } = await pool.query(`SELECT password_hash FROM users WHERE id = $1`, [req.session.userId]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     const ok = await bcrypt.compare(currentPassword, rows[0].password_hash);
     if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
     const hash = await bcrypt.hash(newPassword, 12);
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hash, req.session.userId]);
     // Send confirmation email (fire-and-forget)
     sendEmail({ to: req.session.email, subject: 'Your onepizza.io password was changed', html: passwordChangedEmail(req.session.email) }).catch(() => {});
+    auditLog(req.session.userId, 'user.password_changed', 'user', String(req.session.userId), {}, req.ip);
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
@@ -690,8 +729,11 @@ app.get('/admin/api/stats', requireAdminSession, async (_req, res) => {
   });
 });
 
-app.get('/admin/api/meetings', requireAdminSession, (_req, res) => {
-  const list = [...meetings.values()].map(m => ({
+app.get('/admin/api/meetings', requireAdminSession, (req, res) => {
+  const limit  = Math.min(parseInt(req.query.limit)  || 100, 500);
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+  const all = [...meetings.values()];
+  const list = all.slice(offset, offset + limit).map(m => ({
     meetingId:        m.id,
     title:            m.title,
     createdAt:        m.createdAt,
@@ -701,7 +743,7 @@ app.get('/admin/api/meetings', requireAdminSession, (_req, res) => {
     })),
     settings: m.settings,
   }));
-  res.json({ meetings: list });
+  res.json({ meetings: list, total: all.length });
 });
 
 app.delete('/admin/api/meetings/:meetingId', requireAdminSession, (req, res) => {
@@ -1078,13 +1120,20 @@ app.get('/api/billing/usdc/address', requireUserSession, async (req, res) => {
     } else {
       const { rows } = await pool.query(`SELECT wallet_address FROM users WHERE id = $1`, [req.session.userId]);
       if (!rows[0]?.wallet_address) {
-        // Assign a new HD address
-        const { rows: idxRows } = await pool.query(`SELECT COALESCE(MAX(hd_wallet_index),-1)+1 AS next FROM companies`);
-        const hdIdx = (idxRows[0].next || 0) + 10000; // offset to avoid collision with company indices
-        const addr  = getHDAddress(hdIdx);
-        if (addr) {
-          await pool.query(`UPDATE users SET wallet_address = $1 WHERE id = $2`, [addr, req.session.userId]);
-          address = addr;
+        // Assign a new HD address (advisory lock prevents concurrent duplicate)
+        const client = await pool.connect();
+        try {
+          await client.query('SELECT pg_advisory_lock(42)');
+          const { rows: idxRows } = await client.query(`SELECT COALESCE(MAX(hd_wallet_index),-1)+1 AS next FROM companies`);
+          const hdIdx = (idxRows[0].next || 0) + 10000; // offset to avoid collision with company indices
+          const addr  = getHDAddress(hdIdx);
+          if (addr) {
+            await client.query(`UPDATE users SET wallet_address = $1 WHERE id = $2`, [addr, req.session.userId]);
+            address = addr;
+          }
+          await client.query('SELECT pg_advisory_unlock(42)');
+        } finally {
+          client.release();
         }
       } else {
         address = rows[0].wallet_address;
@@ -1187,6 +1236,19 @@ async function removeParticipantFromMeeting(meeting, participantId, io) {
     meeting.recordingParticipantId = null;
     io.to(meeting.id).emit('recording:stopped');
   }
+  // Clear streaming state if the streamer disconnected without stopping
+  if (meeting.streamingParticipantId === participantId) {
+    meeting.isStreaming = false;
+    meeting.streamUrl = null;
+    meeting.streamingParticipantId = null;
+    io.to(meeting.id).emit('stream:stopped');
+  }
+  // Remove from breakout room if in one
+  if (meeting.breakoutRooms) {
+    for (const [, r] of meeting.breakoutRooms) {
+      r.participants.delete(participantId);
+    }
+  }
   io.to(meeting.id).emit('participant:left', { participantId, name: p ? p.name : 'Unknown' });
 
   // Fire participant.left webhook — use cached owner IDs
@@ -1269,14 +1331,19 @@ async function chargeMeeting(meeting) {
       [meeting.peakParticipants || 1, parseFloat(mins.toFixed(2)), cost, meeting.logId]
     );
 
+    // Look up receipt email before committing (avoids post-commit pool query)
+    let receiptEmail = notifyEmail;
+    if (!receiptEmail) {
+      const { rows: emailRows } = await client.query('SELECT email FROM users WHERE id = $1', [user_id]);
+      receiptEmail = emailRows[0]?.email;
+    }
+
     await client.query('COMMIT');
 
     // Non-transactional: email, webhook, analytics (fire-and-forget)
     if (notifyEmail) {
       sendEmail({ to: notifyEmail, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, notifyEmail) }).catch(() => {});
     }
-    // Send meeting receipt email
-    const receiptEmail = notifyEmail || (await pool.query('SELECT email FROM users WHERE id = $1', [user_id]).catch(() => ({ rows: [] }))).rows[0]?.email;
     if (receiptEmail && cost >= 0.01) {
       sendEmail({
         to: receiptEmail,
@@ -1306,7 +1373,7 @@ async function chargeMeeting(meeting) {
 async function fetchWithRetry(url, options, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await fetch(url, options);
+      const res = await fetch(url, { ...options, signal: AbortSignal.timeout(5000) });
       if (res.ok || res.status < 500) return; // success or client error — don't retry
     } catch (err) {
       if (i === retries - 1) {
@@ -1326,13 +1393,23 @@ async function deliverWebhook(meetingLogId, userId, companyId, event, payload) {
     );
     const body = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
     for (const wh of rows) {
+      // Persist delivery before sending
+      const { rows: delRows } = await pool.query(
+        `INSERT INTO webhook_deliveries (webhook_id, event, payload, status) VALUES ($1,$2,$3,'pending') RETURNING id`,
+        [wh.id, event, JSON.stringify(payload)]
+      ).catch(() => ({ rows: [] }));
+      const deliveryId = delRows[0]?.id;
       const sig = 'sha256=' + crypto.createHmac('sha256', wh.secret).update(body).digest('hex');
-      fetchWithRetry(wh.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-OnePizza-Event': event },
-        body,
-        signal: AbortSignal.timeout(8000),
-      });
+      try {
+        await fetchWithRetry(wh.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Signature': sig, 'X-OnePizza-Event': event },
+          body,
+        });
+        if (deliveryId) pool.query(`UPDATE webhook_deliveries SET status = 'delivered', attempts = attempts + 1, last_attempt_at = NOW() WHERE id = $1`, [deliveryId]).catch(() => {});
+      } catch (err) {
+        if (deliveryId) pool.query(`UPDATE webhook_deliveries SET status = 'failed', attempts = attempts + 1, last_attempt_at = NOW() WHERE id = $1`, [deliveryId]).catch(() => {});
+      }
     }
   } catch (err) {
     console.error('deliverWebhook error:', err);
@@ -1864,7 +1941,7 @@ app.get('/admin/api/analytics/overview', requireAdminSession, async (_req, res) 
 });
 
 app.get('/admin/api/analytics/events', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT event_type, COUNT(*) AS count,
@@ -1880,7 +1957,7 @@ app.get('/admin/api/analytics/events', requireAdminSession, async (req, res) => 
 });
 
 app.get('/admin/api/analytics/trends', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT date_trunc('day', started_at)::date AS day,
@@ -2008,7 +2085,7 @@ app.post('/admin/api/analytics/support-key', requireAdminSession, async (req, re
 
 // ─── Analytics endpoints ──────────────────────────────────────────────────────
 app.get('/admin/api/analytics/features', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT event_type AS feature,
@@ -2027,7 +2104,7 @@ app.get('/admin/api/analytics/features', requireAdminSession, async (req, res) =
 });
 
 app.get('/admin/api/analytics/errors', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   try {
     const { rows } = await pool.query(`
       SELECT event_type,
@@ -2108,7 +2185,7 @@ app.get('/admin/api/analytics/health', requireAdminSession, (_req, res) => {
 });
 
 app.get('/admin/api/analytics/peak-hours', requireAdminSession, async (req, res) => {
-  const days = parseInt(req.query.days) || 90;
+  const days = Math.min(parseInt(req.query.days) || 90, 365);
   try {
     const { rows } = await pool.query(`
       SELECT EXTRACT(DOW FROM started_at) AS dow,
@@ -2138,13 +2215,15 @@ app.get('/api/config/ice-servers', (_req, res) => {
 });
 
 // ─── HTML Routes ──────────────────────────────────────────────────────────────
-app.get('/',         (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/docs',     (_req, res) => res.sendFile(path.join(__dirname, 'public', 'docs.html')));
-app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
-app.get('/reset',    (_req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
-app.get('/dashboard',(_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
-app.get('/billing',  requireUserSession, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'billing.html')));
-app.get('/join/:meetingId', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'meeting.html')));
+// ─── HTML routes (no-cache to prevent stale code after deploys) ──────────────
+const sendHtml = (file) => (_req, res) => { res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(__dirname, 'public', file)); };
+app.get('/',         sendHtml('index.html'));
+app.get('/docs',     sendHtml('docs.html'));
+app.get('/register', sendHtml('register.html'));
+app.get('/reset',    sendHtml('reset.html'));
+app.get('/dashboard', sendHtml('dashboard.html'));
+app.get('/billing',  requireUserSession, sendHtml('billing.html'));
+app.get('/join/:meetingId', sendHtml('meeting.html'));
 
 app.get('/admin', (req, res) => {
   if (req.session?.userId && req.session?.isAdmin) return res.redirect('/admin/dashboard');
@@ -2321,39 +2400,75 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.waiting_room', { action: 'deny' });
   });
 
+  // Helper: get breakout room ID for a participant (null if in main room)
+  function getBreakoutRoomOf(meeting, pid) {
+    if (!meeting.breakoutRooms) return null;
+    for (const [roomId, r] of meeting.breakoutRooms) {
+      if (r.participants.has(pid)) return roomId;
+    }
+    return null;
+  }
+
+  // Helper: check if two participants can signal each other (same room)
+  function canSignal(meeting, pidA, pidB) {
+    if (!meeting.breakoutRooms) return true; // no breakout rooms = everyone can signal
+    return getBreakoutRoomOf(meeting, pidA) === getBreakoutRoomOf(meeting, pidB);
+  }
+
   socket.on('signal:offer', ({ to, offer }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const target = meeting.participants.get(to);
-    if (target) io.to(target.socketId).emit('signal:offer', { from: currentParticipantId, offer });
+    if (target && canSignal(meeting, currentParticipantId, to)) {
+      io.to(target.socketId).emit('signal:offer', { from: currentParticipantId, offer });
+    }
   });
 
   socket.on('signal:answer', ({ to, answer }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const target = meeting.participants.get(to);
-    if (target) io.to(target.socketId).emit('signal:answer', { from: currentParticipantId, answer });
+    if (target && canSignal(meeting, currentParticipantId, to)) {
+      io.to(target.socketId).emit('signal:answer', { from: currentParticipantId, answer });
+    }
   });
 
   socket.on('signal:ice-candidate', ({ to, candidate }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const target = meeting.participants.get(to);
-    if (target) io.to(target.socketId).emit('signal:ice-candidate', { from: currentParticipantId, candidate });
+    if (target && canSignal(meeting, currentParticipantId, to)) {
+      io.to(target.socketId).emit('signal:ice-candidate', { from: currentParticipantId, candidate });
+    }
   });
 
   socket.on('media:toggle-audio', ({ isMuted }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
-    if (p) { p.isMuted = isMuted; socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isMuted }); }
+    if (!p) return;
+    p.isMuted = isMuted;
+    // Broadcast only to participants in the same breakout room (or main room)
+    const myRoom = getBreakoutRoomOf(meeting, currentParticipantId);
+    if (myRoom) {
+      io.to(`breakout:${currentMeetingId}:${myRoom}`).emit('participant:updated', { participantId: currentParticipantId, isMuted });
+    } else {
+      socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isMuted });
+    }
   });
 
   socket.on('media:toggle-video', ({ isVideoOff }) => {
     const meeting = meetings.get(currentMeetingId);
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
-    if (p) { p.isVideoOff = isVideoOff; socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isVideoOff }); }
+    if (!p) return;
+    p.isVideoOff = isVideoOff;
+    const myRoom = getBreakoutRoomOf(meeting, currentParticipantId);
+    if (myRoom) {
+      io.to(`breakout:${currentMeetingId}:${myRoom}`).emit('participant:updated', { participantId: currentParticipantId, isVideoOff });
+    } else {
+      socket.to(currentMeetingId).emit('participant:updated', { participantId: currentParticipantId, isVideoOff });
+    }
   });
 
   socket.on('media:screen-share', ({ isScreenSharing }) => {
@@ -2409,7 +2524,7 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.recording', { action: 'stop' });
   });
 
-  socket.on('chat:message', ({ text }) => {
+  socket.on('chat:message', ({ text, replyTo }) => {
     if (!chatLimiter.check(socket.id)) return socket.emit('error', { message: 'Rate limited — too many messages' });
     if (!text || typeof text !== 'string') return;
     const trimmed = text.trim().slice(0, 500);
@@ -2418,12 +2533,13 @@ io.on('connection', (socket) => {
     if (!meeting) return;
     const p = meeting.participants.get(currentParticipantId);
     if (!p) return;
+    const msgId = crypto.randomUUID();
     io.to(currentMeetingId).emit('chat:message', {
       from: currentParticipantId, name: p.name, text: trimmed,
-      timestamp: Date.now(), msgId: crypto.randomUUID(),
+      timestamp: Date.now(), msgId, replyTo: replyTo || null,
     });
-    pool.query('INSERT INTO chat_messages (meeting_id, participant_name, text) VALUES ($1,$2,$3)',
-      [currentMeetingId, p.name, trimmed]).catch(() => {});
+    pool.query('INSERT INTO chat_messages (meeting_id, participant_name, text, reply_to) VALUES ($1,$2,$3,$4)',
+      [currentMeetingId, p.name, trimmed, replyTo || null]).catch(() => {});
     trackEvent(currentUserId, currentCompanyId, 'feature.chat', { length: trimmed.length });
   });
 
@@ -2443,6 +2559,154 @@ io.on('connection', (socket) => {
       pid: currentParticipantId, text: text.slice(0, 300), final: !!final,
     });
     trackEvent(currentUserId, currentCompanyId, 'feature.captions', {});
+  });
+
+  // ─── Breakout rooms ────────────────────────────────────────────────────────
+  socket.on('breakout:create', ({ rooms }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    if (!Array.isArray(rooms) || rooms.length < 1 || rooms.length > 20) return;
+    meeting.breakoutRooms = new Map();
+    rooms.forEach((name, i) => {
+      const roomId = `br-${i}`;
+      meeting.breakoutRooms.set(roomId, {
+        id: roomId,
+        name: ((name || `Room ${i + 1}`) + '').slice(0, 60),
+        participants: new Map(),
+      });
+    });
+    io.to(currentMeetingId).emit('breakout:created', {
+      rooms: [...meeting.breakoutRooms.values()].map(r => ({ id: r.id, name: r.name, participantCount: 0 })),
+    });
+    trackEvent(currentUserId, currentCompanyId, 'feature.breakout_rooms', { count: rooms.length });
+  });
+
+  socket.on('breakout:assign', ({ assignments }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    if (!Array.isArray(assignments)) return;
+    // assignments: [{ participantId, roomId }]
+    for (const { participantId: pid, roomId } of assignments) {
+      const target = meeting.participants.get(pid);
+      const room = meeting.breakoutRooms.get(roomId);
+      if (!target || !room) continue;
+      // Remove from previous breakout room
+      for (const [, r] of meeting.breakoutRooms) r.participants.delete(pid);
+      room.participants.set(pid, target);
+      io.to(target.socketId).emit('breakout:assigned', { roomId, roomName: room.name });
+    }
+    // Broadcast updated room list
+    io.to(currentMeetingId).emit('breakout:updated', {
+      rooms: [...meeting.breakoutRooms.values()].map(r => ({
+        id: r.id, name: r.name, participantCount: r.participants.size,
+        participants: [...r.participants.values()].map(pt => ({ id: pt.id, name: pt.name })),
+      })),
+    });
+  });
+
+  socket.on('breakout:join', ({ roomId }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms || meeting.closingBreakout) return;
+    const room = meeting.breakoutRooms.get(roomId);
+    if (!room) return;
+    const breakoutRoomId = `breakout:${currentMeetingId}:${roomId}`;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p) return;
+    // Leave all other breakout rooms and update participant maps
+    for (const [, r] of meeting.breakoutRooms) {
+      const brId = `breakout:${currentMeetingId}:${r.id}`;
+      socket.leave(brId);
+      r.participants.delete(currentParticipantId);
+    }
+    // Join new room
+    room.participants.set(currentParticipantId, p);
+    socket.join(breakoutRoomId);
+    // Signal to others in this breakout room
+    socket.to(breakoutRoomId).emit('breakout:participant-joined', {
+      participantId: currentParticipantId, roomId,
+    });
+  });
+
+  socket.on('breakout:leave', () => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    for (const [, r] of meeting.breakoutRooms) {
+      const brId = `breakout:${currentMeetingId}:${r.id}`;
+      socket.leave(brId);
+      socket.to(brId).emit('breakout:participant-left', { participantId: currentParticipantId });
+    }
+  });
+
+  socket.on('breakout:broadcast', ({ message }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    const safeMsg = ((message || '') + '').trim().slice(0, 500);
+    if (!safeMsg) return;
+    // Broadcast to all breakout rooms
+    for (const [, r] of meeting.breakoutRooms) {
+      io.to(`breakout:${currentMeetingId}:${r.id}`).emit('breakout:message', {
+        from: 'Host', text: safeMsg, timestamp: Date.now(),
+      });
+    }
+  });
+
+  socket.on('breakout:close', () => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting || !meeting.breakoutRooms) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    // Move everyone back to main room
+    meeting.closingBreakout = true;
+    for (const [, r] of meeting.breakoutRooms) {
+      const brId = `breakout:${currentMeetingId}:${r.id}`;
+      io.to(brId).emit('breakout:closed');
+      io.in(brId).socketsLeave(brId);
+      r.participants.clear();
+    }
+    meeting.breakoutRooms = null;
+    meeting.closingBreakout = false;
+    io.to(currentMeetingId).emit('breakout:all-closed');
+  });
+
+  // ─── Live streaming ────────────────────────────────────────────────────────
+  socket.on('stream:start', ({ url }) => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    if (meeting.isStreaming) return socket.emit('error', { message: 'Stream already active' });
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    const safeUrl = ((url || '') + '').trim().slice(0, 500);
+    if (!safeUrl) return;
+    meeting.isStreaming = true;
+    meeting.streamUrl = safeUrl;
+    meeting.streamingParticipantId = currentParticipantId;
+    io.to(currentMeetingId).emit('stream:started', { hostName: p.name });
+    trackEvent(currentUserId, currentCompanyId, 'feature.live_stream', { started: true });
+  });
+
+  socket.on('stream:stop', () => {
+    if (!currentMeetingId) return;
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !p.isAdmin) return;
+    meeting.isStreaming = false;
+    meeting.streamUrl = null;
+    meeting.streamingParticipantId = null;
+    io.to(currentMeetingId).emit('stream:stopped');
   });
 
   socket.on('disconnect', async () => {
@@ -2537,6 +2801,13 @@ function gracefulShutdown(signal) {
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  console.error('[process] Unhandled rejection:', reason?.stack || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[process] Uncaught exception:', err.stack || err);
+  process.exit(1);
+});
 
 // ─── Exports for testing ─────────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'test') {
