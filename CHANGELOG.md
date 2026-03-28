@@ -2,6 +2,24 @@
 
 All notable changes to onepizza.io are documented in this file.
 
+## [1.0.0] — 2026-03-28
+
+### Changed
+- **UI**: World-class UI/UX overhaul across all pages — polished micro-interactions, glassmorphism effects, refined animations, and consistent design language
+- **UI (styles.css)**: Enhanced design tokens with transition variables, spring-easing curves; glassmorphism control bar, device selector, reactions tray, more panel, and background panel; animated speaking indicator pulse; polished lobby card with deeper shadows; spring-animated toasts; enhanced chat bubbles with hover states; improved tile entrance animation with spring physics
+- **UI (index.html)**: Enhanced nav glassmorphism with saturate filter; gradient hero badge and CTA buttons with active press states; feature cards with cubic-bezier transitions and layered hover shadows; pricing cards with deeper hover shadows; step numbers with gradient and hover scale; stat items with hover; preview card with dramatic layered shadow; floating orb animation on hero background
+- **UI (dashboard.html)**: Sidebar nav items with primary accent bar on active state; glassmorphism topbar; stat cards with hover lift; enhanced quick-action card hover depth; spring-animated toast notifications; login box with refined shadow and border-radius; balance highlight card with three-stop gradient and shadow; improved form input focus rings
+- **UI (admin.html)**: Replaced all emoji icons (📊🎥👥🔑💳🏢🔗⚙️📈) with crisp inline SVG icons matching the design system; sidebar nav items with left accent bar indicator; enhanced stat cards with hover transform; polished table row transitions; spring-animated toasts; glassmorphism modal backdrop; improved modal shadows
+- **UI (docs.html)**: Glassmorphism sticky navigation; method badges using CSS custom properties; endpoint cards with hover left-border accent and slide; enhanced code blocks with hover shadow; TOC links with indent animation on hover; note/warn boxes with stronger accents; table rows with hover transition
+- **UI (meeting.html)**: Enhanced empty state with gradient icon container and better text hierarchy; polished waiting room dots with staggered bounce animation; replaced recording consent emoji with SVG warning icon
+
+### Added
+- **Accessibility**: `::selection` and `:focus-visible` styles added to all pages for keyboard navigation support
+- **Accessibility**: `@media (prefers-reduced-motion: reduce)` rule in styles.css to disable animations for users who prefer reduced motion
+- **UI**: Firefox scrollbar styling via `scrollbar-width: thin` in styles.css
+- **UI**: `.toast-success` class added to styles.css for success-state toasts
+- **UI**: Dark mode overrides for glassmorphism components in styles.css
+
 ## [1.0.0] — 2026-03-25
 
 ### Fixed

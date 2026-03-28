@@ -22,6 +22,8 @@
     }
     body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
     button { cursor: pointer; font-family: inherit; }
+    ::selection { background: rgba(28,35,64,0.15); }
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
     input, select, textarea { font-family: inherit; }
     a { color: var(--primary); text-decoration: none; }
 
@@ -48,11 +50,13 @@
       padding: 9px 10px; border-radius: var(--radius-sm);
       font-size: 13px; font-weight: 500; color: var(--text-muted);
       border: none; background: none; width: 100%; text-align: left;
-      cursor: pointer; transition: background 0.15s, color 0.15s;
+      cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border-left: 3px solid transparent; margin-left: -3px;
     }
     .nav-item:hover  { background: var(--surface2); color: var(--text); }
-    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
-    .nav-item span.icon { font-size: 15px; opacity: 0.8; }
+    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; border-left-color: var(--primary); }
+    .nav-item span.icon { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; opacity: 0.65; flex-shrink: 0; }
+    .nav-item:hover span.icon { opacity: 0.85; }
     .nav-item.active span.icon { opacity: 1; }
     .sidebar-footer { padding: 10px 8px; border-top: 1px solid var(--border); }
 
@@ -71,9 +75,9 @@
     .stat-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;
-      box-shadow: var(--shadow-sm); transition: box-shadow 0.2s;
+      box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, transform 0.2s;
     }
-    .stat-card:hover { box-shadow: var(--shadow); }
+    .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
     .stat-card .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
     .stat-card .stat-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
     .stat-card .stat-value.green { color: var(--success); }
@@ -88,7 +92,8 @@
     th, td { text-align: left; padding: 11px 18px; font-size: 13px; border-bottom: 1px solid var(--border); }
     th { color: var(--text-muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: var(--surface2); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(28,35,64,.02); }
+    tr:hover td { background: rgba(28,35,64,.03); }
+    tr { transition: background 0.15s; }
     .badge {
       display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 99px;
       font-size: 11px; font-weight: 700;
@@ -100,7 +105,7 @@
 
     /* Buttons */
     .btn { padding: 8px 16px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn:active { transform: scale(0.98); }
+    .btn:active { transform: scale(0.97); }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-primary:hover { background: var(--primary-hover); }
     .btn-danger  { background: rgba(239,35,60,.1); color: var(--danger); border: none; }
@@ -142,12 +147,14 @@
     /* Modal */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,.4);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
       display: flex; align-items: center; justify-content: center; z-index: 100;
     }
     .modal-backdrop.hidden { display: none; }
     .modal {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 28px; min-width: 360px; max-width: 480px; width: 100%;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.15);
     }
     .modal h3 { font-size: 16px; margin-bottom: 16px; }
     .modal input, .modal select {
@@ -170,11 +177,14 @@
     .toast {
       position: fixed; top: 16px; right: 16px;
       background: var(--surface); border: 1px solid var(--border);
-      padding: 12px 20px; border-radius: var(--radius-sm);
-      font-size: 13px; z-index: 200; animation: slideIn .3s ease;
+      padding: 14px 20px; border-radius: 12px;
+      font-size: 13px; font-weight: 500; z-index: 200;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      animation: toastSlide .4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .toast.error { border-color: var(--danger); color: #ff6b7a; }
-    @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast.error { border-left: 3px solid var(--danger); color: var(--danger); }
+    .toast.success { border-left: 3px solid var(--success); color: var(--success); }
+    @keyframes toastSlide { from { transform: translateX(110%) scale(0.95); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
 
     /* Sub-tabs */
     .sub-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
@@ -268,46 +278,46 @@
     <nav class="sidebar-nav">
       <div class="nav-section-lbl">Dashboard</div>
       <button class="nav-item active" data-section="overview">
-        <span class="icon">📊</span><span class="label">Overview</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span><span class="label">Overview</span>
       </button>
       <button class="nav-item" data-section="meetings">
-        <span class="icon">🎥</span><span class="label">Meetings</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="label">Meetings</span>
       </button>
       <button class="nav-item" data-section="users">
-        <span class="icon">👥</span><span class="label">Users</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="label">Users</span>
       </button>
       <button class="nav-item" data-section="apikeys">
-        <span class="icon">🔑</span><span class="label">API Keys</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span><span class="label">API Keys</span>
       </button>
       <div class="nav-section-lbl">Finance</div>
       <button class="nav-item" data-section="billing">
-        <span class="icon">💳</span><span class="label">Billing</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span><span class="label">Billing</span>
       </button>
       <button class="nav-item" data-section="companies">
-        <span class="icon">🏢</span><span class="label">Companies</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg></span><span class="label">Companies</span>
       </button>
       <button class="nav-item" data-section="crypto">
-        <span class="icon">🔗</span><span class="label">Crypto</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg></span><span class="label">Crypto</span>
       </button>
       <div class="nav-section-lbl">Config</div>
       <button class="nav-item" data-section="settings">
-        <span class="icon">⚙️</span><span class="label">Settings</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="label">Settings</span>
       </button>
       <div class="nav-section-lbl">Insights</div>
       <button class="nav-item" data-section="analytics">
-        <span class="icon">📈</span><span class="label">Analytics</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="label">Analytics</span>
       </button>
       <div class="nav-section-lbl">Developer</div>
       <button class="nav-item" data-section="apidocs">
-        <span class="icon">📘</span><span class="label">API Docs</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><span class="label">API Docs</span>
       </button>
     </nav>
     <div class="sidebar-footer">
       <a href="/dashboard" class="nav-item" style="margin-bottom:2px;">
-        <span class="icon">🖥️</span><span class="label">User Dashboard</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span><span class="label">User Dashboard</span>
       </a>
       <a href="/" class="nav-item" style="margin-bottom:8px;">
-        <span class="icon">🏠</span><span class="label">Home</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="label">Home</span>
       </a>
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="logout()">Sign Out</button>
     </div>
