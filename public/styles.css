@@ -208,32 +208,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 }
 .video-tile .admin-actions button:hover { background: rgba(0,0,0,0.8); }
 
-/* Bottom controls */
-.controls-bar {
-  display: flex; align-items: center; justify-content: center;
-  gap: 12px; padding: 12px 16px;
-  background: var(--bg);
-  box-shadow: 0 -1px 3px rgba(0,0,0,0.06);
-  flex-shrink: 0;
-}
+/* Bottom controls — overridden by Meeting UI control bar below */
 .controls-center { display: flex; gap: 12px; align-items: center; }
 .controls-right {
   position: absolute; right: 16px;
   display: flex; gap: 8px;
 }
-.controls-bar { position: relative; }
 
-/* Leave button */
-.btn-leave {
-  background: var(--danger);
-  color: white;
-  border: none;
-  border-radius: 24px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
-}
-.btn-leave:hover { background: var(--danger-hover); }
+/* Leave button — main definition in Meeting UI control bar section below */
 
 /* ─── Side Panel (Participants / Chat) ──────────────────────────────────── */
 .side-panel {
@@ -1004,6 +986,12 @@ kbd {
 ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; transition: background 0.15s; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 * { scrollbar-width: thin; scrollbar-color: var(--surface3) transparent; }
+
+/* ─── Waiting room dots ─────────────────────────────────────────────────── */
+@keyframes dot-bounce {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.1); }
+}
 
 /* ─── Dark Mode ──────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {

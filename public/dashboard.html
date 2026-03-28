@@ -318,9 +318,15 @@
 
     /* ─── Mobile sidebar toggle ─── */
     .sidebar-toggle { display: none; }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    .sidebar-overlay.active { display: block; }
     @media (max-width: 900px) {
       .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); box-shadow: 0 0 0 100vw rgba(0,0,0,0.3); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.15); }
       .main-content { margin-left: 0; }
       .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-xs); background: var(--surface2); border: 1px solid var(--border); }
       .page-content { padding: 20px 16px; }
@@ -394,6 +400,7 @@
 <!-- ─── App shell ─── -->
 <div id="appPage">
 
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
@@ -1139,7 +1146,7 @@ function goTo(name) {
   if (nav) nav.classList.add('active');
   document.getElementById('topbarTitle').textContent = sectionTitles[name] || name;
   // Close mobile sidebar
-  document.getElementById('sidebar').classList.remove('open');
+  closeSidebar();
   // Load section data
   if (name === 'apikeys')  loadKeys();
   if (name === 'billing')  loadBillingHistory();
@@ -1151,7 +1158,13 @@ function goTo(name) {
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
 }
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('active');
+}
+document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 async function doLogin() {

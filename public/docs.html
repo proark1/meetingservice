@@ -95,11 +95,14 @@
       h2 { font-size: 18px; margin-top: 36px; }
       .endpoint { padding: 16px; }
       .endpoint-header { font-size: 13px; flex-wrap: wrap; gap: 4px; }
-      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+      .table-wrap, table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 400px; }
       pre { font-size: 12px; padding: 14px; }
       .toc { columns: 1; }
     }
     @media (max-width: 480px) {
+      nav { gap: 8px; padding: 10px 12px; }
+      nav a { font-size: 12px; }
       .docs-container { padding: 20px 12px; }
       .endpoint { padding: 14px 12px; }
       th, td { padding: 6px 8px; font-size: 12px; }
