@@ -320,10 +320,25 @@
     .sidebar-toggle { display: none; }
     @media (max-width: 900px) {
       .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); box-shadow: 0 0 0 100vw rgba(0,0,0,0.3); backdrop-filter: none; }
+      .sidebar.open { transform: translateX(0); box-shadow: 0 0 0 100vw rgba(0,0,0,0.3); }
       .main-content { margin-left: 0; }
       .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-xs); background: var(--surface2); border: 1px solid var(--border); }
       .page-content { padding: 20px 16px; }
+      .topbar { padding: 0 16px; }
+      .quick-actions { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      table { min-width: 480px; }
+      .table-wrap { -webkit-overflow-scrolling: touch; }
+    }
+    @media (max-width: 480px) {
+      .page-content { padding: 16px 12px; }
+      .topbar-title { font-size: 15px; }
+      .balance-amount { font-size: 32px; }
+      .balance-highlight { padding: 18px 20px; }
+      .stat-card-value { font-size: 24px; }
+      .card-body, .card-body-padded { padding: 16px; }
+      .code-block { padding: 12px; }
+      .code-block pre { font-size: 11px; }
     }
 
     /* ─── Section layout helpers ─── */

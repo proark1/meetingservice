@@ -19,6 +19,9 @@ All notable changes to onepizza.io are documented in this file.
 - **UI**: Firefox scrollbar styling via `scrollbar-width: thin` in styles.css
 - **UI**: `.toast-success` class added to styles.css for success-state toasts
 - **UI**: Dark mode overrides for glassmorphism components in styles.css
+- **Mobile (admin.html)**: Off-canvas sidebar with hamburger toggle, sticky mobile header, responsive stat grid (2-col / 1-col), horizontally scrollable tables, responsive modals, analytics heatmap scroll
+- **Mobile (dashboard.html)**: Enhanced 480px breakpoint for smaller stat values, compact balance card, responsive code blocks, quick-actions single column on tablet, scrollable tables
+- **Mobile (docs.html)**: Responsive nav, endpoint cards, scrollable tables, compact code blocks, method badges, and typography at 768px and 480px breakpoints
 
 ## [1.0.0] — 2026-03-25
 

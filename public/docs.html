@@ -87,7 +87,24 @@
     .toc { margin: 24px 0 8px; columns: 2; gap: 12px; }
     .toc a { display: block; padding: 5px 10px; color: var(--text-muted); border-radius: 7px; font-size: 14px; transition: all 0.15s; border-left: 2px solid transparent; }
     .toc a:hover { color: var(--primary); background: var(--primary-light); text-decoration: none; padding-left: 14px; border-left: 2px solid var(--primary); }
-    @media (max-width: 640px) { .toc { columns: 1; } .endpoint-header { font-size: 13px; flex-wrap: wrap; } }
+    @media (max-width: 768px) {
+      nav { padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
+      nav a { font-size: 13px; }
+      .docs-container { padding: 24px 16px; }
+      h1 { font-size: 24px; }
+      h2 { font-size: 18px; margin-top: 36px; }
+      .endpoint { padding: 16px; }
+      .endpoint-header { font-size: 13px; flex-wrap: wrap; gap: 4px; }
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+      pre { font-size: 12px; padding: 14px; }
+      .toc { columns: 1; }
+    }
+    @media (max-width: 480px) {
+      .docs-container { padding: 20px 12px; }
+      .endpoint { padding: 14px 12px; }
+      th, td { padding: 6px 8px; font-size: 12px; }
+      .method { font-size: 11px; padding: 2px 6px; }
+    }
   </style>
 </head>
 <body>
