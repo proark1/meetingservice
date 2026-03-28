@@ -3082,8 +3082,6 @@ document.getElementById('participantsList')?.addEventListener('click', e => {
 });
 
 // ─── Polls ────────────────────────────────────────────────────────────────────
-const pollsLimiter = createSocketRateLimiter ? createSocketRateLimiter(5, 10000) : null;
-
 document.getElementById('morePollsOpt')?.addEventListener('click', () => {
   document.getElementById('morePanel')?.classList.add('hidden');
   document.getElementById('pollsPanel')?.classList.toggle('hidden');
@@ -3267,12 +3265,13 @@ document.getElementById('shareFileBtn')?.addEventListener('click', () => {
 document.getElementById('fileInput')?.addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
-  const meetingId = currentMeetingId || window.location.pathname.split('/').pop();
+  const mid = meetingId || window.location.pathname.split('/').pop();
   const form = new FormData();
   form.append('file', file);
-  form.append('participantName', myName || 'Anonymous');
+  const pName = (typeof myParticipantId !== 'undefined' && participants[myParticipantId]) ? participants[myParticipantId].name : 'Anonymous';
+  form.append('participantName', pName);
   try {
-    const res = await fetch(`/api/meetings/${meetingId}/files`, { method: 'POST', body: form });
+    const res = await fetch(`/api/meetings/${mid}/files`, { method: 'POST', body: form });
     if (res.ok) showToast('File shared: ' + file.name);
     else showToast('Failed to share file', true);
   } catch (_err) { showToast('File upload failed', true); }
@@ -3284,10 +3283,10 @@ socket.on('chat:file', (data) => { showToast(`${data.sender || 'Someone'} shared
 // ─── Attendance ───────────────────────────────────────────────────────────────
 document.getElementById('moreAttendanceOpt')?.addEventListener('click', async () => {
   document.getElementById('morePanel')?.classList.add('hidden');
-  const meetingId = currentMeetingId || window.location.pathname.split('/').pop();
-  const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
+  const mid = meetingId || window.location.pathname.split('/').pop();
+  const adminToken = sessionStorage.getItem(`admin_${mid}`);
   try {
-    const res = await fetch(`/api/meetings/${meetingId}/attendance`, {
+    const res = await fetch(`/api/meetings/${mid}/attendance`, {
       headers: { 'x-api-key': adminToken || '', 'x-admin-token': adminToken || '' }
     });
     if (!res.ok) { showToast('Failed to load attendance', true); return; }
@@ -3303,7 +3302,7 @@ document.getElementById('moreAttendanceOpt')?.addEventListener('click', async ()
       html += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);"><td style="padding:4px;">${escapeHtml(a.name || a.participant_name || 'Unknown')}</td><td style="padding:4px;">${joined}</td><td style="padding:4px;">${m}m ${s}s</td></tr>`;
     }
     html += '</table>';
-    html += `<div style="margin-top:10px;"><a href="/api/meetings/${meetingId}/attendance/download" target="_blank" style="font-size:12px;color:var(--primary,#4361ee);">Download CSV</a></div>`;
+    html += `<div style="margin-top:10px;"><a href="/api/meetings/${mid}/attendance/download" target="_blank" style="font-size:12px;color:var(--primary,#4361ee);">Download CSV</a></div>`;
     showToast('Attendance loaded');
     // Show in a simple overlay
     let overlay = document.getElementById('attendanceOverlay');

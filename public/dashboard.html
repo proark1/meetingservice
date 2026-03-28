@@ -745,7 +745,7 @@ curl https://onepizza.io/api/meetings \
       </div>
 
       <!-- ─── Recurring Meetings ─── -->
-      <div class="section" id="sec-recurring" style="display:none;">
+      <div class="section" id="sec-recurring">
         <div class="card">
           <div class="card-header">
             <h2>
@@ -1334,7 +1334,7 @@ async function createMeeting() {
     const res  = await fetch('/api/meetings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': userApiKey },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, templateId: document.getElementById('nm-template')?.value || undefined }),
     });
     const data = await res.json();
     if (!res.ok) { toast(data.error || 'Could not create meeting', 'error'); return; }
@@ -1353,6 +1353,71 @@ function joinMeeting() {
   if (!name) { toast('Please enter your name', 'error'); return; }
   sessionStorage.setItem('userName', name);
   window.location.href = `/join/${code}?name=${encodeURIComponent(name)}`;
+}
+
+// ─── Templates ────────────────────────────────────────────────────────────────
+async function loadTemplates() {
+  try {
+    const res = await fetch('/api/templates');
+    if (!res.ok) return;
+    const { templates } = await res.json();
+    const sel = document.getElementById('nm-template');
+    if (!sel) return;
+    // Keep the "No template" option, rebuild the rest
+    sel.innerHTML = '<option value="">No template</option>';
+    for (const t of templates) {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name + (t.is_default ? ' (default)' : '');
+      sel.appendChild(opt);
+    }
+  } catch (_e) { /* ignore */ }
+}
+
+// ─── Recurring Meetings ──────────────────────────────────────────────────────
+async function loadRecurringMeetings() {
+  try {
+    const res = await fetch('/api/meetings/recurring');
+    if (!res.ok) return;
+    const { recurringMeetings } = await res.json();
+    const list = document.getElementById('recurringList');
+    if (!list) return;
+    if (!recurringMeetings || recurringMeetings.length === 0) {
+      list.innerHTML = '<div style="color:var(--text-muted);padding:10px 0;">No recurring meetings yet.</div>';
+      return;
+    }
+    list.innerHTML = recurringMeetings.map(rm => {
+      const next = rm.next_occurrence ? new Date(rm.next_occurrence).toLocaleString() : 'N/A';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border,#eee);">
+        <div>
+          <strong>${esc(rm.title)}</strong>
+          <span style="color:var(--text-muted);margin-left:8px;">${rm.recurrence} at ${rm.time_utc?.toString().slice(0, 5) || '?'} UTC</span>
+          <div style="font-size:11px;color:var(--text-muted);">Next: ${next}</div>
+        </div>
+        <button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;" data-del-recurring="${rm.id}">Cancel</button>
+      </div>`;
+    }).join('');
+  } catch (_e) { /* ignore */ }
+}
+
+async function createRecurringMeeting() {
+  const title = document.getElementById('rec-title')?.value?.trim();
+  const recurrence = document.getElementById('rec-recurrence')?.value;
+  const timeUtc = document.getElementById('rec-time')?.value;
+  if (!title) { toast('Title required', 'error'); return; }
+  if (!timeUtc) { toast('Time required', 'error'); return; }
+  try {
+    const res = await fetch('/api/meetings/recurring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, recurrence, timeUtc }),
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Failed to create', 'error'); return; }
+    toast('Recurring meeting created');
+    document.getElementById('rec-title').value = '';
+    loadRecurringMeetings();
+  } catch (_e) { toast('Failed to create recurring meeting', 'error'); }
 }
 
 // ─── Company ──────────────────────────────────────────────────────────────────
@@ -1743,6 +1808,17 @@ document.getElementById('signOutBtn')?.addEventListener('click', doLogout);
 });
 document.getElementById('joinCodeInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') joinCompany(); });
 document.getElementById('new-key-label')?.addEventListener('keydown', e => { if (e.key === 'Enter') createKey(); });
+// Recurring meetings
+document.getElementById('createRecurringBtn')?.addEventListener('click', createRecurringMeeting);
+document.getElementById('recurringList')?.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-del-recurring]');
+  if (!btn) return;
+  try {
+    const res = await fetch(`/api/meetings/recurring/${btn.dataset.delRecurring}`, { method: 'DELETE' });
+    if (res.ok) { toast('Recurring meeting cancelled'); loadRecurringMeetings(); }
+    else toast('Failed to cancel', 'error');
+  } catch (_e) { toast('Error', 'error'); }
+});
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 // initApp() handles auth check — no pre-flight fetch needed
