@@ -312,7 +312,7 @@ const meetings = new Map();
 const scheduledMeetings = new Map(); // meetingId -> { id, adminToken, title, scheduledAt, settings, status }
 
 // ─── Scheduled meeting activation ───────────────────────────────────────────
-function activateScheduledMeeting(scheduled) {
+async function activateScheduledMeeting(scheduled) {
   const meeting = {
     id: scheduled.id,
     adminToken: scheduled.adminToken,
@@ -331,6 +331,23 @@ function activateScheduledMeeting(scheduled) {
   meetings.set(scheduled.id, meeting);
   scheduled.status = 'active';
   scheduledMeetings.delete(scheduled.id);
+
+  // Persist to meetings_log for billing and history
+  if (meeting.ownerId) {
+    try {
+      const { rows: logRows } = await pool.query(
+        `INSERT INTO meetings_log (meeting_id, title, created_by_key, user_id, company_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+        [meeting.id, meeting.title, null, meeting.ownerId, meeting.ownerCompanyId || null]
+      );
+      meeting.logId = logRows[0].id;
+
+      deliverWebhook(logRows[0].id, meeting.ownerId, meeting.ownerCompanyId, 'meeting.started', {
+        meetingId: meeting.id, title: meeting.title,
+      }).catch(() => {});
+    } catch (err) {
+      console.error('meetings_log insert error (scheduled):', err);
+    }
+  }
 }
 
 // Check every 15s for scheduled meetings that need activating
@@ -339,7 +356,7 @@ const scheduledMeetingPoller = setInterval(() => {
   const now = Date.now();
   for (const [id, s] of scheduledMeetings) {
     if (s.status === 'scheduled' && s.scheduledAt <= now) {
-      activateScheduledMeeting(s);
+      activateScheduledMeeting(s).catch(err => console.error('Scheduled meeting activation error:', err));
     }
   }
 }, 15000);
@@ -1471,7 +1488,7 @@ app.post('/api/meetings/guest', guestMeetingLimiter, async (req, res) => {
 });
 
 // ─── Meetings REST API ────────────────────────────────────────────────────────
-app.post('/api/meetings', authApi, async (req, res) => {
+app.post('/api/meetings', authApiOrSession, async (req, res) => {
   // Apply default max participants from settings
   let maxDefault = 50;
   try {
@@ -1504,22 +1521,24 @@ app.post('/api/meetings', authApi, async (req, res) => {
       title: ((req.body.title || 'Untitled Meeting') + '').slice(0, 100),
       scheduledAt, createdAt: Date.now(),
       status: 'scheduled', settings,
-      ownerId: req.apiUser?.userId || null,
-      ownerCompanyId: req.apiUser?.companyId || null,
+      ownerId: req.apiUser?.userId || req.session?.userId || null,
+      ownerCompanyId: req.apiUser?.companyId || req.session?.companyId || null,
     };
     scheduledMeetings.set(id, scheduled);
 
     // Set a timer for exact activation
     const delay = scheduledAt - Date.now();
-    const timerId = setTimeout(() => {
+    const timerId = setTimeout(async () => {
       const s = scheduledMeetings.get(id);
-      if (s && s.status === 'scheduled') activateScheduledMeeting(s);
+      if (s && s.status === 'scheduled') await activateScheduledMeeting(s);
     }, delay);
     scheduled.timerId = timerId;
 
-    // Track analytics using user already resolved by authApi middleware
-    if (req.apiUser) {
-      trackEvent(req.apiUser.userId, req.apiUser.companyId, 'meeting.created', { scheduled: true, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom });
+    // Track analytics
+    const schedUserId = req.apiUser?.userId || req.session?.userId || null;
+    const schedCompanyId = req.apiUser?.companyId || req.session?.companyId || null;
+    if (schedUserId) {
+      trackEvent(schedUserId, schedCompanyId, 'meeting.created', { scheduled: true, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom });
     }
 
     return res.status(201).json({
@@ -1566,13 +1585,20 @@ app.post('/api/meetings', authApi, async (req, res) => {
 
   meetings.set(id, meeting);
 
-  // Persist to meetings_log — use user already resolved by authApi middleware
-  if (req.apiUser) {
+  // Persist to meetings_log — resolve owner from API key or session auth
+  const user_id = req.apiUser?.userId || req.session?.userId || null;
+  const company_id = req.apiUser?.companyId || req.session?.companyId || null;
+
+  if (user_id) {
     try {
-      const { userId: user_id, companyId: company_id } = req.apiUser;
       meeting.ownerId = user_id;
       meeting.ownerCompanyId = company_id;
-      const keyFingerprint = crypto.createHash('sha256').update(req.headers['x-api-key']).digest('hex').slice(0, 16);
+
+      let keyFingerprint = null;
+      if (req.headers['x-api-key']) {
+        keyFingerprint = crypto.createHash('sha256').update(req.headers['x-api-key']).digest('hex').slice(0, 16);
+      }
+
       const { rows: logRows } = await pool.query(
         `INSERT INTO meetings_log (meeting_id, title, created_by_key, user_id, company_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
         [id, meeting.title, keyFingerprint, user_id, company_id || null]
@@ -1592,8 +1618,8 @@ app.post('/api/meetings', authApi, async (req, res) => {
     meetingId: id, adminToken, joinUrl: `/join/${id}`,
     title: meeting.title, status: 'active', settings: meeting.settings,
   });
-  if (req.apiUser) {
-    trackEvent(req.apiUser.userId, req.apiUser.companyId, 'meeting.created', { scheduled: false, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom, maxParticipants: settings.maxParticipants });
+  if (user_id) {
+    trackEvent(user_id, company_id, 'meeting.created', { scheduled: false, muteOnJoin: settings.muteOnJoin, waitingRoom: settings.waitingRoom, maxParticipants: settings.maxParticipants });
   }
 });
 
