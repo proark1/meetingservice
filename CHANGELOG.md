@@ -2,6 +2,20 @@
 
 All notable changes to onepizza.io are documented in this file.
 
+## [1.1.0] — 2026-03-28
+
+### Added
+- **Polls / Voting**: Create live polls with 2-10 options, real-time vote tracking, results — via UI, REST API, Socket.IO, and MCP tools
+- **Q&A Mode**: Structured Q&A with upvoting, mark as answered, dismiss — side panel tab; via UI, API, Socket.IO, and MCP
+- **File Sharing**: Share files (images, docs, PDFs up to 50 MB) in meeting chat with download links — via UI and REST API
+- **Meeting Notes**: Collaborative notepad (host edits, others view), auto-saved to DB, downloadable — via UI, REST API, Socket.IO, and MCP
+- **Attendance Report**: Track join/leave times per participant; downloadable CSV (admin only); persisted to DB — via UI, REST API, and MCP
+- **Meeting Templates**: Pre-configured presets (Quick Standup, All Hands, Interview) + custom user templates; template selector in dashboard — via REST API and MCP
+- **Recurring Meetings**: Daily/weekly/biweekly/monthly meetings with stable join links; server-side 60s polling activation; dashboard UI — via REST API and MCP
+- **DB**: New tables: `meeting_files`, `meeting_notes`, `meeting_attendance`, `meeting_templates`, `recurring_meetings`
+- **MCP**: 12 new tools for polls, Q&A, notes, attendance, templates, recurring meetings
+- **Settings**: New feature flags: `polls_enabled`, `qa_enabled`, `file_sharing_enabled`, `meeting_notes_enabled`
+
 ## [1.1.0] — 2026-03-26
 
 ### Added

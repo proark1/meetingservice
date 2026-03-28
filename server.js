@@ -39,6 +39,22 @@ const upload = multer({
   },
 });
 
+// ─── Meeting file upload storage ─────────────────────────────────────────────
+const FILES_DIR = path.join(__dirname, 'uploads', 'files');
+if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR, { recursive: true });
+const fileUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, FILES_DIR),
+    filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}-${file.originalname.slice(0, 100)}`),
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max
+  fileFilter: (_req, file, cb) => {
+    const allowed = /^(image|application\/pdf|application\/msword|application\/vnd\.openxmlformats|text\/)/;
+    if (allowed.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only images, PDFs, documents, and text files are allowed'));
+  },
+});
+
 // ─── Environment validation ───────────────────────────────────────────────────
 if (!process.env.DATABASE_PUBLIC_URL) {
   console.error('FATAL: DATABASE_PUBLIC_URL is not set');
@@ -309,6 +325,8 @@ function activateScheduledMeeting(scheduled) {
     ownerId: scheduled.ownerId || null,
     ownerCompanyId: scheduled.ownerCompanyId || null,
     settings: { ...scheduled.settings },
+    attendance: [], polls: new Map(), questions: new Map(),
+    notes: { content: '', lastUpdatedBy: '', lastUpdatedAt: null },
   };
   meetings.set(scheduled.id, meeting);
   scheduled.status = 'active';
@@ -1214,6 +1232,10 @@ app.delete('/api/company/members/:id', requireUserSession, async (req, res) => {
 async function removeParticipantFromMeeting(meeting, participantId, io) {
   const p = meeting.participants.get(participantId);
   meeting.participants.delete(participantId);
+  if (meeting.attendance) {
+    const rec = meeting.attendance.findLast(a => a.participantId === participantId && !a.leftAt);
+    if (rec) rec.leftAt = Date.now();
+  }
   // Clear recording state if the recorder disconnected without stopping
   if (meeting.recordingParticipantId === participantId) {
     meeting.isRecording = false;
@@ -1325,6 +1347,17 @@ async function chargeMeeting(meeting) {
 
     await client.query('COMMIT');
 
+    // Persist attendance records (fire-and-forget)
+    if (meeting.attendance) {
+      for (const a of meeting.attendance) {
+        const durSec = a.leftAt ? Math.round((a.leftAt - a.joinedAt) / 1000) : Math.round((Date.now() - a.joinedAt) / 1000);
+        pool.query(
+          `INSERT INTO meeting_attendance (meeting_id, participant_id, participant_name, joined_at, left_at, duration_seconds) VALUES ($1,$2,$3,$4,$5,$6)`,
+          [meeting.id, a.participantId, a.name, new Date(a.joinedAt), a.leftAt ? new Date(a.leftAt) : new Date(), durSec]
+        ).catch(err => console.error('attendance save error:', err.message));
+      }
+    }
+
     // Non-transactional: email, webhook, analytics (fire-and-forget)
     if (notifyEmail) {
       sendEmail({ to: notifyEmail, subject: 'Low balance alert — onepizza.io', html: lowBalanceEmail(newBal, notifyEmail) }).catch(() => {});
@@ -1344,6 +1377,20 @@ async function chargeMeeting(meeting) {
     }).catch(() => {});
 
     trackEvent(user_id, company_id, 'meeting.ended', { durationMinutes: parseFloat(mins.toFixed(2)), peakParticipants: meeting.peakParticipants || 1, costUsd: parseFloat(cost) });
+
+    // Persist attendance records (fire-and-forget)
+    if (meeting.attendance && meeting.attendance.length > 0) {
+      const now = Date.now();
+      for (const a of meeting.attendance) {
+        const left = a.leftAt || now;
+        const dur = Math.round((left - a.joinedAt) / 1000);
+        pool.query(
+          `INSERT INTO meeting_attendance (meeting_id, participant_id, participant_name, joined_at, left_at, duration_seconds)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [meeting.id, a.participantId, a.name, new Date(a.joinedAt), new Date(left), dur]
+        ).catch(err => console.error('attendance persist error:', err.message));
+      }
+    }
 
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -1415,6 +1462,8 @@ app.post('/api/meetings/guest', guestMeetingLimiter, async (req, res) => {
     peakParticipants: 0,
     logId:            null,
     settings: { muteOnJoin: false, videoOffOnJoin: false, maxParticipants: 50, locked: false, waitingRoom: false },
+    attendance: [], polls: new Map(), questions: new Map(),
+    notes: { content: '', lastUpdatedBy: '', lastUpdatedAt: null },
   };
   meetings.set(id, meeting);
   trackEvent(null, null, 'guest_meeting.created', {});
@@ -1494,7 +1543,27 @@ app.post('/api/meetings', authApi, async (req, res) => {
     ownerId:          null,  // cached for webhook/analytics (avoids DB lookup on join)
     ownerCompanyId:   null,
     settings,
+    attendance: [], polls: new Map(), questions: new Map(),
+    notes: { content: '', lastUpdatedBy: '', lastUpdatedAt: null },
   };
+
+  // Apply template if specified
+  if (req.body.templateId) {
+    try {
+      const { rows: tplRows } = await pool.query(
+        `SELECT settings FROM meeting_templates WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`,
+        [req.body.templateId, req.apiUser?.userId || null]
+      );
+      if (tplRows.length) {
+        const ts = tplRows[0].settings;
+        if (ts.muteOnJoin !== undefined) meeting.settings.muteOnJoin = ts.muteOnJoin;
+        if (ts.videoOffOnJoin !== undefined) meeting.settings.videoOffOnJoin = ts.videoOffOnJoin;
+        if (ts.maxParticipants !== undefined) meeting.settings.maxParticipants = Math.min(Math.max(ts.maxParticipants, 2), 500);
+        if (ts.waitingRoom !== undefined) meeting.settings.waitingRoom = ts.waitingRoom;
+      }
+    } catch (_e) { /* ignore template errors */ }
+  }
+
   meetings.set(id, meeting);
 
   // Persist to meetings_log — use user already resolved by authApi middleware
@@ -1672,6 +1741,264 @@ app.post('/api/meetings/:meetingId/unlock', authApi, findMeeting, requireMeeting
   io.to(req.meeting.id).emit('meeting:settings-updated', req.meeting.settings);
   res.json({ locked: false });
 });
+
+// ─── Polls ────────────────────────────────────────────────────────────────────
+app.post('/api/meetings/:meetingId/polls', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  const { question, options } = req.body;
+  if (!question || !Array.isArray(options) || options.length < 2 || options.length > 10) return res.status(400).json({ error: 'Provide question and 2-10 options' });
+  const pollId = crypto.randomUUID();
+  const poll = { id: pollId, question: (question + '').trim().slice(0, 500), options: options.slice(0, 10).map((o, i) => ({ id: `opt_${i}`, text: (o + '').trim().slice(0, 200) })), votes: new Map(), isActive: true, createdAt: Date.now() };
+  req.meeting.polls.set(pollId, poll);
+  io.to(req.meeting.id).emit('poll:created', { id: poll.id, question: poll.question, options: poll.options, isActive: true });
+  trackEvent(req.apiUser?.userId, req.apiUser?.companyId, 'feature.poll', { action: 'create' });
+  res.status(201).json({ pollId: poll.id, question: poll.question, options: poll.options });
+});
+app.post('/api/meetings/:meetingId/polls/:pollId/vote', authApi, findMeeting, (req, res) => {
+  const poll = req.meeting.polls.get(req.params.pollId);
+  if (!poll) return res.status(404).json({ error: 'Poll not found' });
+  if (!poll.isActive) return res.status(400).json({ error: 'Poll is closed' });
+  const { optionId, participantId } = req.body;
+  if (!optionId || !poll.options.find(o => o.id === optionId)) return res.status(400).json({ error: 'Invalid option' });
+  poll.votes.set(participantId || req.apiUser?.userId?.toString() || 'api', optionId);
+  const results = poll.options.map(o => ({ ...o, count: [...poll.votes.values()].filter(v => v === o.id).length }));
+  io.to(req.meeting.id).emit('poll:updated', { pollId: poll.id, results, totalVotes: poll.votes.size });
+  res.json({ voted: true });
+});
+app.post('/api/meetings/:meetingId/polls/:pollId/end', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  const poll = req.meeting.polls.get(req.params.pollId);
+  if (!poll) return res.status(404).json({ error: 'Poll not found' });
+  poll.isActive = false;
+  const results = poll.options.map(o => ({ ...o, count: [...poll.votes.values()].filter(v => v === o.id).length }));
+  io.to(req.meeting.id).emit('poll:ended', { pollId: poll.id, results, totalVotes: poll.votes.size });
+  res.json({ pollId: poll.id, results, totalVotes: poll.votes.size });
+});
+app.get('/api/meetings/:meetingId/polls', authApi, findMeeting, (req, res) => {
+  const polls = [...req.meeting.polls.values()].map(p => ({
+    id: p.id, question: p.question, options: p.options, isActive: p.isActive, totalVotes: p.votes.size,
+    results: p.options.map(o => ({ ...o, count: [...p.votes.values()].filter(v => v === o.id).length })),
+  }));
+  res.json({ polls });
+});
+
+// ─── Q&A ──────────────────────────────────────────────────────────────────────
+app.post('/api/meetings/:meetingId/questions', authApi, findMeeting, (req, res) => {
+  const { text, participantName } = req.body;
+  if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text required' });
+  const questionId = crypto.randomUUID();
+  const question = { id: questionId, text: text.trim().slice(0, 500), askedBy: { name: (participantName || 'Anonymous').slice(0, 60) }, upvotes: new Set(), isAnswered: false, answer: null, answeredBy: null, createdAt: Date.now(), dismissed: false };
+  req.meeting.questions.set(questionId, question);
+  io.to(req.meeting.id).emit('qa:new', { id: question.id, text: question.text, askedBy: question.askedBy, upvoteCount: 0, isAnswered: false, createdAt: question.createdAt });
+  trackEvent(req.apiUser?.userId, req.apiUser?.companyId, 'feature.qa', { action: 'ask' });
+  res.status(201).json({ questionId: question.id });
+});
+app.post('/api/meetings/:meetingId/questions/:questionId/upvote', authApi, findMeeting, (req, res) => {
+  const q = req.meeting.questions.get(req.params.questionId);
+  if (!q) return res.status(404).json({ error: 'Question not found' });
+  const voterId = req.body.participantId || req.apiUser?.userId?.toString() || 'api';
+  if (q.upvotes.has(voterId)) q.upvotes.delete(voterId); else q.upvotes.add(voterId);
+  io.to(req.meeting.id).emit('qa:updated', { questionId: q.id, upvoteCount: q.upvotes.size });
+  res.json({ upvoteCount: q.upvotes.size });
+});
+app.post('/api/meetings/:meetingId/questions/:questionId/answer', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  const q = req.meeting.questions.get(req.params.questionId);
+  if (!q) return res.status(404).json({ error: 'Question not found' });
+  q.isAnswered = true; q.answer = (req.body.answer || '').slice(0, 1000); q.answeredBy = (req.body.answeredBy || 'Host').slice(0, 60);
+  io.to(req.meeting.id).emit('qa:updated', { questionId: q.id, isAnswered: true, answer: q.answer, answeredBy: q.answeredBy });
+  res.json({ answered: true });
+});
+app.post('/api/meetings/:meetingId/questions/:questionId/dismiss', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  const q = req.meeting.questions.get(req.params.questionId);
+  if (!q) return res.status(404).json({ error: 'Question not found' });
+  q.dismissed = true;
+  io.to(req.meeting.id).emit('qa:updated', { questionId: q.id, dismissed: true });
+  res.json({ dismissed: true });
+});
+app.get('/api/meetings/:meetingId/questions', authApi, findMeeting, (req, res) => {
+  const questions = [...req.meeting.questions.values()].filter(q => !q.dismissed)
+    .map(q => ({ id: q.id, text: q.text, askedBy: q.askedBy, upvoteCount: q.upvotes.size, isAnswered: q.isAnswered, answer: q.answer, answeredBy: q.answeredBy, createdAt: q.createdAt }))
+    .sort((a, b) => b.upvoteCount - a.upvoteCount);
+  res.json({ questions });
+});
+
+// ─── Meeting Notes ────────────────────────────────────────────────────────────
+app.get('/api/meetings/:meetingId/notes', authApi, findMeeting, (req, res) => {
+  res.json({ content: req.meeting.notes.content, lastUpdatedBy: req.meeting.notes.lastUpdatedBy, lastUpdatedAt: req.meeting.notes.lastUpdatedAt });
+});
+app.put('/api/meetings/:meetingId/notes', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  if (typeof req.body.content !== 'string') return res.status(400).json({ error: 'content required' });
+  req.meeting.notes.content = req.body.content.slice(0, 50000);
+  req.meeting.notes.lastUpdatedBy = 'Host'; req.meeting.notes.lastUpdatedAt = Date.now();
+  io.to(req.meeting.id).emit('notes:updated', { content: req.meeting.notes.content, lastUpdatedBy: 'Host' });
+  pool.query(`INSERT INTO meeting_notes (meeting_id, content, updated_by) VALUES ($1,$2,$3) ON CONFLICT (meeting_id) DO UPDATE SET content=$2, updated_by=$3, updated_at=NOW()`,
+    [req.meeting.id, req.meeting.notes.content, 'Host']).catch(err => console.error('notes save:', err.message));
+  trackEvent(req.apiUser?.userId, req.apiUser?.companyId, 'feature.meeting_notes', {});
+  res.json({ updated: true });
+});
+
+// ─── File sharing ─────────────────────────────────────────────────────────────
+app.post('/api/meetings/:meetingId/files', authApiOrSession, (req, res) => {
+  const meeting = meetings.get(req.params.meetingId);
+  if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+  fileUpload.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const participantName = (req.body.participantName || 'Unknown').slice(0, 60);
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO meeting_files (meeting_id, participant_name, filename, original_name, size_bytes, mime_type, storage_path) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, original_name, size_bytes, mime_type, created_at`,
+        [req.params.meetingId, participantName, req.file.filename, req.file.originalname.slice(0, 255), req.file.size, req.file.mimetype, req.file.filename]);
+      io.to(req.params.meetingId).emit('chat:file', { fileId: rows[0].id, name: rows[0].original_name, size: rows[0].size_bytes, mimeType: rows[0].mime_type, sender: participantName, timestamp: Date.now() });
+      trackEvent(req.apiUser?.userId || req.session?.userId, null, 'feature.file_share', { size: req.file.size });
+      res.status(201).json(rows[0]);
+    } catch (dbErr) { console.error('File save error:', dbErr); res.status(500).json({ error: 'Failed to save file' }); }
+  });
+});
+app.get('/api/meetings/:meetingId/files', authApiOrSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, original_name, size_bytes, mime_type, participant_name, created_at FROM meeting_files WHERE meeting_id=$1 ORDER BY created_at', [req.params.meetingId]);
+    res.json({ files: rows });
+  } catch (_err) { res.status(500).json({ error: 'Failed to list files' }); }
+});
+app.get('/api/meetings/files/:fileId/download', authApiOrSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT original_name, storage_path, mime_type FROM meeting_files WHERE id=$1', [req.params.fileId]);
+    if (!rows.length) return res.status(404).json({ error: 'File not found' });
+    const filePath = path.join(FILES_DIR, rows[0].storage_path);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
+    res.setHeader('Content-Disposition', `attachment; filename="${rows[0].original_name}"`);
+    if (rows[0].mime_type) res.setHeader('Content-Type', rows[0].mime_type);
+    res.sendFile(filePath);
+  } catch (_err) { res.status(500).json({ error: 'Failed to download file' }); }
+});
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+app.get('/api/meetings/:meetingId/attendance', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  const report = (req.meeting.attendance || []).map(a => ({
+    participantId: a.participantId, name: a.name,
+    joinedAt: new Date(a.joinedAt).toISOString(),
+    leftAt: a.leftAt ? new Date(a.leftAt).toISOString() : null,
+    durationSeconds: a.leftAt ? Math.round((a.leftAt - a.joinedAt) / 1000) : Math.round((Date.now() - a.joinedAt) / 1000),
+  }));
+  res.json({ attendance: report, meetingId: req.meeting.id, title: req.meeting.title });
+});
+app.get('/api/meetings/:meetingId/attendance/download', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
+  const lines = ['Name,Joined,Left,Duration (seconds)'];
+  for (const a of (req.meeting.attendance || [])) {
+    const dur = a.leftAt ? Math.round((a.leftAt - a.joinedAt) / 1000) : Math.round((Date.now() - a.joinedAt) / 1000);
+    lines.push(`"${a.name}","${new Date(a.joinedAt).toISOString()}","${a.leftAt ? new Date(a.leftAt).toISOString() : 'Still in meeting'}",${dur}`);
+  }
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="attendance-${req.meeting.id}.csv"`);
+  res.send(lines.join('\n'));
+});
+
+// ─── Meeting Templates ────────────────────────────────────────────────────────
+app.get('/api/templates', authApiOrSession, async (req, res) => {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  try {
+    const { rows } = await pool.query(`SELECT id, name, description, settings, is_default, created_at FROM meeting_templates WHERE user_id=$1 OR is_default=TRUE ORDER BY is_default DESC, name`, [userId || null]);
+    res.json({ templates: rows });
+  } catch (_err) { res.status(500).json({ error: 'Failed to list templates' }); }
+});
+app.post('/api/templates', requireUserSession, async (req, res) => {
+  const { name, description, settings } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  try {
+    const { rows } = await pool.query(`INSERT INTO meeting_templates (user_id, name, description, settings) VALUES ($1,$2,$3,$4) RETURNING id, name, description, settings, created_at`,
+      [req.session.userId, (name + '').slice(0, 100), (description || '').slice(0, 500), JSON.stringify(settings || {})]);
+    res.status(201).json(rows[0]);
+  } catch (_err) { res.status(500).json({ error: 'Failed to create template' }); }
+});
+app.put('/api/templates/:id', requireUserSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`UPDATE meeting_templates SET name=COALESCE($1,name), description=COALESCE($2,description), settings=COALESCE($3,settings) WHERE id=$4 AND user_id=$5 RETURNING id, name, description, settings`,
+      [req.body.name?.slice(0, 100), req.body.description?.slice(0, 500), req.body.settings ? JSON.stringify(req.body.settings) : null, req.params.id, req.session.userId]);
+    if (!rows.length) return res.status(404).json({ error: 'Template not found' });
+    res.json(rows[0]);
+  } catch (_err) { res.status(500).json({ error: 'Failed to update template' }); }
+});
+app.delete('/api/templates/:id', requireUserSession, async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM meeting_templates WHERE id=$1 AND user_id=$2', [req.params.id, req.session.userId]);
+  if (!rowCount) return res.status(404).json({ error: 'Template not found' });
+  res.json({ deleted: true });
+});
+
+// ─── Recurring Meetings ───────────────────────────────────────────────────────
+function computeNextOccurrence(recurrence, dayOfWeek, dayOfMonth, timeUtc) {
+  const now = new Date();
+  const [hours, minutes] = timeUtc.split(':').map(Number);
+  const next = new Date(now);
+  next.setUTCHours(hours, minutes, 0, 0);
+  if (recurrence === 'daily') { if (next <= now) next.setUTCDate(next.getUTCDate() + 1); }
+  else if (recurrence === 'weekly') { const d = (dayOfWeek ?? 1); const diff = (d - next.getUTCDay() + 7) % 7; next.setUTCDate(next.getUTCDate() + (diff === 0 && next <= now ? 7 : diff)); }
+  else if (recurrence === 'biweekly') { const d = (dayOfWeek ?? 1); const diff = (d - next.getUTCDay() + 7) % 7; next.setUTCDate(next.getUTCDate() + (diff === 0 && next <= now ? 14 : diff)); }
+  else if (recurrence === 'monthly') { const d = dayOfMonth ?? 1; next.setUTCDate(d); if (next <= now) next.setUTCMonth(next.getUTCMonth() + 1); next.setUTCDate(d); }
+  return next;
+}
+app.get('/api/meetings/recurring', authApiOrSession, async (req, res) => {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  try {
+    const { rows } = await pool.query(`SELECT id, title, recurrence, day_of_week, day_of_month, time_utc, timezone, settings, meeting_id, is_active, next_occurrence, created_at FROM recurring_meetings WHERE user_id=$1 ORDER BY created_at DESC`, [userId]);
+    res.json({ recurringMeetings: rows });
+  } catch (_err) { res.status(500).json({ error: 'Failed to list recurring meetings' }); }
+});
+app.post('/api/meetings/recurring', authApiOrSession, async (req, res) => {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  const companyId = req.apiUser?.companyId || req.session?.companyId || null;
+  const { title, recurrence, dayOfWeek, dayOfMonth, timeUtc, timezone, settings } = req.body;
+  if (!title || !recurrence || !timeUtc) return res.status(400).json({ error: 'title, recurrence, and timeUtc required' });
+  if (!['daily', 'weekly', 'biweekly', 'monthly'].includes(recurrence)) return res.status(400).json({ error: 'Invalid recurrence' });
+  const meetingId = generateMeetingId(), adminToken = uuidv4();
+  const nextOccurrence = computeNextOccurrence(recurrence, dayOfWeek, dayOfMonth, timeUtc);
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO recurring_meetings (user_id, company_id, title, recurrence, day_of_week, day_of_month, time_utc, timezone, settings, meeting_id, admin_token, next_occurrence)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id, title, recurrence, meeting_id, admin_token, next_occurrence`,
+      [userId, companyId, (title + '').slice(0, 100), recurrence, dayOfWeek ?? null, dayOfMonth ?? null, timeUtc, timezone || 'UTC', JSON.stringify(settings || {}), meetingId, adminToken, nextOccurrence]);
+    trackEvent(userId, companyId, 'feature.recurring_meeting', { recurrence });
+    res.status(201).json({ ...rows[0], joinUrl: `/join/${meetingId}` });
+  } catch (err) { console.error('recurring create:', err); res.status(500).json({ error: 'Failed to create recurring meeting' }); }
+});
+app.put('/api/meetings/recurring/:id', authApiOrSession, async (req, res) => {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE recurring_meetings SET title=COALESCE($1,title), recurrence=COALESCE($2,recurrence), day_of_week=COALESCE($3,day_of_week), day_of_month=COALESCE($4,day_of_month), time_utc=COALESCE($5,time_utc), timezone=COALESCE($6,timezone), settings=COALESCE($7,settings), is_active=COALESCE($8,is_active) WHERE id=$9 AND user_id=$10 RETURNING *`,
+      [req.body.title?.slice(0, 100), req.body.recurrence, req.body.dayOfWeek, req.body.dayOfMonth, req.body.timeUtc, req.body.timezone, req.body.settings ? JSON.stringify(req.body.settings) : null, req.body.isActive, req.params.id, userId]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (_err) { res.status(500).json({ error: 'Failed to update recurring meeting' }); }
+});
+app.delete('/api/meetings/recurring/:id', authApiOrSession, async (req, res) => {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  const { rowCount } = await pool.query('DELETE FROM recurring_meetings WHERE id=$1 AND user_id=$2', [req.params.id, userId]);
+  if (!rowCount) return res.status(404).json({ error: 'Not found' });
+  res.json({ deleted: true });
+});
+
+// ─── Recurring meeting activation ────────────────────────────────────────────
+const recurringMeetingPoller = setInterval(async () => {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM recurring_meetings WHERE is_active=TRUE AND next_occurrence <= NOW()`);
+    for (const rm of rows) {
+      if (!meetings.has(rm.meeting_id)) {
+        const s = typeof rm.settings === 'string' ? JSON.parse(rm.settings) : (rm.settings || {});
+        const meeting = {
+          id: rm.meeting_id, adminToken: rm.admin_token, title: rm.title, createdAt: Date.now(),
+          participants: new Map(), waitingRoom: new Map(), peakParticipants: 0, logId: null,
+          ownerId: rm.user_id, ownerCompanyId: rm.company_id,
+          settings: { muteOnJoin: s.muteOnJoin ?? false, videoOffOnJoin: s.videoOffOnJoin ?? false, maxParticipants: s.maxParticipants ?? 50, locked: false, waitingRoom: s.waitingRoom ?? false },
+          attendance: [], polls: new Map(), questions: new Map(), notes: { content: '', lastUpdatedBy: '', lastUpdatedAt: null },
+        };
+        meetings.set(rm.meeting_id, meeting);
+        pool.query(`INSERT INTO meetings_log (meeting_id, title, user_id, company_id) VALUES ($1,$2,$3,$4) RETURNING id`,
+          [rm.meeting_id, rm.title, rm.user_id, rm.company_id]).then(({ rows: lr }) => { meeting.logId = lr[0].id; }).catch(err => console.error('recurring log:', err.message));
+      }
+      const nextOcc = computeNextOccurrence(rm.recurrence, rm.day_of_week, rm.day_of_month, rm.time_utc?.toString() || '09:00');
+      pool.query(`UPDATE recurring_meetings SET next_occurrence=$1 WHERE id=$2`, [nextOcc, rm.id]).catch(() => {});
+    }
+  } catch (err) { console.error('recurringMeetingPoller error:', err.message); }
+}, 60000);
 
 // ─── Meeting history ──────────────────────────────────────────────────────────
 app.get('/api/meetings/history', requireUserSession, async (req, res) => {
@@ -2253,6 +2580,7 @@ io.on('connection', (socket) => {
     };
 
     meeting.participants.set(participantId, participant);
+    if (meeting.attendance) meeting.attendance.push({ participantId, name: safeName, joinedAt: Date.now(), leftAt: null });
     // Cancel grace-period timer if someone rejoins within 60s
     if (meeting.gracePeriodTimer) { clearTimeout(meeting.gracePeriodTimer); meeting.gracePeriodTimer = null; }
     if (meeting.participants.size > (meeting.peakParticipants || 0)) {
@@ -2504,6 +2832,94 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.captions', {});
   });
 
+  // ─── Polls (socket) ──────────────────────────────────────────────────────────
+  socket.on('poll:create', ({ question, options }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin) return;
+    if (!question || !Array.isArray(options) || options.length < 2 || options.length > 10) return;
+    const pollId = crypto.randomUUID();
+    const poll = { id: pollId, question: (question + '').trim().slice(0, 500), options: options.slice(0, 10).map((o, i) => ({ id: `opt_${i}`, text: (o + '').trim().slice(0, 200) })), votes: new Map(), isActive: true, createdAt: Date.now() };
+    meeting.polls.set(pollId, poll);
+    io.to(currentMeetingId).emit('poll:created', { id: poll.id, question: poll.question, options: poll.options, isActive: true });
+    trackEvent(currentUserId, currentCompanyId, 'feature.poll', { action: 'create' });
+  });
+  socket.on('poll:vote', ({ pollId, optionId }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const poll = meeting.polls.get(pollId);
+    if (!poll || !poll.isActive || !poll.options.find(o => o.id === optionId)) return;
+    poll.votes.set(currentParticipantId, optionId);
+    const results = poll.options.map(o => ({ ...o, count: [...poll.votes.values()].filter(v => v === o.id).length }));
+    io.to(currentMeetingId).emit('poll:updated', { pollId: poll.id, results, totalVotes: poll.votes.size });
+  });
+  socket.on('poll:end', ({ pollId }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin) return;
+    const poll = meeting.polls.get(pollId);
+    if (!poll) return;
+    poll.isActive = false;
+    const results = poll.options.map(o => ({ ...o, count: [...poll.votes.values()].filter(v => v === o.id).length }));
+    io.to(currentMeetingId).emit('poll:ended', { pollId: poll.id, results, totalVotes: poll.votes.size });
+  });
+
+  // ─── Q&A (socket) ────────────────────────────────────────────────────────────
+  socket.on('qa:ask', ({ text }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p || !text || typeof text !== 'string') return;
+    const qId = crypto.randomUUID();
+    const q = { id: qId, text: text.trim().slice(0, 500), askedBy: { participantId: currentParticipantId, name: p.name }, upvotes: new Set(), isAnswered: false, answer: null, answeredBy: null, createdAt: Date.now(), dismissed: false };
+    meeting.questions.set(qId, q);
+    io.to(currentMeetingId).emit('qa:new', { id: q.id, text: q.text, askedBy: q.askedBy, upvoteCount: 0, isAnswered: false, createdAt: q.createdAt });
+    trackEvent(currentUserId, currentCompanyId, 'feature.qa', { action: 'ask' });
+  });
+  socket.on('qa:upvote', ({ questionId }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const q = meeting.questions.get(questionId);
+    if (!q) return;
+    if (q.upvotes.has(currentParticipantId)) q.upvotes.delete(currentParticipantId); else q.upvotes.add(currentParticipantId);
+    io.to(currentMeetingId).emit('qa:updated', { questionId: q.id, upvoteCount: q.upvotes.size });
+  });
+  socket.on('qa:answer', ({ questionId, answer }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin) return;
+    const q = meeting.questions.get(questionId);
+    if (!q) return;
+    q.isAnswered = true; q.answer = (answer || '').slice(0, 1000); q.answeredBy = p.name;
+    io.to(currentMeetingId).emit('qa:updated', { questionId: q.id, isAnswered: true, answer: q.answer, answeredBy: q.answeredBy });
+  });
+  socket.on('qa:dismiss', ({ questionId }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin) return;
+    const q = meeting.questions.get(questionId);
+    if (!q) return;
+    q.dismissed = true;
+    io.to(currentMeetingId).emit('qa:updated', { questionId: q.id, dismissed: true });
+  });
+
+  // ─── Meeting Notes (socket) ───────────────────────────────────────────────────
+  socket.on('notes:update', ({ content }) => {
+    const meeting = meetings.get(currentMeetingId);
+    if (!meeting) return;
+    const p = meeting.participants.get(currentParticipantId);
+    if (!p?.isAdmin || typeof content !== 'string') return;
+    meeting.notes.content = content.slice(0, 50000);
+    meeting.notes.lastUpdatedBy = p.name; meeting.notes.lastUpdatedAt = Date.now();
+    socket.to(currentMeetingId).emit('notes:updated', { content: meeting.notes.content, lastUpdatedBy: p.name });
+    pool.query(`INSERT INTO meeting_notes (meeting_id, content, updated_by) VALUES ($1,$2,$3) ON CONFLICT (meeting_id) DO UPDATE SET content=$2, updated_by=$3, updated_at=NOW()`,
+      [currentMeetingId, meeting.notes.content, p.name]).catch(err => console.error('notes save:', err.message));
+  });
+
   // ─── Breakout rooms ────────────────────────────────────────────────────────
   socket.on('breakout:create', ({ rooms }) => {
     if (!currentMeetingId) return;
@@ -2701,6 +3117,7 @@ initDB()
 function gracefulShutdown(signal) {
   console.log(`${signal} received — shutting down gracefully`);
   clearInterval(scheduledMeetingPoller);
+  clearInterval(recurringMeetingPoller);
   for (const s of scheduledMeetings.values()) { if (s.timerId) clearTimeout(s.timerId); }
 
   // 1. Charge all active meetings before closing

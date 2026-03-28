@@ -393,6 +393,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
         New Meeting
       </div>
+      <div class="nav-item" data-section="recurring">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M2.5 12a10 10 0 0 1 18-6l3 3"/></svg>
+        Recurring
+      </div>
 
       <div class="nav-section-label">Workspace</div>
       <div class="nav-item" data-section="apikeys">
@@ -636,6 +640,12 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</pre>
                   <input type="text" id="nm-name" placeholder="Your display name">
                 </div>
               </div>
+              <div class="field" style="margin-top:12px;">
+                <label>Template (optional)</label>
+                <select id="nm-template" style="width:100%;padding:8px 10px;border:1px solid var(--border,#D5CDC4);border-radius:8px;font-size:13px;background:var(--surface,#fff);">
+                  <option value="">No template</option>
+                </select>
+              </div>
               <div style="margin-top:20px;">
                 <button class="btn btn-blue btn-full" id="createMeetingBtn">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
@@ -730,6 +740,31 @@ curl https://onepizza.io/api/meetings \
   -H "x-api-key: YOUR_API_KEY"</pre>
             </div>
             <p class="text-sm text-muted mt-12"><a href="/docs" style="color:var(--primary);font-weight:600;">View full API documentation →</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Recurring Meetings ─── -->
+      <div class="section" id="sec-recurring" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:8px;vertical-align:-2px;"><path d="M21.5 2v6h-6"/><path d="M2.5 12a10 10 0 0 1 18-6l3 3"/><path d="M2.5 22v-6h6"/><path d="M21.5 12a10 10 0 0 1-18 6l-3-3"/></svg>
+              Recurring Meetings
+            </h2>
+          </div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:12px;">
+              <input type="text" id="rec-title" placeholder="Meeting title" style="padding:8px;border:1px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;">
+              <select id="rec-recurrence" style="padding:8px;border:1px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;">
+                <option value="daily">Daily</option>
+                <option value="weekly" selected>Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <input type="time" id="rec-time" value="09:00" style="padding:8px;border:1px solid var(--border,#D5CDC4);border-radius:6px;font-size:13px;">
+              <button class="btn btn-blue" id="createRecurringBtn" style="white-space:nowrap;padding:8px 16px;">Create</button>
+            </div>
+            <div id="recurringList" style="font-size:13px;"></div>
           </div>
         </div>
       </div>
@@ -1110,7 +1145,7 @@ function fmtUsd(v) { return '$' + parseFloat(v || 0).toFixed(2); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
-const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', apikeys: 'API Keys', history: 'Meeting History', recordings: 'Recordings & Transcripts', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
+const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', recurring: 'Recurring Meetings', apikeys: 'API Keys', history: 'Meeting History', recordings: 'Recordings & Transcripts', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
 
 function goTo(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -1129,6 +1164,8 @@ function goTo(name) {
   if (name === 'history')  loadHistory();
   if (name === 'webhooks') loadWebhooks();
   if (name === 'recordings') {}
+  if (name === 'recurring') loadRecurringMeetings();
+  if (name === 'meeting') loadTemplates();
 }
 
 function toggleSidebar() {

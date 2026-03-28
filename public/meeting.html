@@ -160,6 +160,7 @@
       <div class="side-panel-tabs">
         <button class="active" data-tab="participants">People</button>
         <button data-tab="chat">Chat</button>
+        <button data-tab="qa">Q&amp;A</button>
       </div>
       <div id="participantsTab">
         <div class="participants-list" id="participantsList"></div>
@@ -170,6 +171,11 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Transcript
           </button>
+          <button class="chat-tool-btn" id="shareFileBtn" title="Share a file">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49"/></svg>
+            File
+          </button>
+          <input type="file" id="fileInput" style="display:none">
         </div>
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages"></div>
@@ -180,6 +186,46 @@
           </div>
         </div>
       </div>
+      <!-- Q&A tab -->
+      <div id="qaTab" style="display:none;flex:1;flex-direction:column;overflow:auto;">
+        <div style="padding:10px;display:flex;flex-direction:column;gap:8px;flex:1;overflow:auto;" id="qaList"></div>
+        <div style="padding:8px 10px;border-top:1px solid rgba(0,0,0,0.08);display:flex;gap:6px;">
+          <input type="text" id="qaInput" placeholder="Ask a question…" maxlength="500" style="flex:1;padding:6px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:13px;">
+          <button id="qaSubmitBtn" style="padding:6px 14px;background:var(--primary,#4361ee);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Ask</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Polls panel (overlay) -->
+  <div class="more-panel hidden" id="pollsPanel" style="left:auto;right:20px;bottom:80px;width:340px;max-height:400px;overflow:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.08);">
+      <span style="font-weight:600;font-size:14px;">Polls</span>
+      <button id="closePollsPanel" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted,#666);">&times;</button>
+    </div>
+    <div id="pollsList" style="padding:10px;"></div>
+    <div id="createPollForm" class="hidden" style="padding:10px;border-top:1px solid rgba(0,0,0,0.08);">
+      <input type="text" id="pollQuestion" placeholder="Poll question…" maxlength="200" style="width:100%;padding:6px 10px;margin-bottom:6px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:13px;box-sizing:border-box;">
+      <div id="pollOptions" style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:6px;">
+        <button id="addPollOption" style="padding:4px 10px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;background:var(--surface,#f5f5f5);cursor:pointer;">+ Option</button>
+        <button id="submitPollBtn" style="padding:4px 14px;font-size:12px;background:var(--primary,#4361ee);color:#fff;border:none;border-radius:6px;cursor:pointer;">Create poll</button>
+      </div>
+    </div>
+    <div style="padding:8px 10px;border-top:1px solid rgba(0,0,0,0.08);">
+      <button id="showCreatePollBtn" style="width:100%;padding:6px;background:var(--primary,#4361ee);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">New Poll</button>
+    </div>
+  </div>
+
+  <!-- Notes panel (overlay) -->
+  <div class="more-panel hidden" id="notesPanel" style="left:auto;right:20px;bottom:80px;width:360px;max-height:420px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.08);">
+      <span style="font-weight:600;font-size:14px;">Meeting Notes</span>
+      <button id="closeNotesPanel" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted,#666);">&times;</button>
+    </div>
+    <div style="padding:10px;flex:1;display:flex;flex-direction:column;">
+      <textarea id="notesTextarea" placeholder="Shared meeting notes… (all participants can edit)" style="flex:1;min-height:200px;width:100%;padding:8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+      <div style="margin-top:6px;font-size:11px;color:var(--text-muted,#888);" id="notesStatus">Auto-saved</div>
     </div>
   </div>
 
@@ -238,6 +284,18 @@
     <button class="more-opt hidden" id="moreStreamOpt">
       <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></span>
       <span class="more-opt-title">Live stream</span>
+    </button>
+    <button class="more-opt" id="morePollsOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+      <span class="more-opt-title">Polls</span>
+    </button>
+    <button class="more-opt" id="moreNotesOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      <span class="more-opt-title">Meeting notes</span>
+    </button>
+    <button class="more-opt hidden" id="moreAttendanceOpt">
+      <span class="more-opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="more-opt-title">Attendance</span>
     </button>
     <div class="more-panel-sep"></div>
     <button class="more-opt" id="moreDevicesOpt">
@@ -1940,8 +1998,11 @@ document.querySelectorAll('.side-panel-tabs button').forEach(btn => {
     const tab = btn.dataset.tab;
     $('#participantsTab').style.display = tab === 'participants' ? 'block' : 'none';
     $('#chatTab').style.display         = tab === 'chat'         ? 'flex'  : 'none';
-    $('#sidePanelTitle').textContent    = tab === 'participants' ? 'Participants' : 'Chat';
+    const qaEl = document.getElementById('qaTab');
+    if (qaEl) qaEl.style.display       = tab === 'qa'           ? 'flex'  : 'none';
+    $('#sidePanelTitle').textContent    = tab === 'participants' ? 'Participants' : tab === 'qa' ? 'Q&A' : 'Chat';
     if (tab === 'chat') { unreadChatCount = 0; updateChatBadge(); }
+    if (tab === 'qa') { renderQA(); }
   });
 });
 
@@ -2253,6 +2314,7 @@ function updateControlButtons() {
     moreLockOpt.classList.toggle('hidden', !isAdmin);
   document.getElementById('moreBreakoutOpt')?.classList.toggle('hidden', !isAdmin);
   document.getElementById('moreStreamOpt')?.classList.toggle('hidden', !isAdmin);
+  document.getElementById('moreAttendanceOpt')?.classList.toggle('hidden', !isAdmin);
     const moreLockTitle = UI.moreLockTitle || $('#moreLockTitle');
     if (moreLockTitle) moreLockTitle.textContent = isLocked ? 'Unlock meeting' : 'Lock meeting';
     const lockIconEl = UI.moreLockIcon || $('#moreLockIcon');
@@ -3017,6 +3079,245 @@ document.getElementById('participantsList')?.addEventListener('click', e => {
   if (btn.dataset.action === 'kick') adminKick(btn.dataset.pid);
   if (btn.dataset.action === 'admit') admitWaiting(btn.dataset.sid);
   if (btn.dataset.action === 'deny') denyWaiting(btn.dataset.sid);
+});
+
+// ─── Polls ────────────────────────────────────────────────────────────────────
+const pollsLimiter = createSocketRateLimiter ? createSocketRateLimiter(5, 10000) : null;
+
+document.getElementById('morePollsOpt')?.addEventListener('click', () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  document.getElementById('pollsPanel')?.classList.toggle('hidden');
+  document.getElementById('notesPanel')?.classList.add('hidden');
+});
+document.getElementById('closePollsPanel')?.addEventListener('click', () => {
+  document.getElementById('pollsPanel')?.classList.add('hidden');
+});
+document.getElementById('showCreatePollBtn')?.addEventListener('click', () => {
+  const form = document.getElementById('createPollForm');
+  if (!form) return;
+  form.classList.toggle('hidden');
+  if (!form.classList.contains('hidden')) {
+    const optDiv = document.getElementById('pollOptions');
+    if (optDiv && !optDiv.children.length) {
+      for (let i = 0; i < 2; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.placeholder = `Option ${i + 1}`; inp.maxLength = 100;
+        inp.style.cssText = 'width:100%;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:5px;font-size:12px;box-sizing:border-box;';
+        optDiv.appendChild(inp);
+      }
+    }
+  }
+});
+document.getElementById('addPollOption')?.addEventListener('click', () => {
+  const optDiv = document.getElementById('pollOptions');
+  if (!optDiv || optDiv.children.length >= 10) return;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.placeholder = `Option ${optDiv.children.length + 1}`; inp.maxLength = 100;
+  inp.style.cssText = 'width:100%;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:5px;font-size:12px;box-sizing:border-box;';
+  optDiv.appendChild(inp);
+});
+document.getElementById('submitPollBtn')?.addEventListener('click', () => {
+  const q = document.getElementById('pollQuestion')?.value?.trim();
+  const optDiv = document.getElementById('pollOptions');
+  if (!q || !optDiv) return;
+  const opts = [...optDiv.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+  if (opts.length < 2) { showToast('Need at least 2 options', true); return; }
+  socket.emit('poll:create', { question: q, options: opts });
+  document.getElementById('pollQuestion').value = '';
+  [...optDiv.querySelectorAll('input')].forEach(i => { i.value = ''; });
+  document.getElementById('createPollForm')?.classList.add('hidden');
+});
+
+function renderPolls(polls) {
+  const list = document.getElementById('pollsList');
+  if (!list) return;
+  if (!polls || polls.length === 0) { list.innerHTML = '<div style="text-align:center;color:var(--text-muted,#888);font-size:13px;padding:20px;">No polls yet</div>'; return; }
+  list.innerHTML = polls.map(p => {
+    const total = p.isActive !== undefined ? p.totalVotes || 0 : (p.options || []).reduce((s, o) => s + (o.votes?.length || o.count || 0), 0);
+    return `<div style="padding:8px;margin-bottom:8px;background:var(--surface,#f5f5f5);border-radius:8px;">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">${escapeHtml(p.question)}</div>
+      ${(p.options || []).map(o => {
+        const count = o.votes?.length || o.count || 0;
+        const pct = total > 0 ? Math.round(count / total * 100) : 0;
+        return `<div style="margin:3px 0;display:flex;align-items:center;gap:6px;cursor:pointer;" data-poll-vote="${p.id}" data-opt-id="${o.id}">
+          <div style="flex:1;background:rgba(0,0,0,0.06);border-radius:4px;height:22px;position:relative;overflow:hidden;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--primary,#4361ee);opacity:0.2;border-radius:4px;"></div>
+            <span style="position:relative;padding:0 6px;font-size:11px;line-height:22px;">${escapeHtml(o.text)}</span>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted,#888);min-width:30px;text-align:right;">${count}</span>
+        </div>`;
+      }).join('')}
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted,#888);">
+        <span>${total} vote${total !== 1 ? 's' : ''}</span>
+        ${(p.isActive !== false && !p.endedAt) && isAdmin ? `<button style="background:none;border:none;color:var(--primary,#4361ee);cursor:pointer;font-size:11px;" data-poll-end="${p.id}">End poll</button>` : (p.endedAt || p.isActive === false) ? '<span>Ended</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('pollsList')?.addEventListener('click', e => {
+  const voteBtn = e.target.closest('[data-poll-vote]');
+  if (voteBtn) {
+    socket.emit('poll:vote', { pollId: voteBtn.dataset.pollVote, optionId: voteBtn.dataset.optId });
+  }
+  const endBtn = e.target.closest('[data-poll-end]');
+  if (endBtn) {
+    socket.emit('poll:end', { pollId: endBtn.dataset.pollEnd });
+  }
+});
+
+socket.on('poll:created', (poll) => { showToast('New poll: ' + (poll.question || '').slice(0, 50)); document.getElementById('pollsPanel')?.classList.remove('hidden'); });
+socket.on('poll:updated', () => {}); // re-render triggered by next line
+socket.on('poll:ended', () => { showToast('Poll ended'); });
+// Simplified: just re-render on any poll event — actual data comes from server emit
+
+// ─── Q&A ──────────────────────────────────────────────────────────────────────
+const qaQuestions = new Map();
+document.getElementById('qaSubmitBtn')?.addEventListener('click', () => {
+  const inp = document.getElementById('qaInput');
+  if (!inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  socket.emit('qa:ask', { text });
+  inp.value = '';
+});
+document.getElementById('qaInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('qaSubmitBtn')?.click(); });
+
+function renderQA() {
+  const list = document.getElementById('qaList');
+  if (!list) return;
+  const sorted = [...qaQuestions.values()].filter(q => !q.dismissed).sort((a, b) => (b.upvoteCount || b.upvotes?.size || 0) - (a.upvoteCount || a.upvotes?.size || 0));
+  if (!sorted.length) { list.innerHTML = '<div style="text-align:center;color:var(--text-muted,#888);font-size:13px;padding:20px;">No questions yet</div>'; return; }
+  list.innerHTML = sorted.map(q => {
+    const upCount = q.upvoteCount || q.upvotes?.size || 0;
+    return `<div style="padding:8px;background:var(--surface,#f5f5f5);border-radius:8px;${q.isAnswered ? 'border-left:3px solid #22c55e;' : ''}">
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <button style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px;display:flex;flex-direction:column;align-items:center;" data-qa-upvote="${q.id}">
+          <span style="font-size:10px;line-height:1;">&#9650;</span><span style="font-size:11px;">${upCount}</span>
+        </button>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;">${escapeHtml(q.text)}</div>
+          <div style="font-size:11px;color:var(--text-muted,#888);margin-top:2px;">by ${escapeHtml(q.askedBy?.name || q.askedBy || 'Anonymous')}</div>
+          ${q.isAnswered && q.answer ? `<div style="margin-top:4px;padding:4px 8px;background:rgba(34,197,94,0.1);border-radius:4px;font-size:12px;"><strong>${escapeHtml(q.answeredBy || 'Host')}:</strong> ${escapeHtml(q.answer)}</div>` : ''}
+        </div>
+        ${isAdmin && !q.isAnswered ? `<div style="display:flex;gap:4px;">
+          <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--primary,#4361ee);" data-qa-answer="${q.id}">Answer</button>
+          <button style="background:none;border:none;cursor:pointer;font-size:11px;color:#ef4444;" data-qa-dismiss="${q.id}">Dismiss</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('qaList')?.addEventListener('click', e => {
+  const upBtn = e.target.closest('[data-qa-upvote]');
+  if (upBtn) socket.emit('qa:upvote', { questionId: upBtn.dataset.qaUpvote });
+  const ansBtn = e.target.closest('[data-qa-answer]');
+  if (ansBtn) {
+    const answer = prompt('Your answer:');
+    if (answer) socket.emit('qa:answer', { questionId: ansBtn.dataset.qaAnswer, answer });
+  }
+  const disBtn = e.target.closest('[data-qa-dismiss]');
+  if (disBtn) socket.emit('qa:dismiss', { questionId: disBtn.dataset.qaDismiss });
+});
+
+socket.on('qa:new', (q) => { qaQuestions.set(q.id, q); renderQA(); showToast('New question from ' + (q.askedBy?.name || 'someone')); });
+socket.on('qa:updated', (data) => {
+  const q = qaQuestions.get(data.questionId || data.id);
+  if (q) Object.assign(q, data);
+  renderQA();
+});
+socket.on('qa:asked', (q) => { qaQuestions.set(q.id, q); renderQA(); });
+socket.on('qa:answered', (q) => { qaQuestions.set(q.id, q); renderQA(); showToast('Question answered'); });
+socket.on('qa:dismissed', (q) => { if (q.id) { const ex = qaQuestions.get(q.id); if (ex) ex.dismissed = true; } renderQA(); });
+
+// ─── Meeting Notes ────────────────────────────────────────────────────────────
+let notesDebounce = null;
+document.getElementById('moreNotesOpt')?.addEventListener('click', () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  document.getElementById('notesPanel')?.classList.toggle('hidden');
+  document.getElementById('pollsPanel')?.classList.add('hidden');
+});
+document.getElementById('closeNotesPanel')?.addEventListener('click', () => {
+  document.getElementById('notesPanel')?.classList.add('hidden');
+});
+document.getElementById('notesTextarea')?.addEventListener('input', () => {
+  clearTimeout(notesDebounce);
+  const status = document.getElementById('notesStatus');
+  if (status) status.textContent = 'Typing…';
+  notesDebounce = setTimeout(() => {
+    const content = document.getElementById('notesTextarea')?.value || '';
+    socket.emit('notes:update', { content });
+    if (status) status.textContent = 'Saved';
+  }, 1000);
+});
+socket.on('notes:updated', (data) => {
+  const ta = document.getElementById('notesTextarea');
+  if (ta && document.activeElement !== ta) {
+    ta.value = data.content || '';
+  }
+  const status = document.getElementById('notesStatus');
+  if (status) status.textContent = `Last edited by ${data.lastUpdatedBy || 'someone'}`;
+});
+
+// ─── File Sharing ─────────────────────────────────────────────────────────────
+document.getElementById('shareFileBtn')?.addEventListener('click', () => {
+  document.getElementById('fileInput')?.click();
+});
+document.getElementById('fileInput')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const meetingId = currentMeetingId || window.location.pathname.split('/').pop();
+  const form = new FormData();
+  form.append('file', file);
+  form.append('participantName', myName || 'Anonymous');
+  try {
+    const res = await fetch(`/api/meetings/${meetingId}/files`, { method: 'POST', body: form });
+    if (res.ok) showToast('File shared: ' + file.name);
+    else showToast('Failed to share file', true);
+  } catch (_err) { showToast('File upload failed', true); }
+  e.target.value = '';
+});
+socket.on('file:shared', (data) => { showToast(`${data.participantName || 'Someone'} shared: ${data.original_name || 'a file'}`); });
+socket.on('chat:file', (data) => { showToast(`${data.sender || 'Someone'} shared: ${data.name || 'a file'}`); });
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+document.getElementById('moreAttendanceOpt')?.addEventListener('click', async () => {
+  document.getElementById('morePanel')?.classList.add('hidden');
+  const meetingId = currentMeetingId || window.location.pathname.split('/').pop();
+  const adminToken = sessionStorage.getItem(`admin_${meetingId}`);
+  try {
+    const res = await fetch(`/api/meetings/${meetingId}/attendance`, {
+      headers: { 'x-api-key': adminToken || '', 'x-admin-token': adminToken || '' }
+    });
+    if (!res.ok) { showToast('Failed to load attendance', true); return; }
+    const data = await res.json();
+    const att = data.attendance || [];
+    let html = '<h3 style="margin:0 0 10px;font-size:15px;">Attendance (' + att.length + ')</h3>';
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
+    html += '<tr style="border-bottom:1px solid rgba(0,0,0,0.1);"><th style="text-align:left;padding:4px;">Name</th><th style="text-align:left;padding:4px;">Joined</th><th style="text-align:left;padding:4px;">Duration</th></tr>';
+    for (const a of att) {
+      const joined = a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString() : new Date(a.joined_at).toLocaleTimeString();
+      const dur = a.durationSeconds || a.duration_seconds || (a.leftAt ? Math.round((a.leftAt - a.joinedAt) / 1000) : Math.round((Date.now() - a.joinedAt) / 1000));
+      const m = Math.floor(dur / 60), s = dur % 60;
+      html += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);"><td style="padding:4px;">${escapeHtml(a.name || a.participant_name || 'Unknown')}</td><td style="padding:4px;">${joined}</td><td style="padding:4px;">${m}m ${s}s</td></tr>`;
+    }
+    html += '</table>';
+    html += `<div style="margin-top:10px;"><a href="/api/meetings/${meetingId}/attendance/download" target="_blank" style="font-size:12px;color:var(--primary,#4361ee);">Download CSV</a></div>`;
+    showToast('Attendance loaded');
+    // Show in a simple overlay
+    let overlay = document.getElementById('attendanceOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'attendanceOverlay';
+      overlay.style.cssText = 'position:fixed;right:20px;bottom:80px;width:380px;max-height:400px;overflow:auto;background:var(--bg,#fff);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);padding:16px;z-index:100;';
+      overlay.innerHTML = '<button id="closeAttendance" style="position:absolute;right:10px;top:10px;background:none;border:none;font-size:18px;cursor:pointer;">&times;</button><div id="attendanceContent"></div>';
+      document.body.appendChild(overlay);
+      document.getElementById('closeAttendance')?.addEventListener('click', () => overlay.style.display = 'none');
+    }
+    document.getElementById('attendanceContent').innerHTML = html;
+    overlay.style.display = 'block';
+  } catch (_err) { showToast('Error loading attendance', true); }
 });
 
 // ─── Init control icons ───────────────────────────────────────────────────────

@@ -305,6 +305,23 @@ const tools = [
       required: ['meetingId'],
     },
   },
+  // Polls
+  { name: 'create_poll', description: 'Create a poll in a meeting (admin).', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' }, adminToken: { type: 'string' }, question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } }, required: ['meetingId', 'adminToken', 'question', 'options'] } },
+  { name: 'get_polls', description: 'List polls in a meeting.', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' } }, required: ['meetingId'] } },
+  { name: 'end_poll', description: 'End a poll.', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' }, adminToken: { type: 'string' }, pollId: { type: 'string' } }, required: ['meetingId', 'adminToken', 'pollId'] } },
+  // Q&A
+  { name: 'ask_question', description: 'Submit a Q&A question.', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' }, text: { type: 'string' }, participantName: { type: 'string' } }, required: ['meetingId', 'text'] } },
+  { name: 'get_questions', description: 'List Q&A questions.', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' } }, required: ['meetingId'] } },
+  { name: 'answer_question', description: 'Mark a question answered (admin).', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' }, adminToken: { type: 'string' }, questionId: { type: 'string' }, answer: { type: 'string' } }, required: ['meetingId', 'adminToken', 'questionId'] } },
+  // Notes
+  { name: 'get_meeting_notes', description: 'Get meeting notes.', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' } }, required: ['meetingId'] } },
+  { name: 'update_meeting_notes', description: 'Update meeting notes (admin).', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' }, adminToken: { type: 'string' }, content: { type: 'string' } }, required: ['meetingId', 'adminToken', 'content'] } },
+  // Attendance
+  { name: 'get_attendance', description: 'Get attendance report.', inputSchema: { type: 'object', properties: { meetingId: { type: 'string' }, adminToken: { type: 'string' } }, required: ['meetingId', 'adminToken'] } },
+  // Templates & Recurring
+  { name: 'list_templates', description: 'List meeting templates.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'create_recurring_meeting', description: 'Create a recurring meeting.', inputSchema: { type: 'object', properties: { title: { type: 'string' }, recurrence: { type: 'string' }, dayOfWeek: { type: 'number' }, timeUtc: { type: 'string' } }, required: ['title', 'recurrence', 'timeUtc'] } },
+  { name: 'list_recurring_meetings', description: 'List recurring meetings.', inputSchema: { type: 'object', properties: {} } },
 ];
 
 // ─── Tool handler ────────────────────────────────────────────────────────────
@@ -397,6 +414,24 @@ async function handleToolCall(name, args) {
       activeSessions.delete(args.meetingId);
       return { left: true };
     }
+
+    // ── Polls ──
+    case 'create_poll': return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/polls`, { question: args.question, options: args.options }, { 'x-admin-token': args.adminToken });
+    case 'get_polls': return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/polls`);
+    case 'end_poll': return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/polls/${encodeURIComponent(args.pollId)}/end`, null, { 'x-admin-token': args.adminToken });
+    // ── Q&A ──
+    case 'ask_question': return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/questions`, { text: args.text, participantName: args.participantName });
+    case 'get_questions': return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/questions`);
+    case 'answer_question': return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/questions/${encodeURIComponent(args.questionId)}/answer`, { answer: args.answer }, { 'x-admin-token': args.adminToken });
+    // ── Notes ──
+    case 'get_meeting_notes': return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/notes`);
+    case 'update_meeting_notes': return await apiRequest('PUT', `/api/meetings/${encodeURIComponent(args.meetingId)}/notes`, { content: args.content }, { 'x-admin-token': args.adminToken });
+    // ── Attendance ──
+    case 'get_attendance': return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/attendance`, null, { 'x-admin-token': args.adminToken });
+    // ── Templates & Recurring ──
+    case 'list_templates': return await apiRequest('GET', '/api/templates');
+    case 'create_recurring_meeting': return await apiRequest('POST', '/api/meetings/recurring', { title: args.title, recurrence: args.recurrence, dayOfWeek: args.dayOfWeek, timeUtc: args.timeUtc });
+    case 'list_recurring_meetings': return await apiRequest('GET', '/api/meetings/recurring');
 
     default:
       throw new Error(`Unknown tool: ${name}`);

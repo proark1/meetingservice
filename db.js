@@ -239,6 +239,86 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_recordings_meeting ON recordings(meeting_id);
     `);
 
+    // ─── Meeting files, notes, attendance, templates, recurring ──────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meeting_files (
+        id              SERIAL PRIMARY KEY,
+        meeting_id      VARCHAR(50) NOT NULL,
+        participant_name VARCHAR(60),
+        filename        VARCHAR(255) NOT NULL,
+        original_name   VARCHAR(255) NOT NULL,
+        size_bytes      BIGINT NOT NULL,
+        mime_type       VARCHAR(100),
+        storage_path    VARCHAR(500) NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_mfiles_meeting ON meeting_files(meeting_id);
+
+      CREATE TABLE IF NOT EXISTS meeting_notes (
+        id         SERIAL PRIMARY KEY,
+        meeting_id VARCHAR(50) UNIQUE NOT NULL,
+        content    TEXT NOT NULL DEFAULT '',
+        updated_by VARCHAR(60),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS meeting_attendance (
+        id                SERIAL PRIMARY KEY,
+        meeting_id        VARCHAR(50) NOT NULL,
+        participant_id    VARCHAR(50) NOT NULL,
+        participant_name  VARCHAR(60) NOT NULL,
+        joined_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        left_at           TIMESTAMPTZ,
+        duration_seconds  INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_mattend_meeting ON meeting_attendance(meeting_id);
+
+      CREATE TABLE IF NOT EXISTS meeting_templates (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        name        VARCHAR(100) NOT NULL,
+        description VARCHAR(500),
+        settings    JSONB NOT NULL DEFAULT '{}',
+        is_default  BOOLEAN DEFAULT FALSE,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_mtpl_user ON meeting_templates(user_id);
+
+      CREATE TABLE IF NOT EXISTS recurring_meetings (
+        id               SERIAL PRIMARY KEY,
+        user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        company_id       INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+        title            VARCHAR(100) NOT NULL,
+        recurrence       VARCHAR(20) NOT NULL,
+        day_of_week      INTEGER,
+        day_of_month     INTEGER,
+        time_utc         TIME NOT NULL,
+        timezone         VARCHAR(50) DEFAULT 'UTC',
+        settings         JSONB NOT NULL DEFAULT '{}',
+        meeting_id       VARCHAR(50) NOT NULL,
+        admin_token      VARCHAR(64) NOT NULL,
+        is_active        BOOLEAN DEFAULT TRUE,
+        next_occurrence   TIMESTAMPTZ,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_recmtg_user ON recurring_meetings(user_id);
+      CREATE INDEX IF NOT EXISTS idx_recmtg_next ON recurring_meetings(next_occurrence);
+    `);
+
+    // Seed default meeting templates (idempotent)
+    const defaultTemplates = [
+      { name: 'Quick Standup', description: 'Short daily standup meeting', settings: { muteOnJoin: false, videoOffOnJoin: false, maxParticipants: 15, waitingRoom: false } },
+      { name: 'All Hands', description: 'Large team meeting with mute on join', settings: { muteOnJoin: true, videoOffOnJoin: true, maxParticipants: 100, waitingRoom: true } },
+      { name: 'Interview', description: 'Waiting room enabled for candidate screening', settings: { muteOnJoin: false, videoOffOnJoin: false, maxParticipants: 5, waitingRoom: true } },
+    ];
+    for (const tpl of defaultTemplates) {
+      await client.query(
+        `INSERT INTO meeting_templates (user_id, name, description, settings, is_default)
+         SELECT NULL, $1, $2, $3, TRUE WHERE NOT EXISTS (SELECT 1 FROM meeting_templates WHERE name = $1 AND is_default = TRUE)`,
+        [tpl.name, tpl.description, JSON.stringify(tpl.settings)]
+      );
+    }
+
     // ─── Audit log ───────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_log (
@@ -348,6 +428,10 @@ async function initDB() {
       ['free_tier_max_duration_minutes',       '45'],
       ['captions_enabled',                     'true'],
       ['guest_meetings_enabled',               'true'],
+      ['polls_enabled',                        'true'],
+      ['qa_enabled',                           'true'],
+      ['file_sharing_enabled',                 'true'],
+      ['meeting_notes_enabled',                'true'],
     ];
     for (const [key, value] of defaults) {
       await client.query(
