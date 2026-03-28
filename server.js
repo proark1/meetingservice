@@ -16,6 +16,7 @@ const { sendEmail, passwordResetEmail, lowBalanceEmail, welcomeEmail, passwordCh
 const crypto = require('crypto');
 const multer = require('multer');
 const fs     = require('fs');
+const dns    = require('dns').promises;
 
 // ─── Structured logging ─────────────────────────────────────────────────────
 function log(level, msg, meta = {}) {
@@ -228,13 +229,13 @@ app.post('/api/billing/stripe/webhook', express.raw({ type: 'application/json' }
     const { userId, companyId, amountUsd } = session.metadata;
     const amt = parseFloat(amountUsd);
     try {
-      // Atomic idempotency: only mark completed if still pending (prevents double-credit)
-      const { rowCount } = await pool.query(
-        `UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1 AND status = 'pending'`, [session.id]
+      // Atomic idempotency: only mark completed if still pending (prevents double-credit on webhook retry)
+      const { rows: updated } = await pool.query(
+        `UPDATE stripe_topups SET status = 'completed' WHERE session_id = $1 AND status = 'pending' RETURNING id`,
+        [session.id]
       );
-      if (rowCount === 0) {
-        // Already completed or doesn't exist — skip
-        return res.json({ received: true });
+      if (!updated.length) {
+        return res.json({ received: true }); // already completed or missing
       }
       if (companyId) {
         await pool.query(`UPDATE companies SET credits_usd = credits_usd + $1 WHERE id = $2`, [amt, companyId]);
@@ -560,17 +561,22 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/auth/me', requireUserSession, async (req, res) => {
-  const { rows } = await pool.query(
-    `SELECT u.id, u.email, u.is_admin, u.account_type, u.company_id, u.credits_usd, u.created_at,
-            c.name AS company_name, c.credits_usd AS company_credits, c.invite_code, c.plan
-     FROM users u
-     LEFT JOIN companies c ON c.id = u.company_id
-     WHERE u.id = $1`, [req.session.userId]
-  );
-  if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
-  const u = rows[0];
-  req.session.companyId = u.company_id;
-  res.json(u);
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.is_admin, u.account_type, u.company_id, u.credits_usd, u.created_at,
+              c.name AS company_name, c.credits_usd AS company_credits, c.invite_code, c.plan
+       FROM users u
+       LEFT JOIN companies c ON c.id = u.company_id
+       WHERE u.id = $1`, [req.session.userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const u = rows[0];
+    req.session.companyId = u.company_id;
+    res.json(u);
+  } catch (err) {
+    console.error('Auth me error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // ─── Password Reset ───────────────────────────────────────────────────────────
@@ -763,6 +769,7 @@ app.delete('/admin/api/meetings/:meetingId', requireAdminSession, (req, res) => 
   if (!m) return res.status(404).json({ error: 'Meeting not found' });
   io.to(m.id).emit('meeting:ended', { reason: 'Meeting ended by administrator' });
   meetings.delete(m.id);
+  chargeMeeting(m).catch(err => console.error('Failed to charge meeting on admin delete:', m.id, err));
   res.json({ message: 'Meeting ended' });
 });
 
@@ -840,11 +847,15 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
   const booleanSettings = new Set([
     'recording_enabled','screen_share_enabled','blur_enabled',
     'registration_enabled','stripe_enabled','crypto_enabled',
+    'captions_enabled','guest_meetings_enabled',
   ]);
   const numericSettings = new Set([
     'max_participants_default','meeting_auto_delete_minutes',
   ]);
-  const allowed = new Set([...booleanSettings, ...numericSettings]);
+  const decimalSettings = new Set([
+    'meeting_cost_per_participant_minute','low_balance_threshold_usd',
+  ]);
+  const allowed = new Set([...booleanSettings, ...numericSettings, ...decimalSettings]);
   const entries = Object.entries(req.body).filter(([k]) => allowed.has(k));
   if (entries.length === 0) return res.status(400).json({ error: 'No valid settings provided' });
 
@@ -856,6 +867,10 @@ app.patch('/admin/api/settings', requireAdminSession, async (req, res) => {
       if (safeValue !== 'true' && safeValue !== 'false') return res.status(400).json({ error: `${key} must be true or false` });
     } else if (numericSettings.has(key)) {
       const num = Number(safeValue);
+      if (!Number.isFinite(num) || num < 0) return res.status(400).json({ error: `${key} must be a non-negative number` });
+      safeValue = String(num);
+    } else if (decimalSettings.has(key)) {
+      const num = parseFloat(safeValue);
       if (!Number.isFinite(num) || num < 0) return res.status(400).json({ error: `${key} must be a non-negative number` });
       safeValue = String(num);
     }
@@ -1289,12 +1304,12 @@ function calculateMeetingCost(durationMinutes, peakParticipants, rate) {
 async function chargeMeeting(meeting) {
   const client = await pool.connect();
   try {
-    if (!meeting.logId) { client.release(); return; }
+    if (!meeting.logId) return;
     const mins = (Date.now() - meeting.createdAt) / 60000;
     const s = await getSettings();
     const rate = parseFloat(s.meeting_cost_per_participant_minute) || 0.01;
     const cost = calculateMeetingCost(mins, meeting.peakParticipants || 1, rate);
-    if (cost < 0.0001) { client.release(); return; }
+    if (cost < 0.0001) return;
 
     // Use cached owner IDs (set when meeting was created) — falls back to DB
     let user_id = meeting.ownerId, company_id = meeting.ownerCompanyId;
@@ -1302,7 +1317,7 @@ async function chargeMeeting(meeting) {
       const { rows } = await client.query(
         `SELECT user_id, company_id FROM meetings_log WHERE id = $1`, [meeting.logId]
       );
-      if (!rows.length) { client.release(); return; }
+      if (!rows.length) return;
       user_id = rows[0].user_id; company_id = rows[0].company_id;
     }
 
@@ -1678,12 +1693,16 @@ app.delete('/api/meetings/:meetingId', authApi, (req, res) => {
 });
 
 app.patch('/api/meetings/:meetingId/settings', authApi, findMeeting, requireMeetingAdmin, (req, res) => {
-  const allowed = ['muteOnJoin','videoOffOnJoin','maxParticipants','locked','title'];
-  for (const key of allowed) {
-    if (req.body[key] !== undefined) {
-      if (key === 'title') req.meeting.title = req.body[key];
-      else req.meeting.settings[key] = req.body[key];
-    }
+  const boolKeys = ['muteOnJoin','videoOffOnJoin','locked'];
+  for (const key of boolKeys) {
+    if (req.body[key] !== undefined) req.meeting.settings[key] = !!req.body[key];
+  }
+  if (req.body.maxParticipants !== undefined) {
+    const n = parseInt(req.body.maxParticipants, 10);
+    if (Number.isFinite(n) && n >= 1 && n <= 100) req.meeting.settings.maxParticipants = n;
+  }
+  if (req.body.title !== undefined) {
+    req.meeting.title = String(req.body.title || '').trim().slice(0, 100);
   }
   io.to(req.meeting.id).emit('meeting:settings-updated', req.meeting.settings);
   res.json({ settings: req.meeting.settings, title: req.meeting.title });
@@ -2041,8 +2060,26 @@ function authApiOrSession(req, res, next) {
   return authApi(req, res, next);
 }
 
+// ─── Meeting ownership check (for transcripts/recordings) ───────────────────
+async function requireMeetingOwnership(req, res, next) {
+  const userId = req.apiUser?.userId || req.session?.userId;
+  const companyId = req.apiUser?.companyId || req.session?.companyId;
+  if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM meetings_log WHERE meeting_id = $1 AND (user_id = $2 OR company_id = $3) LIMIT 1',
+      [req.params.meetingId, userId, companyId || null]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'Access denied' });
+    next();
+  } catch (err) {
+    console.error('Meeting ownership check error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 // ─── Chat transcript ─────────────────────────────────────────────────────────
-app.get('/api/meetings/:meetingId/transcript', authApiOrSession, async (req, res) => {
+app.get('/api/meetings/:meetingId/transcript', authApiOrSession, requireMeetingOwnership, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
@@ -2055,7 +2092,7 @@ app.get('/api/meetings/:meetingId/transcript', authApiOrSession, async (req, res
   }
 });
 
-app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async (req, res) => {
+app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, requireMeetingOwnership, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT participant_name, text, created_at FROM chat_messages WHERE meeting_id = $1 ORDER BY created_at ASC',
@@ -2067,7 +2104,8 @@ app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async 
       return `[${ts}] ${r.participant_name}: ${r.text}`;
     });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="transcript-${req.params.meetingId}.txt"`);
+    const safeMeetingId = req.params.meetingId.replace(/[^\w\-]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="transcript-${safeMeetingId}.txt"`);
     res.send(lines.join('\n'));
   } catch (err) {
     console.error('Transcript download error:', err);
@@ -2076,7 +2114,7 @@ app.get('/api/meetings/:meetingId/transcript/download', authApiOrSession, async 
 });
 
 // ─── Recording upload & download ─────────────────────────────────────────────
-app.post('/api/meetings/:meetingId/recordings', authApiOrSession, (req, res) => {
+app.post('/api/meetings/:meetingId/recordings', authApiOrSession, requireMeetingOwnership, (req, res) => {
   upload.single('recording')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -2095,7 +2133,7 @@ app.post('/api/meetings/:meetingId/recordings', authApiOrSession, (req, res) => 
   });
 });
 
-app.get('/api/meetings/:meetingId/recordings', authApiOrSession, async (req, res) => {
+app.get('/api/meetings/:meetingId/recordings', authApiOrSession, requireMeetingOwnership, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT id, filename, size_bytes, created_at FROM recordings WHERE meeting_id = $1 ORDER BY created_at DESC',
@@ -2111,10 +2149,11 @@ app.get('/api/recordings/:id/download', authApiOrSession, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT filename, storage_path FROM recordings WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
-    const filePath = path.join(UPLOADS_DIR, rows[0].storage_path);
-    if (!path.resolve(filePath).startsWith(path.resolve(UPLOADS_DIR))) return res.status(403).json({ error: 'Invalid path' });
+    const filePath = path.resolve(path.join(UPLOADS_DIR, rows[0].storage_path));
+    if (!filePath.startsWith(path.resolve(UPLOADS_DIR))) return res.status(403).json({ error: 'Invalid path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
-    res.setHeader('Content-Disposition', `attachment; filename="${rows[0].filename}"`);
+    const safeFilename = rows[0].filename.replace(/[^\w.\-]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
     res.sendFile(filePath);
   } catch (err) {
     res.status(500).json({ error: 'Failed to download recording' });
@@ -2135,7 +2174,7 @@ app.post('/api/webhooks', requireUserSession, async (req, res) => {
   if (!url) return res.status(400).json({ error: 'url required' });
   let parsedUrl;
   try { parsedUrl = new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
-  // Block SSRF: reject private/loopback/link-local hostnames
+  // Block SSRF: reject private/loopback/link-local hostnames + DNS resolution check
   const host = parsedUrl.hostname.toLowerCase();
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0' ||
       host.endsWith('.local') || host.endsWith('.internal') ||
@@ -2143,6 +2182,19 @@ app.post('/api/webhooks', requireUserSession, async (req, res) => {
       host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
     return res.status(400).json({ error: 'Webhook URL must not point to private/internal addresses' });
   }
+  // Resolve DNS and check resolved IPs against private ranges (prevents DNS rebinding)
+  try {
+    const addrs = await dns.resolve4(host).catch(() => []);
+    const addrs6 = await dns.resolve6(host).catch(() => []);
+    const allAddrs = [...addrs, ...addrs6];
+    for (const ip of allAddrs) {
+      if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
+          /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.)/.test(ip) ||
+          ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe80') || ip.startsWith('::ffff:127') || ip.startsWith('::ffff:10.') || ip.startsWith('::ffff:192.168.')) {
+        return res.status(400).json({ error: 'Webhook URL resolves to a private/internal address' });
+      }
+    }
+  } catch (_dnsErr) { /* allow if DNS resolution fails — will fail on delivery anyway */ }
   if (!['https:', 'http:'].includes(parsedUrl.protocol)) {
     return res.status(400).json({ error: 'Webhook URL must use http or https' });
   }
@@ -2559,7 +2611,12 @@ io.on('connection', (socket) => {
       return socket.emit('error', { message: 'Meeting not found' });
     }
 
-    if (meeting.settings.locked && !(isAdmin && adminToken === meeting.adminToken)) {
+    const tokenMatch = (() => {
+      const provided = Buffer.from(String(adminToken || ''));
+      const expected = Buffer.from(String(meeting.adminToken || ''));
+      return provided.length > 0 && provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
+    })();
+    if (meeting.settings.locked && !(isAdmin && tokenMatch)) {
       return socket.emit('error', { message: 'Meeting is locked' });
     }
     if (meeting.participants.size >= meeting.settings.maxParticipants) {
@@ -2575,7 +2632,7 @@ io.on('connection', (socket) => {
       isVideoOff:    meeting.settings.videoOffOnJoin,
       isScreenSharing: false,
       isHandRaised:  false,
-      isAdmin:       isAdmin && adminToken === meeting.adminToken,
+      isAdmin:       isAdmin && tokenMatch,
       joinedAt:      Date.now(),
     };
 
@@ -2823,11 +2880,11 @@ io.on('connection', (socket) => {
     trackEvent(currentUserId, currentCompanyId, 'feature.chat_reaction', { emoji: safeEmoji });
   });
 
-  socket.on('captions:update', ({ pid, text, final }) => {
+  socket.on('captions:update', ({ text, final }) => {
     if (!captionLimiter.check(socket.id)) return;
     if (!currentMeetingId || typeof text !== 'string') return;
     socket.to(currentMeetingId).emit('captions:update', {
-      pid, text: text.slice(0, 300), final: !!final,
+      pid: currentParticipantId, text: text.slice(0, 300), final: !!final,
     });
     trackEvent(currentUserId, currentCompanyId, 'feature.captions', {});
   });

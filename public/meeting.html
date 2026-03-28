@@ -23,23 +23,18 @@
     </div>
     <h2 style="font-size:20px;font-weight:800;margin-bottom:8px;">Waiting to be admitted</h2>
     <p style="font-size:14px;color:#64748b;margin-bottom:0;">Please wait — the host will admit you shortly.</p>
-    <div style="margin-top:20px;display:flex;justify-content:center;gap:6px;">
-      <span style="width:8px;height:8px;border-radius:50%;background:#1C2340;animation:dot1 1.4s infinite;"></span>
-      <span style="width:8px;height:8px;border-radius:50%;background:#1C2340;animation:dot2 1.4s infinite;"></span>
-      <span style="width:8px;height:8px;border-radius:50%;background:#1C2340;animation:dot3 1.4s infinite;"></span>
+    <div style="margin-top:24px;display:flex;justify-content:center;align-items:center;gap:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#4B6BFB,#1C2340);animation:dot-bounce 1.4s ease-in-out infinite;"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#4B6BFB,#1C2340);animation:dot-bounce 1.4s ease-in-out 0.2s infinite;"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#4B6BFB,#1C2340);animation:dot-bounce 1.4s ease-in-out 0.4s infinite;"></span>
     </div>
-    <style>
-      @keyframes dot1{0%,80%,100%{opacity:.2}40%{opacity:1}}
-      @keyframes dot2{0%,20%,100%{opacity:.2}60%{opacity:1}}
-      @keyframes dot3{0%,40%,100%{opacity:.2}80%{opacity:1}}
-    </style>
     <a href="/" style="display:inline-block;text-decoration:none;margin-top:24px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Leave</a>
   </div>
 </div>
 
 <!-- ─── Recording consent banner ───────────────────────────────────────────── -->
 <div id="recordingConsentBanner" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(15,23,42,0.92);color:white;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);">
-  <span style="font-size:16px;">⚠️</span>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
   <span id="recordingConsentText">This meeting is being recorded.</span>
 </div>
 
@@ -139,9 +134,11 @@
     <!-- Empty state (shown when alone) -->
     <div class="empty-state hidden" id="emptyState">
       <div class="empty-state-inner">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);margin-bottom:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <p style="font-size:16px;font-weight:600;margin-bottom:6px;">Waiting for others…</p>
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Share the link below to invite participants</p>
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(75,107,251,0.12),rgba(75,107,251,0.04));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#4B6BFB;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <p style="font-size:17px;font-weight:700;margin-bottom:6px;color:var(--text-primary);">Waiting for others to join...</p>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Share the meeting link to invite participants</p>
         <button class="btn-copy" id="emptyInviteBtn">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           Copy invite link
@@ -787,7 +784,7 @@ function _getCachedTile(pid) {
 }
 function _invalidateTileCache() { for (const k in _tileCache) delete _tileCache[k]; }
 
-setInterval(() => {
+const speakDetectInterval = setInterval(() => {
   for (const [pid, { analyser, data }] of Object.entries(speakAnalysers)) {
     analyser.getByteFrequencyData(data);
     // Fast average: sample every 4th value instead of all 128
@@ -1206,14 +1203,14 @@ $('#screenBtn').addEventListener('click', async () => {
     const screenVideoTrack = screenStream.getVideoTracks()[0];
     const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
 
-    for (const pid of Object.keys(peers)) {
-      const vs = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
+    await Promise.allSettled(Object.keys(peers).map(async pid => {
+      const vs = peers[pid]?.pc.getSenders().find(s => s.track?.kind === 'video');
       if (vs) await vs.replaceTrack(screenVideoTrack);
       if (screenAudioTrack) {
-        const as = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
+        const as = peers[pid]?.pc.getSenders().find(s => s.track?.kind === 'audio');
         if (as) { await as.replaceTrack(screenAudioTrack); peers[pid].screenAudioSender = as; }
       }
-    }
+    }));
     screenVideoTrack.onended = () => stopScreenShare();
     isScreenSharing = true;
     if (participants[myParticipantId]) participants[myParticipantId].isScreenSharing = true;
@@ -1231,10 +1228,10 @@ async function stopScreenShare() {
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
     const micTrack = localStream.getAudioTracks()[0];
-    for (const pid of Object.keys(peers)) {
+    await Promise.allSettled(Object.keys(peers).map(async pid => {
+      if (!peers[pid]) return;
       if (camTrack) {
         const vs = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-        // Restore blur track if blur is still active, otherwise restore raw camera
         const restoreTrack = (isBlurOn && blurStream) ? (blurStream.getVideoTracks()[0] || camTrack) : camTrack;
         if (vs) await vs.replaceTrack(restoreTrack);
       }
@@ -1243,7 +1240,7 @@ async function stopScreenShare() {
         if (as) await as.replaceTrack(micTrack);
       }
       peers[pid].screenAudioSender = null;
-    }
+    }));
   }
   isScreenSharing = false;
   if (participants[myParticipantId]) participants[myParticipantId].isScreenSharing = false;
@@ -1491,6 +1488,7 @@ async function startRecording() {
     showToast('Recording failed: ' + (err.message || err), 'error');
     if (recAudioCtx) { recAudioCtx.close(); recAudioCtx = null; }
     if (recFrameId) { cancelAnimationFrame(recFrameId); recFrameId = null; }
+    if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
     isRecording = false;
   }
 }
@@ -1519,7 +1517,7 @@ function removeRecAudioSource(pid) {
 }
 
 // ─── Background blur (MediaPipe SelfieSegmentation) ───────────────────────────
-function startBlur() {
+async function startBlur() {
   if (!localStream || !localStream.getVideoTracks()[0]) { showToast('Camera required for background effects', 'error'); return; }
   const track = localStream.getVideoTracks()[0];
   const settings = track.getSettings();
@@ -1624,7 +1622,7 @@ function startBlur() {
   blurStream = blurCanvas.captureStream(24);
   const blurTrack = blurStream.getVideoTracks()[0];
   // Use Promise.allSettled so all peers get the track replacement, errors are handled
-  Promise.allSettled(Object.keys(peers).map(pid => {
+  await Promise.allSettled(Object.keys(peers).map(pid => {
     const peer = peers[pid];
     if (!peer) return Promise.resolve();
     const s = peer.pc.getSenders().find(s => s.track?.kind === 'video');
@@ -1662,17 +1660,18 @@ async function setBgMode(mode) {
   } else {
     if (wasActive) await stopBlur(); // stop old pipeline before starting new one
     isBlurOn = true;
-    startBlur();
+    await startBlur();
   }
   updateControlButtons();
 }
 
 // ─── Sounds ──────────────────────────────────────────────────────────────────
+let _soundCtx = null;
 function playSound(type) {
   try {
-    const ctx = new AudioContext();
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
+    if (!_soundCtx || _soundCtx.state === 'closed') _soundCtx = new AudioContext();
+    const ctx = _soundCtx;
+    if (ctx.state === 'suspended') ctx.resume();
     const freqs = type === 'join' ? [[523, 0, 0.08], [659, 0.09, 0.18]] : [[659, 0, 0.07], [523, 0.08, 0.16]];
     freqs.forEach(([freq, start, end]) => {
       const osc = ctx.createOscillator();
@@ -1684,7 +1683,6 @@ function playSound(type) {
       osc.connect(g); g.connect(ctx.destination);
       osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + end);
     });
-    setTimeout(() => ctx.close(), 500);
   } catch(e) {}
 }
 
@@ -1892,13 +1890,13 @@ async function switchCamera(deviceId) {
     if (localStream) localStream.addTrack(newTrack);
     // Only replace peer video senders if not screen sharing (screen share track must stay)
     if (!isScreenSharing) {
-      for (const pid of Object.keys(peers)) {
-        if (!peers[pid]) continue;
+      await Promise.allSettled(Object.keys(peers).map(pid => {
+        if (!peers[pid]) return Promise.resolve();
         const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
-        if (s) await s.replaceTrack(newTrack);
-      }
+        return s ? s.replaceTrack(newTrack) : Promise.resolve();
+      }));
     }
-    if (isBlurOn) { await stopBlur(); startBlur(); }
+    if (isBlurOn) { await stopBlur(); await startBlur(); }
     syncParticipantTile(myParticipantId);
     $('#deviceSelector').classList.add('hidden');
   } catch(err) { console.error('Switch camera error:', err); }
@@ -1912,11 +1910,11 @@ async function switchMic(deviceId) {
     if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
     if (localStream) localStream.addTrack(newTrack);
     if (isMuted) newTrack.enabled = false;
-    for (const pid of Object.keys(peers)) {
-      if (!peers[pid]) continue;
+    await Promise.allSettled(Object.keys(peers).map(pid => {
+      if (!peers[pid]) return Promise.resolve();
       const s = peers[pid].pc.getSenders().find(s => s.track?.kind === 'audio');
-      if (s) await s.replaceTrack(newTrack);
-    }
+      return s ? s.replaceTrack(newTrack) : Promise.resolve();
+    }));
     $('#deviceSelector').classList.add('hidden');
   } catch(err) { console.error('Switch mic error:', err); }
 }
@@ -1953,13 +1951,13 @@ async function switchVideoQuality(quality) {
     if (localStream) localStream.addTrack(newTrack);
     // Only replace peer video senders if not screen sharing (screen share track must stay)
     if (!isScreenSharing) {
-      for (const pid of Object.keys(peers)) {
-        if (!peers[pid]) continue;
+      await Promise.allSettled(Object.keys(peers).map(async pid => {
+        if (!peers[pid]) return;
         const sender = peers[pid].pc.getSenders().find(s => s.track?.kind === 'video');
         if (sender) { await sender.replaceTrack(newTrack); applyVideoQuality(peers[pid].pc); }
-      }
+      }));
     }
-    if (isBlurOn) { await stopBlur(); startBlur(); }
+    if (isBlurOn) { await stopBlur(); await startBlur(); }
     syncParticipantTile(myParticipantId);
     showToast(`Quality: ${QUALITY_LABELS[quality]}`);
   } catch(err) {
@@ -2189,8 +2187,12 @@ function cleanupMeeting() {
   if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   if (blurStream)   { blurStream.getTracks().forEach(t => t.stop()); blurStream = null; }
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (speakerInterval) { clearInterval(speakerInterval); speakerInterval = null; }
+  if (speakDetectInterval) clearInterval(speakDetectInterval);
+  if (connQualityInterval) clearInterval(connQualityInterval);
   if (speakAudioCtx) { speakAudioCtx.close().catch(() => {}); speakAudioCtx = null; }
   if (recAudioCtx)   { recAudioCtx.close().catch(() => {}); recAudioCtx = null; }
+  if (_soundCtx)     { _soundCtx.close().catch(() => {}); _soundCtx = null; }
   socket.disconnect();
 }
 
@@ -2617,11 +2619,12 @@ function syncVideoTile(tile, pid) {
   const adminActions = tile._adminActions || tile.querySelector('.admin-actions');
   if (adminActions) {
     if (isAdmin && !isLocal) {
+      const safePid = escapeHtml(pid);
       adminActions.innerHTML = `
-        <button title="${p.isMuted?'Unmute':'Mute'}" data-action="mute" data-pid="${pid}" data-muted="${p.isMuted}">
+        <button title="${p.isMuted?'Unmute':'Mute'}" data-action="mute" data-pid="${safePid}" data-muted="${!!p.isMuted}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>'}</svg>
         </button>
-        <button title="Remove" data-action="kick" data-pid="${pid}">
+        <button title="Remove" data-action="kick" data-pid="${safePid}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>`;
       adminActions.style.display = 'flex';
@@ -2670,10 +2673,10 @@ function renderParticipantsList() {
       </div>
       ${isAdmin && !isLocal ? `
       <div class="participant-actions">
-        <button title="${p.isMuted?'Unmute':'Mute'}" data-action="mute" data-pid="${pid}" data-muted="${p.isMuted}">
+        <button title="${p.isMuted?'Unmute':'Mute'}" data-action="mute" data-pid="${escapeHtml(pid)}" data-muted="${!!p.isMuted}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p.isMuted?'<path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><line x1="2" y1="2" x2="22" y2="22"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>'}</svg>
         </button>
-        <button title="Remove" data-action="kick" data-pid="${pid}">
+        <button title="Remove" data-action="kick" data-pid="${escapeHtml(pid)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>` : ''}`;
@@ -2713,8 +2716,8 @@ socket.on('disconnect', (reason) => {
     showToast('Connection lost — reconnecting…', 'error');
   }
 });
-socket.on('reconnect', () => showToast('Reconnected', 'success'));
-socket.on('reconnect_failed', () => showToast('Could not reconnect — please refresh the page', 'error'));
+socket.io.on('reconnect', () => showToast('Reconnected', 'success'));
+socket.io.on('reconnect_failed', () => showToast('Could not reconnect — please refresh the page', 'error'));
 
 // ─── Admin helpers ────────────────────────────────────────────────────────────
 async function adminToggleMute(pid, currentlyMuted) {
@@ -2752,7 +2755,7 @@ async function adminMuteAll() {
 // ─── Waiting room — render admit/deny UI in side panel ────────────────────────
 const waitingQueue = {};
 function renderWaitingParticipants(socketId, name) {
-  if (socketId) waitingQueue[socketId] = name;
+  if (socketId != null) waitingQueue[socketId] = name;
   const list = $('#participantsList');
   // Remove existing waiting section if present
   list.querySelector('.waiting-section')?.remove();
@@ -2761,11 +2764,12 @@ function renderWaitingParticipants(socketId, name) {
   section.style.cssText = 'border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px;';
   section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:0.08em;padding:6px 0 8px;">Waiting (${Object.keys(waitingQueue).length})</div>`;
   for (const [sid, nm] of Object.entries(waitingQueue)) {
+    const safeSid = escapeHtml(sid);
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;gap:8px;';
     row.innerHTML = `<span style="font-size:13px;font-weight:500;flex:1;">${escapeHtml(nm)}</span>
-      <button data-action="admit" data-sid="${sid}" style="background:#1C2340;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
-      <button data-action="deny" data-sid="${sid}" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
+      <button data-action="admit" data-sid="${safeSid}" style="background:#1C2340;color:white;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Admit</button>
+      <button data-action="deny" data-sid="${safeSid}" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Deny</button>`;
     section.appendChild(row);
   }
   list.prepend(section);
@@ -2777,14 +2781,14 @@ function admitWaiting(socketId) {
   socket.emit('waiting-room:admit', { meetingId, socketId });
   delete waitingQueue[socketId];
   document.querySelector(`.waiting-section`)?.remove();
-  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants();
 }
 
 function denyWaiting(socketId) {
   socket.emit('waiting-room:deny', { meetingId, socketId });
   delete waitingQueue[socketId];
   document.querySelector(`.waiting-section`)?.remove();
-  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants(null, null);
+  if (Object.keys(waitingQueue).length > 0) renderWaitingParticipants();
 }
 
 // ─── Picture-in-Picture ───────────────────────────────────────────────────────
@@ -2852,7 +2856,7 @@ function updateQualityBadge(pid, quality) {
   badge.title = `Connection: ${labels[quality]}`;
 }
 
-setInterval(checkConnectionQuality, 5000);
+const connQualityInterval = setInterval(checkConnectionQuality, 5000);
 
 // ─── Chat event delegation (single listener instead of per-message) ───────────
 (function setupChatDelegation() {

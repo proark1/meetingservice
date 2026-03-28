@@ -22,6 +22,8 @@
     }
     body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
     button { cursor: pointer; font-family: inherit; }
+    ::selection { background: rgba(28,35,64,0.15); }
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
     input, select, textarea { font-family: inherit; }
     a { color: var(--primary); text-decoration: none; }
 
@@ -48,11 +50,13 @@
       padding: 9px 10px; border-radius: var(--radius-sm);
       font-size: 13px; font-weight: 500; color: var(--text-muted);
       border: none; background: none; width: 100%; text-align: left;
-      cursor: pointer; transition: background 0.15s, color 0.15s;
+      cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border-left: 3px solid transparent; margin-left: -3px;
     }
     .nav-item:hover  { background: var(--surface2); color: var(--text); }
-    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
-    .nav-item span.icon { font-size: 15px; opacity: 0.8; }
+    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; border-left-color: var(--primary); }
+    .nav-item span.icon { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; opacity: 0.65; flex-shrink: 0; }
+    .nav-item:hover span.icon { opacity: 0.85; }
     .nav-item.active span.icon { opacity: 1; }
     .sidebar-footer { padding: 10px 8px; border-top: 1px solid var(--border); }
 
@@ -71,9 +75,9 @@
     .stat-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;
-      box-shadow: var(--shadow-sm); transition: box-shadow 0.2s;
+      box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, transform 0.2s;
     }
-    .stat-card:hover { box-shadow: var(--shadow); }
+    .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
     .stat-card .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
     .stat-card .stat-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
     .stat-card .stat-value.green { color: var(--success); }
@@ -88,7 +92,8 @@
     th, td { text-align: left; padding: 11px 18px; font-size: 13px; border-bottom: 1px solid var(--border); }
     th { color: var(--text-muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: var(--surface2); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(28,35,64,.02); }
+    tr:hover td { background: rgba(28,35,64,.03); }
+    tr { transition: background 0.15s; }
     .badge {
       display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 99px;
       font-size: 11px; font-weight: 700;
@@ -100,7 +105,7 @@
 
     /* Buttons */
     .btn { padding: 8px 16px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn:active { transform: scale(0.98); }
+    .btn:active { transform: scale(0.97); }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-primary:hover { background: var(--primary-hover); }
     .btn-danger  { background: rgba(239,35,60,.1); color: var(--danger); border: none; }
@@ -142,12 +147,14 @@
     /* Modal */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,.4);
-      display: flex; align-items: center; justify-content: center; z-index: 100;
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 200;
     }
     .modal-backdrop.hidden { display: none; }
     .modal {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 28px; min-width: 360px; max-width: 480px; width: 100%;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.15);
     }
     .modal h3 { font-size: 16px; margin-bottom: 16px; }
     .modal input, .modal select {
@@ -170,11 +177,14 @@
     .toast {
       position: fixed; top: 16px; right: 16px;
       background: var(--surface); border: 1px solid var(--border);
-      padding: 12px 20px; border-radius: var(--radius-sm);
-      font-size: 13px; z-index: 200; animation: slideIn .3s ease;
+      padding: 14px 20px; border-radius: 12px;
+      font-size: 13px; font-weight: 500; z-index: 200;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      animation: toastSlide .4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .toast.error { border-color: var(--danger); color: #ff6b7a; }
-    @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast.error { border-left: 3px solid var(--danger); color: var(--danger); }
+    .toast.success { border-left: 3px solid var(--success); color: var(--success); }
+    @keyframes toastSlide { from { transform: translateX(110%) scale(0.95); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
 
     /* Sub-tabs */
     .sub-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
@@ -206,11 +216,61 @@
     .badge.purple { background: rgba(75,107,251,.12); color: #4B6BFB; }
     .badge.gray   { background: rgba(100,116,139,.12); color: #8C8073; }
 
+    /* ─── Mobile hamburger toggle ─── */
+    .mobile-header {
+      display: none; position: sticky; top: 0; z-index: 90;
+      height: 56px; background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px; align-items: center; gap: 12px;
+    }
+    .hamburger {
+      width: 40px; height: 40px; border-radius: var(--radius-sm);
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .mobile-header-title { font-size: 15px; font-weight: 700; flex: 1; }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    .sidebar-overlay.active { display: block; }
+
     @media (max-width: 768px) {
-      .sidebar { width: 56px; }
-      .sidebar-logo, .nav-item span.label, .sidebar-footer .btn { display: none; }
+      .mobile-header { display: flex; }
+      .sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: 280px; z-index: 100;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+      }
       .main { padding: 20px 16px; }
+      .page-title { font-size: 18px; margin-bottom: 18px; }
       .settings-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .stat-card { padding: 14px 16px; }
+      .stat-card .stat-value { font-size: 24px; }
+      .stat-card .stat-label { font-size: 10px; }
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 500px; }
+      th, td { padding: 10px 12px; font-size: 12px; white-space: nowrap; }
+      .modal { min-width: unset; margin: 16px; max-width: calc(100vw - 32px); }
+      .sub-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+      .sub-tab { flex-shrink: 0; }
+      .config-row { flex-direction: column; }
+      .an-bar-label { width: 100px; font-size: 11px; }
+      .an-heatmap { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: 0; }
+    }
+    @media (max-width: 480px) {
+      .stat-grid { grid-template-columns: 1fr; gap: 8px; }
+      .main { padding: 16px 12px; }
     }
 
     .an-bar-row { display:flex; align-items:center; gap:10px; font-size:12px; }
@@ -238,7 +298,7 @@
     .an-realtime-label { font-size:11px; color:var(--text-muted); font-weight:400; }
     /* Heatmap */
     .an-heatmap { display:grid; grid-template-columns:40px repeat(24,1fr); gap:2px; font-size:10px; }
-    .an-hm-cell { aspect-ratio:1; border-radius:3px; min-width:12px; cursor:pointer; transition:transform .1s; }
+    .an-hm-cell { aspect-ratio:1; border-radius:3px; min-width:12px; cursor:pointer; transition:transform .1s; position:relative; }
     .an-hm-cell:hover { transform:scale(1.3); z-index:1; }
     .an-hm-label { display:flex; align-items:center; color:var(--text-muted); font-size:10px; padding-right:4px; }
     .an-hm-hour { text-align:center; color:var(--text-xmuted); font-size:9px; padding:2px 0; }
@@ -253,9 +313,16 @@
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <span class="mobile-header-title" id="mobileTitle">Overview</span>
+</div>
 <div class="layout">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="adminSidebar">
     <div class="sidebar-logo">
       <div class="sidebar-logo-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
@@ -268,46 +335,46 @@
     <nav class="sidebar-nav">
       <div class="nav-section-lbl">Dashboard</div>
       <button class="nav-item active" data-section="overview">
-        <span class="icon">📊</span><span class="label">Overview</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span><span class="label">Overview</span>
       </button>
       <button class="nav-item" data-section="meetings">
-        <span class="icon">🎥</span><span class="label">Meetings</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="label">Meetings</span>
       </button>
       <button class="nav-item" data-section="users">
-        <span class="icon">👥</span><span class="label">Users</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="label">Users</span>
       </button>
       <button class="nav-item" data-section="apikeys">
-        <span class="icon">🔑</span><span class="label">API Keys</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span><span class="label">API Keys</span>
       </button>
       <div class="nav-section-lbl">Finance</div>
       <button class="nav-item" data-section="billing">
-        <span class="icon">💳</span><span class="label">Billing</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span><span class="label">Billing</span>
       </button>
       <button class="nav-item" data-section="companies">
-        <span class="icon">🏢</span><span class="label">Companies</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg></span><span class="label">Companies</span>
       </button>
       <button class="nav-item" data-section="crypto">
-        <span class="icon">🔗</span><span class="label">Crypto</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg></span><span class="label">Crypto</span>
       </button>
       <div class="nav-section-lbl">Config</div>
       <button class="nav-item" data-section="settings">
-        <span class="icon">⚙️</span><span class="label">Settings</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="label">Settings</span>
       </button>
       <div class="nav-section-lbl">Insights</div>
       <button class="nav-item" data-section="analytics">
-        <span class="icon">📈</span><span class="label">Analytics</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="label">Analytics</span>
       </button>
       <div class="nav-section-lbl">Developer</div>
       <button class="nav-item" data-section="apidocs">
-        <span class="icon">📘</span><span class="label">API Docs</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><span class="label">API Docs</span>
       </button>
     </nav>
     <div class="sidebar-footer">
       <a href="/dashboard" class="nav-item" style="margin-bottom:2px;">
-        <span class="icon">🖥️</span><span class="label">User Dashboard</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span><span class="label">User Dashboard</span>
       </a>
       <a href="/" class="nav-item" style="margin-bottom:8px;">
-        <span class="icon">🏠</span><span class="label">Home</span>
+        <span class="icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="label">Home</span>
       </a>
       <button class="btn btn-ghost btn-sm" style="width:100%;" id="btn-logout">Sign Out</button>
     </div>
@@ -811,7 +878,7 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <a href="/docs" target="_blank" class="btn btn-sm" style="background:var(--primary);color:#fff;padding:9px 18px;text-decoration:none;">Open full API docs</a>
           <a href="/docs#quickstart" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Quick Start guide</a>
-          <a href="/docs#socketio" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Socket.IO events</a>
+          <a href="/docs#realtime" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text);padding:9px 18px;text-decoration:none;border:1px solid var(--border);">Socket.IO events</a>
         </div>
       </div>
 
@@ -882,7 +949,7 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</code></pre>
             </tbody>
           </table>
         </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">See <a href="/docs#socketio" target="_blank" style="color:var(--primary);">full Socket.IO reference</a> for all server&rarr;client events.</div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">See <a href="/docs#realtime" target="_blank" style="color:var(--primary);">full Socket.IO reference</a> for all server&rarr;client events.</div>
       </div>
     </div>
 
@@ -907,14 +974,36 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</code></pre>
 </div>
 
 <script>
+// ─── Mobile Sidebar ──────────────────────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('adminSidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+function closeSidebar() {
+  document.getElementById('adminSidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
+// ─── Escape key: close modals + sidebar ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('createKeyModal');
+    if (!modal.classList.contains('hidden')) { modal.classList.add('hidden'); return; }
+    closeSidebar();
+  }
+});
+
 // ─── Navigation ──────────────────────────────────────────────────────────────
-document.querySelectorAll('.nav-item').forEach(btn => {
+document.querySelectorAll('.nav-item[data-section]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[data-section]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     btn.classList.add('active');
     const section = btn.dataset.section;
     document.getElementById('section-' + section).classList.add('active');
+    const label = btn.querySelector('.label');
+    if (label) document.getElementById('mobileTitle').textContent = label.textContent;
+    closeSidebar();
     if      (section === 'overview')  loadOverview();
     else if (section === 'meetings')  loadMeetings();
     else if (section === 'users')     loadUsers();
@@ -943,9 +1032,13 @@ function fmt(ts) {
 // ─── Overview ────────────────────────────────────────────────────────────────
 async function loadOverview() {
   const [stats, mtgs] = await Promise.all([
-    fetch('/admin/api/stats').then(r => r.json()),
-    fetch('/admin/api/meetings').then(r => r.json()),
-  ]);
+    fetch('/admin/api/stats').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+    fetch('/admin/api/meetings').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+  ]).catch(err => {
+    if (String(err).includes('401') || String(err).includes('403')) window.location.href = '/';
+    toast('Failed to load data', 'error');
+    return [{ activeMeetings: 0, totalUsers: 0, activeApiKeys: 0 }, { meetings: [] }];
+  });
   document.getElementById('stat-meetings').textContent  = stats.activeMeetings;
   document.getElementById('stat-users').textContent     = stats.totalUsers;
   document.getElementById('stat-keys').textContent      = stats.activeApiKeys;
@@ -960,11 +1053,11 @@ async function loadOverview() {
   }
   tbody.innerHTML = mtgs.meetings.map(m => `
     <tr>
-      <td><code style="font-size:12px">${m.meetingId}</code></td>
+      <td><code style="font-size:12px">${esc(m.meetingId)}</code></td>
       <td>${esc(m.title)}</td>
       <td>${m.participantCount}</td>
       <td>${fmt(m.createdAt)}</td>
-      <td><button class="btn btn-danger btn-sm" data-action="end-meeting" data-id="${m.meetingId}">End</button></td>
+      <td><button class="btn btn-danger btn-sm" data-action="end-meeting" data-id="${esc(m.meetingId)}">End</button></td>
     </tr>`).join('');
 }
 
@@ -978,12 +1071,12 @@ async function loadMeetings() {
   }
   tbody.innerHTML = meetings.map(m => `
     <tr>
-      <td><code style="font-size:12px">${m.meetingId}</code></td>
+      <td><code style="font-size:12px">${esc(m.meetingId)}</code></td>
       <td>${esc(m.title)}</td>
       <td>${m.participantCount}</td>
       <td>${m.settings.locked ? '<span class="badge red">Locked</span>' : '<span class="badge green">Open</span>'}</td>
       <td>${fmt(m.createdAt)}</td>
-      <td><button class="btn btn-danger btn-sm" data-action="end-meeting" data-id="${m.meetingId}">End</button></td>
+      <td><button class="btn btn-danger btn-sm" data-action="end-meeting" data-id="${esc(m.meetingId)}">End</button></td>
     </tr>`).join('');
 }
 
@@ -1025,6 +1118,7 @@ async function loadUsers() {
 }
 
 async function toggleUser(id, currently) {
+  if (currently && !confirm('Disable this user? They will lose access.')) return;
   await fetch(`/admin/api/users/${id}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ isActive: !currently }),
@@ -1061,8 +1155,8 @@ async function loadKeys() {
   }
   tbody.innerHTML = keys.map(k => `
     <tr>
-      <td><code style="font-size:11px">${k.key}</code>
-        <button data-action="copy-text" data-key="${k.key}" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
+      <td><code style="font-size:11px">${esc(k.key)}</code>
+        <button data-action="copy-text" data-key="${esc(k.key)}" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);margin-left:4px;">Copy</button>
       </td>
       <td>${esc(k.label || '—')}</td>
       <td>${esc(k.user_email)}</td>
@@ -1154,8 +1248,7 @@ async function saveSettings() {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function esc(str) {
-  if (!str) return '';
-  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function copyText(text) {
@@ -1352,8 +1445,8 @@ async function confirmDeposit(id, amount) {
     body: JSON.stringify({ amountUsd: amount }),
   });
   const data = await r.json();
-  if (r.ok) { showToast(`Deposit #${id} confirmed — $${parseFloat(data.amountUsd).toFixed(4)} credited`); loadCryptoDeposits(); }
-  else showToast(data.error || 'Failed to confirm deposit', 'error');
+  if (r.ok) { toast(`Deposit #${id} confirmed — $${parseFloat(data.amountUsd).toFixed(4)} credited`); loadCryptoDeposits(); }
+  else toast(data.error || 'Failed to confirm deposit', 'error');
 }
 
 async function loadUnmatchedTransfers() {
@@ -1737,7 +1830,7 @@ function startAnRealtimeRefresh() {
   anRealtimeInterval = setInterval(() => {
     // Skip polling when page is hidden (saves battery + network)
     if (document.hidden) return;
-    if (document.getElementById('section-analytics').style.display !== 'none') loadAnRealtime();
+    if (document.getElementById('section-analytics').classList.contains('active')) loadAnRealtime();
   }, 30000);
 }
 startAnRealtimeRefresh();

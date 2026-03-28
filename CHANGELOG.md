@@ -2,7 +2,7 @@
 
 All notable changes to onepizza.io are documented in this file.
 
-## [1.1.0] — 2026-03-28
+## [1.2.0] — 2026-03-28
 
 ### Added
 - **Polls / Voting**: Create live polls with 2-10 options, real-time vote tracking, results — via UI, REST API, Socket.IO, and MCP tools
@@ -15,6 +15,60 @@ All notable changes to onepizza.io are documented in this file.
 - **DB**: New tables: `meeting_files`, `meeting_notes`, `meeting_attendance`, `meeting_templates`, `recurring_meetings`
 - **MCP**: 12 new tools for polls, Q&A, notes, attendance, templates, recurring meetings
 - **Settings**: New feature flags: `polls_enabled`, `qa_enabled`, `file_sharing_enabled`, `meeting_notes_enabled`
+
+### Added
+- **Docs**: Created `README.md` with quick start guide, feature list, project structure, and environment variable reference
+- **Docs**: Bumped version to 1.2.0 in `package.json` and `public/docs.html`
+
+### Changed
+- **UI**: World-class UI/UX overhaul across all pages — polished micro-interactions, glassmorphism effects, refined animations, and consistent design language
+- **UI (styles.css)**: Enhanced design tokens with transition variables, spring-easing curves; glassmorphism control bar, device selector, reactions tray, more panel, and background panel; animated speaking indicator pulse; polished lobby card with deeper shadows; spring-animated toasts; enhanced chat bubbles with hover states; improved tile entrance animation with spring physics
+- **UI (index.html)**: Enhanced nav glassmorphism with saturate filter; gradient hero badge and CTA buttons with active press states; feature cards with cubic-bezier transitions and layered hover shadows; pricing cards with deeper hover shadows; step numbers with gradient and hover scale; stat items with hover; preview card with dramatic layered shadow; floating orb animation on hero background
+- **UI (dashboard.html)**: Sidebar nav items with primary accent bar on active state; glassmorphism topbar; stat cards with hover lift; enhanced quick-action card hover depth; spring-animated toast notifications; login box with refined shadow and border-radius; balance highlight card with three-stop gradient and shadow; improved form input focus rings
+- **UI (admin.html)**: Replaced all emoji icons with crisp inline SVG icons matching the design system; sidebar nav items with left accent bar indicator; enhanced stat cards with hover transform; polished table row transitions; spring-animated toasts; glassmorphism modal backdrop; improved modal shadows
+- **UI (docs.html)**: Glassmorphism sticky navigation; method badges using CSS custom properties; endpoint cards with hover left-border accent and slide; enhanced code blocks with hover shadow; TOC links with indent animation on hover; note/warn boxes with stronger accents; table rows with hover transition
+- **UI (meeting.html)**: Enhanced empty state with gradient icon container and better text hierarchy; polished waiting room dots with staggered bounce animation; replaced recording consent emoji with SVG warning icon
+
+### Added
+- **Accessibility**: `::selection` and `:focus-visible` styles added to all pages for keyboard navigation support
+- **Accessibility**: `@media (prefers-reduced-motion: reduce)` rule in styles.css to disable animations for users who prefer reduced motion
+- **UI**: Firefox scrollbar styling via `scrollbar-width: thin` in styles.css
+- **UI**: `.toast-success` class added to styles.css for success-state toasts
+- **UI**: Dark mode overrides for glassmorphism components in styles.css
+- **Mobile (admin.html)**: Off-canvas sidebar with hamburger toggle, sticky mobile header, responsive stat grid (2-col / 1-col), horizontally scrollable tables, responsive modals, analytics heatmap scroll
+- **Mobile (dashboard.html)**: Enhanced 480px breakpoint for smaller stat values, compact balance card, responsive code blocks, quick-actions single column on tablet, scrollable tables
+- **Mobile (docs.html)**: Responsive nav, endpoint cards, scrollable tables, compact code blocks, method badges, and typography at 768px and 480px breakpoints
+- **Mobile (index.html)**: Hamburger menu for mobile navigation
+- **Mobile (styles.css)**: Pin/focus buttons visible on touch devices; enlarged touch targets for admin/participant/layout buttons
+
+### Security
+- **Security (server.js)**: Stripe webhook double-credit race condition — atomic `UPDATE ... WHERE status='pending' RETURNING id`
+- **Security (server.js)**: Path traversal in recording download — `path.resolve` containment check + sanitized Content-Disposition filename
+- **Security (server.js)**: Meeting settings PATCH — type validation on all fields (booleans, maxParticipants 1-100, title sliced to 100)
+- **Security (server.js)**: Timing-safe admin token comparison in Socket.IO `join-meeting` handler
+- **Security (server.js)**: Caption spoofing prevention — server overrides client-sent `pid` with `currentParticipantId`
+- **Security (server.js)**: Content-Disposition header injection fix in transcript download
+- **Security (server.js)**: Added `requireMeetingOwnership` middleware to transcript/recording endpoints
+- **Security (server.js)**: SSRF DNS rebinding defense — resolves webhook URLs and validates IPs against private ranges
+- **Security (meeting.html)**: XSS in admin action buttons — `escapeHtml()` on pid/socketId in onclick attributes
+- **Security (meeting.html)**: `Promise.allSettled` for all `replaceTrack` operations (screen share, camera/mic switch, quality, blur)
+- **Security (meeting.html)**: `startBlur()` now async + awaited in `setBgMode()` — prevents replaceTrack race condition
+- **Security (admin.html + dashboard.html)**: Regex-based `esc()` replacing DOM createElement per codebase convention
+- **Security (admin.html)**: Escaped meetingId/key values in onclick handlers and innerHTML
+
+### Fixed
+- **Bug (styles.css)**: Removed duplicate `.controls-bar`, `.btn-leave`, `.tile-label`, `.screen-share-badge`, `.admin-actions`, `.controls-center` CSS selectors
+- **Bug (dashboard.html)**: Sidebar overlay clickable backdrop; `confirm` variable no longer shadows `window.confirm`
+- **Bug (dashboard.html)**: API keys masked in display; webhook secret in persistent copyable block; `.btn-secondary` class added
+- **Bug (dashboard.html)**: `populateOverview()` fetches keys after company join
+- **Bug (meeting.html)**: Intervals cleaned up on leave (speaking detection, connection quality, speakerInterval, soundCtx)
+- **Bug (meeting.html)**: `renderWaitingParticipants()` null corruption guard; `recTimerInterval` cleared on error
+- **Bug (meeting.html)**: Socket.IO v4 reconnect events (`socket.io.on`); `playSound()` reuses single AudioContext
+- **Bug (admin.html)**: `showToast()` → `toast()` fix; z-index conflict; heatmap position:relative; nav handler scoped to `[data-section]`; realtime polling condition; broken `#socketio` anchor; Escape key for modals; confirmation before disabling users; error handling on initial load
+- **Bug (admin.html)**: Missing settings in admin allowlist (captions, guest, cost rate, low balance threshold)
+- **Bug (server.js)**: Admin delete meeting now calls `chargeMeeting()`; double client.release fix; `/api/auth/me` try/catch
+- **Bug (index.html)**: Missing `@keyframes slideIn`; removed non-functional code tabs; footer touch targets enlarged
+- **Bug (docs.html)**: Mobile table fix; 480px nav breakpoint
 
 ## [1.1.0] — 2026-03-26
 

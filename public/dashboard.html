@@ -26,6 +26,8 @@
     body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
     a { color: inherit; text-decoration: none; }
     button { cursor: pointer; font-family: inherit; border: none; }
+    ::selection { background: rgba(28,35,64,0.15); color: var(--text); }
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
     /* ─── Login page ─── */
     #loginPage {
@@ -35,8 +37,8 @@
     .login-box {
       width: 100%; max-width: 400px;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 40px;
-      box-shadow: var(--shadow);
+      border-radius: 20px; padding: 40px;
+      box-shadow: 0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(213,205,196,0.3);
     }
     .login-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; margin-bottom: 32px; }
     .logo-icon { width: 34px; height: 34px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
@@ -49,9 +51,10 @@
       background: var(--surface2); border: 1.5px solid var(--border);
       border-radius: var(--radius-xs); color: var(--text);
       font-size: 14px; outline: none; font-family: inherit;
-      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
     }
-    .form-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(28,35,64,0.1); }
+    .form-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 4px rgba(28,35,64,0.08); }
+    .form-input::placeholder { color: var(--text-xmuted); }
     .btn-primary {
       width: 100%; padding: 13px; background: var(--primary); color: white;
       border-radius: var(--radius-xs); font-size: 15px; font-weight: 700;
@@ -118,11 +121,12 @@
       display: flex; align-items: center; gap: 12px;
       padding: 10px 12px; border-radius: var(--radius-xs);
       font-size: 14px; font-weight: 500; color: var(--text-muted);
-      transition: background 0.15s, color 0.15s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer; margin-bottom: 2px;
+      border-left: 3px solid transparent; margin-left: -3px;
     }
     .nav-item:hover { background: var(--surface2); color: var(--text); }
-    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+    .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; border-left-color: var(--primary); }
     .nav-item svg { flex-shrink: 0; opacity: 0.7; }
     .nav-item.active svg { opacity: 1; }
     .sidebar-footer {
@@ -150,7 +154,9 @@
       display: flex; flex-direction: column;
     }
     .topbar {
-      height: 64px; background: var(--surface); border-bottom: 1px solid var(--border);
+      height: 64px; background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(213,205,196,0.6);
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
     }
@@ -167,7 +173,9 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); overflow: hidden;
       box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.25s, border-color 0.25s;
     }
+    .card:hover { box-shadow: var(--shadow); }
     .card-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 16px 20px; border-bottom: 1px solid var(--border);
@@ -184,7 +192,9 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 20px;
       box-shadow: var(--shadow-sm);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
     .stat-card-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
     .stat-card-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
     .stat-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
@@ -202,7 +212,7 @@
       transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
       text-align: left;
     }
-    .quick-action-btn:hover { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,35,64,0.08); transform: translateY(-1px); }
+    .quick-action-btn:hover { border-color: var(--primary); box-shadow: 0 4px 16px rgba(28,35,64,0.08), 0 0 0 3px rgba(28,35,64,0.06); transform: translateY(-2px); }
     .qa-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
     .qa-label { font-size: 14px; font-weight: 600; color: var(--text); }
     .qa-sub { font-size: 12px; color: var(--text-muted); }
@@ -213,7 +223,8 @@
     th { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); text-align: left; }
     td { padding: 13px 16px; font-size: 13.5px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(28,35,64,0.02); }
+    tr { transition: background 0.15s; }
+    tr:hover td { background: rgba(28,35,64,0.03); }
     .empty-state { padding: 48px; text-align: center; color: var(--text-muted); font-size: 14px; }
     .empty-state svg { margin: 0 auto 12px; opacity: 0.3; }
     .key-mono { font-family: monospace; font-size: 12px; background: var(--surface2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 5px; }
@@ -233,6 +244,8 @@
     .btn-danger:hover { background: var(--danger); color: white; }
     .btn-success { background: rgba(16,185,129,0.1); color: var(--success); border: none; }
     .btn-success:hover { background: var(--success); color: white; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--surface3); }
     .btn-sm { padding: 5px 12px; font-size: 12px; }
     .btn-full { width: 100%; justify-content: center; padding: 13px; font-size: 15px; }
 
@@ -261,10 +274,11 @@
 
     /* ─── Credit balance card ─── */
     .balance-highlight {
-      background: linear-gradient(135deg, var(--primary) 0%, #4B6BFB 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, #2D3A6B 50%, #4B6BFB 100%);
       border-radius: var(--radius); padding: 24px 28px;
       color: white; margin-bottom: 20px;
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+      box-shadow: 0 8px 24px rgba(28,35,64,0.25);
     }
     .balance-amount { font-size: 44px; font-weight: 900; letter-spacing: -0.04em; }
     .balance-label { font-size: 13px; opacity: 0.8; margin-bottom: 2px; }
@@ -296,24 +310,45 @@
     #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
     .toast {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-xs); padding: 12px 18px;
+      border-radius: 12px; padding: 14px 18px;
       font-size: 13px; font-weight: 500;
-      box-shadow: var(--shadow); min-width: 220px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12); min-width: 220px;
       display: flex; align-items: center; gap: 10px;
-      animation: toastIn 0.3s ease;
+      animation: toastIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .toast.success { border-left: 3px solid var(--success); }
     .toast.error { border-left: 3px solid var(--danger); }
-    @keyframes toastIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes toastIn { from { transform: translateX(110%) scale(0.95); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
 
     /* ─── Mobile sidebar toggle ─── */
     .sidebar-toggle { display: none; }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    .sidebar-overlay.active { display: block; }
     @media (max-width: 900px) {
       .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); box-shadow: 0 0 0 100vw rgba(0,0,0,0.3); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.15); }
       .main-content { margin-left: 0; }
       .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-xs); background: var(--surface2); border: 1px solid var(--border); }
       .page-content { padding: 20px 16px; }
+      .topbar { padding: 0 16px; }
+      .quick-actions { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      table { min-width: 480px; }
+      .table-wrap { -webkit-overflow-scrolling: touch; }
+    }
+    @media (max-width: 480px) {
+      .page-content { padding: 16px 12px; }
+      .topbar-title { font-size: 15px; }
+      .balance-amount { font-size: 32px; }
+      .balance-highlight { padding: 18px 20px; }
+      .stat-card-value { font-size: 24px; }
+      .card-body, .card-body-padded { padding: 16px; }
+      .code-block { padding: 12px; }
+      .code-block pre { font-size: 11px; }
     }
 
     /* ─── Section layout helpers ─── */
@@ -357,12 +392,7 @@
       <label>Password</label>
       <input type="password" class="form-input" id="li-pass" placeholder="••••••••" autocomplete="current-password">
     </div>
-    <button type="submit" class="btn-primary" id="loginBtn" style="position:relative;">Sign In
-      <span class="ch-wrap ch-wrap--finger" style="right:10px;bottom:-16px;">
-        <svg class="ch-icon" width="30" height="34" viewBox="0 0 30 34" fill="white" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v14m0 0l5-1m-5 1l-4-2m9 5c0 3-2.5 5.5-6 5.5S8 26 8 23v-5l-2-3c-1-1.5 0-3.5 1.5-3s3 2 3 2V7a2 2 0 1 1 4 0v7a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 2 2z"/></svg>
-        <span class="ch-ripple1"></span><span class="ch-ripple2"></span><span class="ch-glow"></span>
-      </span>
-    </button>
+    <button type="submit" class="btn-primary" id="loginBtn">Sign In</button>
     </form>
     <p style="margin-top:16px;font-size:13px;color:var(--text-muted);text-align:center;">
       <a href="/reset" style="color:var(--primary);font-weight:600;">Forgot password?</a>
@@ -376,6 +406,7 @@
 <!-- ─── App shell ─── -->
 <div id="appPage">
 
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
@@ -1142,7 +1173,7 @@ function toast(msg, type = 'success') {
 function fmt(ts) { if (!ts) return '—'; return new Date(ts).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
 function fmtFull(ts) { if (!ts) return '—'; return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }); }
 function fmtUsd(v) { return '$' + parseFloat(v || 0).toFixed(2); }
-function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 const sectionTitles = { overview: 'Overview', meeting: 'New Meeting', recurring: 'Recurring Meetings', apikeys: 'API Keys', history: 'Meeting History', recordings: 'Recordings & Transcripts', webhooks: 'Webhooks', company: 'Company', billing: 'Billing', settings: 'Settings' };
@@ -1156,7 +1187,7 @@ function goTo(name) {
   if (nav) nav.classList.add('active');
   document.getElementById('topbarTitle').textContent = sectionTitles[name] || name;
   // Close mobile sidebar
-  document.getElementById('sidebar').classList.remove('open');
+  closeSidebar();
   // Load section data
   if (name === 'apikeys')  loadKeys();
   if (name === 'billing')  loadBillingHistory();
@@ -1170,7 +1201,13 @@ function goTo(name) {
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
 }
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('active');
+}
+document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 async function doLogin() {
@@ -1274,18 +1311,24 @@ function renderKeysList(keys) {
     </td></tr>`;
     return;
   }
-  tbody.innerHTML = keys.map(k => `
+  tbody.innerHTML = keys.map(k => {
+    const masked = k.key.length > 12 ? k.key.slice(0, 8) + '…' + k.key.slice(-4) : k.key;
+    return `
     <tr>
       <td>
-        <span class="key-mono">${esc(k.key)}</span>
+        <span class="key-mono">${esc(masked)}</span>
         <button class="btn btn-ghost btn-sm" style="margin-left:6px;" data-copy="${esc(k.key)}">Copy</button>
-      </td>
+      </td>`;
+  }).map((row, i) => {
+    const k = keys[i];
+    return row + `
       <td>${esc(k.label)}</td>
       <td><span class="badge ${k.is_active ? 'badge-green' : 'badge-red'}">${k.is_active ? 'Active' : 'Revoked'}</span></td>
       <td class="text-muted">${fmtFull(k.last_used_at)}</td>
       <td class="text-muted">${fmt(k.created_at)}</td>
       <td>${k.is_active ? `<button class="btn btn-danger btn-sm revoke-key-btn" data-id="${k.id}">Revoke</button>` : '—'}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function loadKeys() {
@@ -1452,7 +1495,9 @@ async function joinCompany() {
   const meRes = await fetch('/api/auth/me');
   if (meRes.ok) { currentUser = await meRes.json(); }
   loadCompanySection();
-  populateOverview();
+  const keysRes = await fetch('/api/user/keys').catch(() => ({ ok: false }));
+  const keysData = keysRes.ok ? await keysRes.json().catch(() => ({ keys: [] })) : { keys: [] };
+  populateOverview(keysData.keys);
 }
 
 function copyInviteCode() {
@@ -1519,9 +1564,9 @@ function copyUsdcAddress() {
 async function changePassword() {
   const current  = document.getElementById('pw-current').value;
   const newPw    = document.getElementById('pw-new').value;
-  const confirm  = document.getElementById('pw-confirm').value;
+  const confirmPw = document.getElementById('pw-confirm').value;
   if (!current || !newPw) { toast('Please fill all fields', 'error'); return; }
-  if (newPw !== confirm) { toast('Passwords do not match', 'error'); return; }
+  if (newPw !== confirmPw) { toast('Passwords do not match', 'error'); return; }
   if (newPw.length < 8) { toast('Password must be at least 8 characters', 'error'); return; }
   const res = await fetch('/api/auth/change-password', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1704,9 +1749,19 @@ async function createWebhook() {
   });
   const data = await res.json();
   if (!res.ok) { toast(data.error || 'Failed to create webhook', 'error'); return; }
-  if (data.secret) toast(`Webhook created! Secret: ${data.secret.slice(0,12)}… (save this)`);
-  else toast('Webhook created!');
+  toast('Webhook created!');
   document.getElementById('wh-url').value = '';
+  if (data.secret) {
+    const secretBox = document.createElement('div');
+    secretBox.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0;';
+    secretBox.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">⚠ WEBHOOK SECRET — copy now, it won't be shown again</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <code style="flex:1;background:var(--bg);padding:8px 12px;border-radius:6px;font-size:13px;font-family:monospace;word-break:break-all;">${esc(data.secret)}</code>
+        <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(data.secret)}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000);">Copy</button>
+      </div>`;
+    const whSection = document.getElementById('wh-url').closest('.card');
+    if (whSection) whSection.insertBefore(secretBox, whSection.querySelector('table')?.parentNode || null);
+  }
   loadWebhooks();
 }
 
