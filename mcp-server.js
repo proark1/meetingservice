@@ -103,6 +103,18 @@ function joinMeetingSocket(meetingId, name, isAdmin, adminToken) {
         events.push({ type: 'reaction', participantId: r.participantId, emoji: r.emoji });
         if (events.length > 200) events.shift();
       });
+      socket.on('poll:created', (p) => {
+        events.push({ type: 'poll_created', pollId: p.id, question: p.question });
+        if (events.length > 200) events.shift();
+      });
+      socket.on('qa:new', (q) => {
+        events.push({ type: 'question_asked', questionId: q.id, text: q.text, askedBy: q.askedBy?.name });
+        if (events.length > 200) events.shift();
+      });
+      socket.on('breakout:message', (m) => {
+        events.push({ type: 'breakout_message', text: m.text, from: m.from });
+        if (events.length > 200) events.shift();
+      });
       socket.on('meeting:ended', (r) => {
         events.push({ type: 'meeting_ended', reason: r.reason });
         activeSessions.delete(meetingId);
@@ -256,6 +268,202 @@ const tools = [
     },
   },
 
+  // Polls
+  {
+    name: 'create_poll',
+    description: 'Create a poll in a meeting. Requires admin token.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        question: { type: 'string', description: 'Poll question' },
+        options: { type: 'array', items: { type: 'string' }, description: '2-10 answer options' },
+      },
+      required: ['meetingId', 'adminToken', 'question', 'options'],
+    },
+  },
+  {
+    name: 'get_polls',
+    description: 'List all polls in a meeting.',
+    inputSchema: {
+      type: 'object',
+      properties: { meetingId: { type: 'string' } },
+      required: ['meetingId'],
+    },
+  },
+  {
+    name: 'end_poll',
+    description: 'End a poll and get final results.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        pollId: { type: 'string' },
+      },
+      required: ['meetingId', 'adminToken', 'pollId'],
+    },
+  },
+
+  // Q&A
+  {
+    name: 'ask_question',
+    description: 'Submit a question in a meeting Q&A.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        text: { type: 'string', description: 'Question text (max 500 chars)' },
+        participantName: { type: 'string', description: 'Name of the person asking' },
+      },
+      required: ['meetingId', 'text'],
+    },
+  },
+  {
+    name: 'get_questions',
+    description: 'List all Q&A questions in a meeting.',
+    inputSchema: {
+      type: 'object',
+      properties: { meetingId: { type: 'string' } },
+      required: ['meetingId'],
+    },
+  },
+  {
+    name: 'answer_question',
+    description: 'Mark a question as answered (admin only).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        questionId: { type: 'string' },
+        answer: { type: 'string', description: 'Optional answer text' },
+      },
+      required: ['meetingId', 'adminToken', 'questionId'],
+    },
+  },
+
+  // Breakout Rooms
+  {
+    name: 'create_breakout_rooms',
+    description: 'Create breakout rooms in a meeting.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        rooms: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' } } }, description: 'Array of room objects with name' },
+      },
+      required: ['meetingId', 'adminToken', 'rooms'],
+    },
+  },
+  {
+    name: 'open_breakout_rooms',
+    description: 'Open breakout rooms and move participants to their assigned rooms.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        timerMinutes: { type: 'number', description: 'Optional timer in minutes' },
+      },
+      required: ['meetingId', 'adminToken'],
+    },
+  },
+  {
+    name: 'close_breakout_rooms',
+    description: 'Close all breakout rooms.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+      },
+      required: ['meetingId', 'adminToken'],
+    },
+  },
+  {
+    name: 'broadcast_breakout_message',
+    description: 'Send a message to all breakout rooms.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        text: { type: 'string' },
+      },
+      required: ['meetingId', 'adminToken', 'text'],
+    },
+  },
+
+  // Meeting Notes
+  {
+    name: 'get_meeting_notes',
+    description: 'Get the meeting notes content.',
+    inputSchema: {
+      type: 'object',
+      properties: { meetingId: { type: 'string' } },
+      required: ['meetingId'],
+    },
+  },
+  {
+    name: 'update_meeting_notes',
+    description: 'Update meeting notes (admin only).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+        content: { type: 'string', description: 'Notes content (max 50000 chars)' },
+      },
+      required: ['meetingId', 'adminToken', 'content'],
+    },
+  },
+
+  // Attendance
+  {
+    name: 'get_attendance',
+    description: 'Get the attendance report for a meeting.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        adminToken: { type: 'string' },
+      },
+      required: ['meetingId', 'adminToken'],
+    },
+  },
+
+  // Meeting Templates
+  {
+    name: 'list_templates',
+    description: 'List available meeting templates.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+
+  // Recurring Meetings
+  {
+    name: 'create_recurring_meeting',
+    description: 'Create a recurring meeting.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        recurrence: { type: 'string', description: 'daily, weekly, biweekly, or monthly' },
+        dayOfWeek: { type: 'number', description: '0=Sun through 6=Sat (for weekly/biweekly)' },
+        dayOfMonth: { type: 'number', description: '1-31 (for monthly)' },
+        timeUtc: { type: 'string', description: 'Time in HH:MM format (UTC)' },
+      },
+      required: ['title', 'recurrence', 'timeUtc'],
+    },
+  },
+  {
+    name: 'list_recurring_meetings',
+    description: 'List recurring meetings.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+
   // Real-time Bot Interaction (Socket.IO)
   {
     name: 'join_meeting',
@@ -364,6 +572,74 @@ async function handleToolCall(name, args) {
       return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/mute-all`, null, {
         'x-admin-token': args.adminToken,
       });
+
+    // ── Polls ──
+    case 'create_poll':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/polls`,
+        { question: args.question, options: args.options }, { 'x-admin-token': args.adminToken });
+
+    case 'get_polls':
+      return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/polls`);
+
+    case 'end_poll':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/polls/${encodeURIComponent(args.pollId)}/end`,
+        null, { 'x-admin-token': args.adminToken });
+
+    // ── Q&A ──
+    case 'ask_question':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/questions`,
+        { text: args.text, participantName: args.participantName });
+
+    case 'get_questions':
+      return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/questions`);
+
+    case 'answer_question':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/questions/${encodeURIComponent(args.questionId)}/answer`,
+        { answer: args.answer }, { 'x-admin-token': args.adminToken });
+
+    // ── Breakout Rooms ──
+    case 'create_breakout_rooms':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/breakout-rooms`,
+        { rooms: args.rooms }, { 'x-admin-token': args.adminToken });
+
+    case 'open_breakout_rooms':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/breakout-rooms/open`,
+        { timerMinutes: args.timerMinutes }, { 'x-admin-token': args.adminToken });
+
+    case 'close_breakout_rooms':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/breakout-rooms/close`,
+        null, { 'x-admin-token': args.adminToken });
+
+    case 'broadcast_breakout_message':
+      return await apiRequest('POST', `/api/meetings/${encodeURIComponent(args.meetingId)}/breakout-rooms/broadcast`,
+        { text: args.text }, { 'x-admin-token': args.adminToken });
+
+    // ── Notes ──
+    case 'get_meeting_notes':
+      return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/notes`);
+
+    case 'update_meeting_notes':
+      return await apiRequest('PUT', `/api/meetings/${encodeURIComponent(args.meetingId)}/notes`,
+        { content: args.content }, { 'x-admin-token': args.adminToken });
+
+    // ── Attendance ──
+    case 'get_attendance':
+      return await apiRequest('GET', `/api/meetings/${encodeURIComponent(args.meetingId)}/attendance`,
+        null, { 'x-admin-token': args.adminToken });
+
+    // ── Templates ──
+    case 'list_templates':
+      return await apiRequest('GET', '/api/templates');
+
+    // ── Recurring Meetings ──
+    case 'create_recurring_meeting':
+      return await apiRequest('POST', '/api/meetings/recurring', {
+        title: args.title, recurrence: args.recurrence, dayOfWeek: args.dayOfWeek,
+        dayOfMonth: args.dayOfMonth, timeUtc: args.timeUtc,
+      });
+
+    case 'list_recurring_meetings':
+      return await apiRequest('GET', '/api/meetings/recurring');
 
     // ── Real-time Bot (Socket.IO) ──
     case 'join_meeting': {

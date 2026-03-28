@@ -632,6 +632,12 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</pre>
                   <input type="text" id="nm-name" placeholder="Your display name">
                 </div>
               </div>
+              <div class="field" style="margin-top:12px;">
+                <label>Template (optional)</label>
+                <select id="nm-template" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:14px;">
+                  <option value="">None — custom settings</option>
+                </select>
+              </div>
               <div style="margin-top:20px;">
                 <button class="btn btn-blue btn-full" onclick="createMeeting()">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
@@ -681,6 +687,39 @@ socket.emit("chat:message", { text: "Hello from the bot!" });</pre>
                 <tr><td colspan="4" class="empty-state">No meetings yet</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Recurring Meetings</h2>
+          </div>
+          <div class="card-body">
+            <div id="recurringList"><p class="text-muted" style="padding:12px;">Loading…</p></div>
+            <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:12px;">
+              <h3 style="font-size:14px;margin-bottom:12px;">Create Recurring Meeting</h3>
+              <div class="field-group">
+                <div class="field"><label>Title *</label><input type="text" id="rc-title" placeholder="e.g. Weekly Standup"></div>
+                <div class="field"><label>Recurrence *</label>
+                  <select id="rc-recurrence" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:14px;">
+                    <option value="daily">Daily</option>
+                    <option value="weekly" selected>Weekly</option>
+                    <option value="biweekly">Biweekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field-group" style="margin-top:8px;">
+                <div class="field"><label>Day of week</label>
+                  <select id="rc-dow" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:14px;">
+                    <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+                    <option value="4">Thursday</option><option value="5">Friday</option><option value="0">Sunday</option><option value="6">Saturday</option>
+                  </select>
+                </div>
+                <div class="field"><label>Time (UTC) *</label><input type="time" id="rc-time" value="09:00"></div>
+              </div>
+              <button class="btn btn-blue" style="margin-top:12px;" onclick="createRecurring()">Create recurring meeting</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1124,6 +1163,7 @@ function goTo(name) {
   if (name === 'company')  loadCompanySection();
   if (name === 'history')  loadHistory();
   if (name === 'webhooks') loadWebhooks();
+  if (name === 'meeting')  { loadTemplates(); loadRecurringMeetings(); }
   if (name === 'recordings') {}
 }
 
@@ -1183,6 +1223,8 @@ async function initApp() {
   document.getElementById('appPage').style.display = 'block';
   populateOverview(keys);
   renderKeysList(keys);
+  loadTemplates();
+  loadRecurringMeetings();
 }
 
 function populateOverview(keys) {
@@ -1289,18 +1331,94 @@ async function revokeKey(id, btn) {
 }
 
 // ─── Meetings ─────────────────────────────────────────────────────────────────
+async function loadTemplates() {
+  try {
+    const res = await fetch('/api/templates');
+    if (!res.ok) return;
+    const { templates } = await res.json();
+    const sel = document.getElementById('nm-template');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">None — custom settings</option>';
+    for (const t of templates) {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.name}${t.is_default ? ' (default)' : ''} — ${t.description || ''}`;
+      sel.appendChild(opt);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function loadRecurringMeetings() {
+  try {
+    const res = await fetch('/api/meetings/recurring');
+    if (!res.ok) return;
+    const { recurringMeetings } = await res.json();
+    const container = document.getElementById('recurringList');
+    if (!container) return;
+    container.innerHTML = '';
+    if (recurringMeetings.length === 0) {
+      container.innerHTML = '<p class="text-muted" style="padding:12px;">No recurring meetings</p>';
+      return;
+    }
+    for (const rm of recurringMeetings) {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;';
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const schedule = rm.recurrence === 'daily' ? 'Daily' :
+        rm.recurrence === 'weekly' ? `Weekly on ${days[rm.day_of_week] || ''}` :
+        rm.recurrence === 'biweekly' ? `Biweekly on ${days[rm.day_of_week] || ''}` :
+        `Monthly on day ${rm.day_of_month || 1}`;
+      div.innerHTML = `<div>
+        <strong>${esc(rm.title)}</strong>
+        <div class="text-sm text-muted">${schedule} at ${rm.time_utc || ''} UTC</div>
+        <div class="text-sm text-muted">Next: ${rm.next_occurrence ? new Date(rm.next_occurrence).toLocaleString() : '—'}</div>
+        <div class="text-sm" style="margin-top:4px;"><a href="/join/${rm.meeting_id}" style="color:var(--primary);">Join link →</a></div>
+      </div>
+      <button class="btn btn-sm" onclick="deleteRecurring(${rm.id})" style="color:#e55;border:1px solid #e55;background:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Delete</button>`;
+      container.appendChild(div);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function createRecurring() {
+  const title = document.getElementById('rc-title')?.value.trim();
+  const recurrence = document.getElementById('rc-recurrence')?.value;
+  const timeUtc = document.getElementById('rc-time')?.value;
+  const dayOfWeek = document.getElementById('rc-dow')?.value;
+  if (!title || !recurrence || !timeUtc) return toast('Fill in all fields', 'error');
+  try {
+    const res = await fetch('/api/meetings/recurring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, recurrence, timeUtc, dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : undefined }),
+    });
+    if (!res.ok) { const d = await res.json(); toast(d.error || 'Failed', 'error'); return; }
+    toast('Recurring meeting created');
+    loadRecurringMeetings();
+  } catch (e) { toast('Error', 'error'); }
+}
+
+async function deleteRecurring(id) {
+  if (!confirm('Delete this recurring meeting?')) return;
+  await fetch(`/api/meetings/recurring/${id}`, { method: 'DELETE' });
+  loadRecurringMeetings();
+}
+
 async function createMeeting() {
   const title = document.getElementById('nm-title').value.trim() || 'Untitled Meeting';
   const name  = document.getElementById('nm-name').value.trim();
   if (!name) { toast('Please enter your name', 'error'); return; }
   if (!userApiKey) { toast('Please create an API key in Settings → API Keys first', 'error'); return; }
+  const templateId = document.getElementById('nm-template')?.value || undefined;
   const btn = document.querySelector('#sec-meeting .btn-blue.btn-full');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   try {
+    const body = { title };
+    if (templateId) body.templateId = parseInt(templateId);
     const res  = await fetch('/api/meetings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': userApiKey },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) { toast(data.error || 'Could not create meeting', 'error'); return; }

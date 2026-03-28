@@ -151,6 +151,7 @@
       <div class="side-panel-tabs">
         <button class="active" data-tab="participants">People</button>
         <button data-tab="chat">Chat</button>
+        <button data-tab="qa">Q&A</button>
       </div>
       <div id="participantsTab">
         <div class="participants-list" id="participantsList"></div>
@@ -161,12 +162,30 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Transcript
           </button>
+          <label class="chat-tool-btn" id="fileUploadLabel" title="Share a file" style="cursor:pointer;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            File
+            <input type="file" id="fileUploadInput" style="display:none;">
+          </label>
         </div>
         <div class="chat-container">
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Send a message…" maxlength="500" aria-label="Chat message">
             <button id="chatSendBtn">Send</button>
+          </div>
+        </div>
+      </div>
+      <div id="qaTab" style="display:none;flex:1;flex-direction:column;">
+        <div class="chat-toolbar">
+          <button class="chat-tool-btn active" data-qa-filter="open">Open</button>
+          <button class="chat-tool-btn" data-qa-filter="answered">Answered</button>
+        </div>
+        <div class="chat-container">
+          <div class="chat-messages" id="qaList" style="padding:10px;"></div>
+          <div class="chat-input-area">
+            <input type="text" id="qaInput" placeholder="Ask a question…" maxlength="500" aria-label="Ask a question">
+            <button id="qaSendBtn">Ask</button>
           </div>
         </div>
       </div>
@@ -230,10 +249,81 @@
       <span class="more-opt-icon" id="moreLockIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
       <span class="more-opt-title" id="moreLockTitle">Lock meeting</span>
     </button>
+    <button class="more-opt" id="morePollsOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/><line x1="9" y1="17" x2="11" y2="17"/></svg></span>
+      <span class="more-opt-title">Polls</span>
+    </button>
+    <button class="more-opt hidden" id="moreBreakoutOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></span>
+      <span class="more-opt-title">Breakout rooms</span>
+    </button>
+    <button class="more-opt" id="moreNotesOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+      <span class="more-opt-title">Meeting notes</span>
+    </button>
+    <button class="more-opt hidden" id="moreAttendanceOpt">
+      <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="more-opt-title">Attendance report</span>
+    </button>
+    <div class="more-panel-sep"></div>
     <button class="more-opt" id="moreShortcutsOpt">
       <span class="more-opt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg></span>
       <span class="more-opt-title">Keyboard shortcuts</span>
     </button>
+  </div>
+
+  <!-- Polls panel -->
+  <div class="more-panel hidden" id="pollsPanel" style="width:340px;max-height:500px;overflow-y:auto;">
+    <div style="padding:12px 16px;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1);">Polls</div>
+    <div id="pollsList" style="padding:10px;"></div>
+    <div id="pollCreateForm" class="hidden" style="padding:10px;border-top:1px solid rgba(255,255,255,0.1);">
+      <input type="text" id="pollQuestion" placeholder="Your question…" maxlength="500" style="width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;margin-bottom:8px;">
+      <div id="pollOptions"></div>
+      <button id="addPollOption" style="background:none;border:none;color:#7aa2f7;cursor:pointer;font-size:13px;padding:4px 0;">+ Add option</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="pollCreateBtn" style="flex:1;padding:8px;border-radius:6px;background:#7aa2f7;color:#fff;border:none;cursor:pointer;font-weight:500;">Create Poll</button>
+        <button id="pollCancelBtn" style="padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.1);color:#fff;border:none;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+    <button id="showPollFormBtn" style="width:calc(100% - 20px);margin:10px;padding:8px;border-radius:6px;background:#7aa2f7;color:#fff;border:none;cursor:pointer;font-weight:500;">Create Poll</button>
+  </div>
+
+  <!-- Breakout rooms panel -->
+  <div class="more-panel hidden" id="breakoutPanel" style="width:360px;max-height:550px;overflow-y:auto;">
+    <div style="padding:12px 16px;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1);">Breakout Rooms</div>
+    <div id="breakoutRoomsList" style="padding:10px;"></div>
+    <div id="breakoutControls" style="padding:10px;border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="number" id="breakoutCount" min="2" max="50" value="2" style="width:60px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;text-align:center;">
+        <button id="createBreakoutBtn" style="flex:1;padding:8px;border-radius:6px;background:#7aa2f7;color:#fff;border:none;cursor:pointer;font-weight:500;">Create Rooms</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <select id="breakoutTimer" style="padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;">
+          <option value="0">No timer</option>
+          <option value="5">5 min</option>
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+        </select>
+        <button id="autoAssignBtn" style="flex:1;padding:8px;border-radius:6px;background:rgba(255,255,255,0.1);color:#fff;border:none;cursor:pointer;">Auto-assign</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button id="openBreakoutBtn" style="flex:1;padding:8px;border-radius:6px;background:#4ade80;color:#000;border:none;cursor:pointer;font-weight:500;">Open Rooms</button>
+        <button id="closeBreakoutBtn" style="flex:1;padding:8px;border-radius:6px;background:#f87171;color:#fff;border:none;cursor:pointer;font-weight:500;">Close Rooms</button>
+      </div>
+      <div style="margin-top:8px;">
+        <input type="text" id="breakoutBroadcastInput" placeholder="Broadcast message to all rooms…" maxlength="500" style="width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes panel -->
+  <div class="more-panel hidden" id="notesPanel" style="width:360px;max-height:500px;">
+    <div style="padding:12px 16px;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-between;align-items:center;">
+      Meeting Notes
+      <button id="downloadNotesBtn" style="background:none;border:none;color:#7aa2f7;cursor:pointer;font-size:12px;">Download</button>
+    </div>
+    <textarea id="notesTextarea" placeholder="Meeting notes…" style="width:100%;height:350px;padding:12px;border:none;background:transparent;color:#fff;resize:none;font-family:inherit;font-size:14px;line-height:1.6;"></textarea>
   </div>
 
   <!-- Hidden button proxies kept for their event handlers & updateControlButtons() -->
@@ -1128,12 +1218,43 @@ $('#moreShortcutsOpt').addEventListener('click', () => {
   $('#morePanel').classList.add('hidden');
   toggleShortcutsModal();
 });
+$('#morePollsOpt').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#morePanel').classList.add('hidden');
+  $('#pollsPanel').classList.toggle('hidden');
+  $('#breakoutPanel').classList.add('hidden');
+  $('#notesPanel').classList.add('hidden');
+});
+$('#moreBreakoutOpt').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#morePanel').classList.add('hidden');
+  $('#breakoutPanel').classList.toggle('hidden');
+  $('#pollsPanel').classList.add('hidden');
+  $('#notesPanel').classList.add('hidden');
+});
+$('#moreNotesOpt').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#morePanel').classList.add('hidden');
+  $('#notesPanel').classList.toggle('hidden');
+  $('#pollsPanel').classList.add('hidden');
+  $('#breakoutPanel').classList.add('hidden');
+});
+$('#moreAttendanceOpt').addEventListener('click', () => {
+  $('#morePanel').classList.add('hidden');
+  window.open(`/api/meetings/${meetingId}/attendance/download`, '_blank');
+});
 
 // Close More panel on outside click
 document.addEventListener('click', (e) => {
   const mp = $('#morePanel');
   if (!mp.classList.contains('hidden') && !mp.contains(e.target) && e.target.id !== 'moreBtn' && !e.target.closest('#moreBtn'))
     mp.classList.add('hidden');
+  // Close feature panels on outside click
+  for (const panelId of ['pollsPanel', 'breakoutPanel', 'notesPanel']) {
+    const panel = $('#' + panelId);
+    if (panel && !panel.classList.contains('hidden') && !panel.contains(e.target) && !e.target.closest('#morePanel') && !e.target.closest('.more-opt'))
+      panel.classList.add('hidden');
+  }
 });
 
 // Legacy hidden-button handlers (still needed by updateControlButtons)
@@ -1782,7 +1903,9 @@ document.querySelectorAll('.side-panel-tabs button').forEach(btn => {
     const tab = btn.dataset.tab;
     $('#participantsTab').style.display = tab === 'participants' ? 'block' : 'none';
     $('#chatTab').style.display         = tab === 'chat'         ? 'flex'  : 'none';
-    $('#sidePanelTitle').textContent    = tab === 'participants' ? 'Participants' : 'Chat';
+    $('#qaTab').style.display           = tab === 'qa'           ? 'flex'  : 'none';
+    const titles = { participants: 'Participants', chat: 'Chat', qa: 'Q&A' };
+    $('#sidePanelTitle').textContent    = titles[tab] || tab;
     if (tab === 'chat') { unreadChatCount = 0; updateChatBadge(); }
   });
 });
@@ -2052,6 +2175,12 @@ function updateControlButtons() {
     if (effectsOn) moreEffBadge.className = 'more-opt-badge badge-active';
   }
   (UI.moreEffectsOpt || $('#moreEffectsOpt'))?.classList.toggle('active', effectsOn);
+
+  // Admin-only More panel items
+  const moreBreakout = $('#moreBreakoutOpt');
+  if (moreBreakout) moreBreakout.classList.toggle('hidden', !isAdmin);
+  const moreAttendance = $('#moreAttendanceOpt');
+  if (moreAttendance) moreAttendance.classList.toggle('hidden', !isAdmin);
 
   // Lock in More panel (admin only)
   const moreLockOpt = UI.moreLockOpt || $('#moreLockOpt');
@@ -2612,6 +2741,352 @@ setInterval(checkConnectionQuality, 5000);
 
 // ─── Init control icons ───────────────────────────────────────────────────────
 updateControlButtons();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── POLLS ────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+const pollState = new Map();
+let pollOptionCount = 2;
+
+function addPollOptionInput() {
+  pollOptionCount++;
+  const div = document.createElement('div');
+  div.style.cssText = 'margin-bottom:4px;';
+  div.innerHTML = `<input type="text" class="poll-option-input" placeholder="Option ${pollOptionCount}" maxlength="200" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">`;
+  $('#pollOptions').appendChild(div);
+}
+
+function resetPollForm() {
+  $('#pollQuestion').value = '';
+  $('#pollOptions').innerHTML = `
+    <div style="margin-bottom:4px;"><input type="text" class="poll-option-input" placeholder="Option 1" maxlength="200" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;"></div>
+    <div style="margin-bottom:4px;"><input type="text" class="poll-option-input" placeholder="Option 2" maxlength="200" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;"></div>`;
+  pollOptionCount = 2;
+}
+
+$('#showPollFormBtn').addEventListener('click', () => {
+  $('#pollCreateForm').classList.remove('hidden');
+  $('#showPollFormBtn').classList.add('hidden');
+  resetPollForm();
+});
+$('#pollCancelBtn').addEventListener('click', () => {
+  $('#pollCreateForm').classList.add('hidden');
+  $('#showPollFormBtn').classList.remove('hidden');
+});
+$('#addPollOption').addEventListener('click', () => { if (pollOptionCount < 10) addPollOptionInput(); });
+$('#pollCreateBtn').addEventListener('click', () => {
+  const question = $('#pollQuestion').value.trim();
+  const optionEls = document.querySelectorAll('.poll-option-input');
+  const options = [...optionEls].map(el => el.value.trim()).filter(Boolean);
+  if (!question || options.length < 2) return showToast('Need a question and at least 2 options');
+  socket.emit('poll:create', { question, options });
+  $('#pollCreateForm').classList.add('hidden');
+  $('#showPollFormBtn').classList.remove('hidden');
+});
+
+function renderPolls() {
+  const container = $('#pollsList');
+  container.innerHTML = '';
+  if (pollState.size === 0) {
+    container.innerHTML = '<div style="color:rgba(255,255,255,0.5);text-align:center;padding:20px;font-size:13px;">No polls yet</div>';
+    return;
+  }
+  for (const [id, poll] of pollState) {
+    const div = document.createElement('div');
+    div.style.cssText = 'margin-bottom:12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);';
+    const myVote = poll.myVote;
+    let optionsHtml = '';
+    const total = poll.totalVotes || 0;
+    for (const opt of (poll.results || poll.options)) {
+      const count = opt.count || 0;
+      const pct = total > 0 ? Math.round(count / total * 100) : 0;
+      const isVoted = myVote === opt.id;
+      if (poll.isActive && !myVote) {
+        optionsHtml += `<button class="poll-vote-btn" data-poll="${id}" data-opt="${opt.id}" style="display:block;width:100%;text-align:left;padding:8px 10px;margin:4px 0;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#fff;cursor:pointer;font-size:13px;">${escapeHtml(opt.text)}</button>`;
+      } else {
+        optionsHtml += `<div style="margin:4px 0;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,0.05);position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:rgba(122,162,247,${isVoted ? '0.3' : '0.15'});border-radius:6px;transition:width 0.3s;"></div>
+          <div style="position:relative;display:flex;justify-content:space-between;font-size:13px;">
+            <span>${escapeHtml(opt.text)}${isVoted ? ' ✓' : ''}</span><span>${pct}% (${count})</span>
+          </div>
+        </div>`;
+      }
+    }
+    const statusBadge = poll.isActive ? '<span style="color:#4ade80;font-size:11px;font-weight:500;">LIVE</span>' : '<span style="color:rgba(255,255,255,0.4);font-size:11px;">ENDED</span>';
+    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <strong style="font-size:14px;">${escapeHtml(poll.question)}</strong>${statusBadge}
+    </div>${optionsHtml}
+    <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;">${total} vote${total !== 1 ? 's' : ''}${poll.isActive && isAdmin ? ` <button class="poll-end-btn" data-poll="${id}" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:11px;margin-left:8px;">End poll</button>` : ''}</div>`;
+    container.appendChild(div);
+  }
+}
+
+$('#pollsList').addEventListener('click', (e) => {
+  const voteBtn = e.target.closest('.poll-vote-btn');
+  if (voteBtn) {
+    socket.emit('poll:vote', { pollId: voteBtn.dataset.poll, optionId: voteBtn.dataset.opt });
+    const poll = pollState.get(voteBtn.dataset.poll);
+    if (poll) poll.myVote = voteBtn.dataset.opt;
+    renderPolls();
+    return;
+  }
+  const endBtn = e.target.closest('.poll-end-btn');
+  if (endBtn) {
+    socket.emit('poll:end', { pollId: endBtn.dataset.poll });
+  }
+});
+
+socket.on('poll:created', (poll) => {
+  pollState.set(poll.id, { ...poll, totalVotes: 0, results: poll.options.map(o => ({ ...o, count: 0 })), myVote: null });
+  renderPolls();
+  if ($('#pollsPanel').classList.contains('hidden')) showToast('New poll: ' + poll.question);
+});
+socket.on('poll:updated', ({ pollId, results, totalVotes }) => {
+  const poll = pollState.get(pollId);
+  if (poll) { poll.results = results; poll.totalVotes = totalVotes; }
+  renderPolls();
+});
+socket.on('poll:ended', ({ pollId, results, totalVotes }) => {
+  const poll = pollState.get(pollId);
+  if (poll) { poll.isActive = false; poll.results = results; poll.totalVotes = totalVotes; }
+  renderPolls();
+  showToast('Poll ended');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Q&A ──────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+const qaState = new Map();
+let qaFilter = 'open';
+
+$('#qaSendBtn').addEventListener('click', sendQuestion);
+$('#qaInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendQuestion(); });
+
+function sendQuestion() {
+  const text = $('#qaInput').value.trim();
+  if (!text) return;
+  socket.emit('qa:ask', { text });
+  $('#qaInput').value = '';
+}
+
+function renderQA() {
+  const container = $('#qaList');
+  container.innerHTML = '';
+  const filtered = [...qaState.values()]
+    .filter(q => !q.dismissed)
+    .filter(q => qaFilter === 'open' ? !q.isAnswered : q.isAnswered)
+    .sort((a, b) => (b.upvoteCount || 0) - (a.upvoteCount || 0));
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="color:rgba(255,255,255,0.5);text-align:center;padding:20px;font-size:13px;">No ${qaFilter} questions</div>`;
+    return;
+  }
+  for (const q of filtered) {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:10px;margin-bottom:8px;border-radius:8px;background:rgba(255,255,255,0.05);';
+    const adminBtns = isAdmin ? `<div style="margin-top:6px;display:flex;gap:6px;">
+      ${!q.isAnswered ? `<button class="qa-answer-btn" data-qid="${q.id}" style="padding:4px 10px;border-radius:4px;background:#4ade80;color:#000;border:none;cursor:pointer;font-size:12px;">Mark answered</button>` : ''}
+      <button class="qa-dismiss-btn" data-qid="${q.id}" style="padding:4px 10px;border-radius:4px;background:rgba(255,255,255,0.1);color:#fff;border:none;cursor:pointer;font-size:12px;">Dismiss</button>
+    </div>` : '';
+    div.innerHTML = `<div style="font-size:14px;margin-bottom:4px;">${escapeHtml(q.text)}</div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:rgba(255,255,255,0.5);">
+        <span>${escapeHtml(q.askedBy?.name || 'Anonymous')}</span>
+        <button class="qa-upvote-btn" data-qid="${q.id}" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#7aa2f7;cursor:pointer;padding:2px 8px;font-size:12px;">▲ ${q.upvoteCount || 0}</button>
+        ${q.isAnswered ? '<span style="color:#4ade80;">✓ Answered</span>' : ''}
+      </div>
+      ${q.answer ? `<div style="margin-top:6px;padding:6px 8px;border-radius:4px;background:rgba(74,222,128,0.1);font-size:13px;color:#4ade80;">${escapeHtml(q.answer)}</div>` : ''}
+      ${adminBtns}`;
+    container.appendChild(div);
+  }
+}
+
+$('#qaList').addEventListener('click', (e) => {
+  const upvoteBtn = e.target.closest('.qa-upvote-btn');
+  if (upvoteBtn) { socket.emit('qa:upvote', { questionId: upvoteBtn.dataset.qid }); return; }
+  const answerBtn = e.target.closest('.qa-answer-btn');
+  if (answerBtn) { socket.emit('qa:answer', { questionId: answerBtn.dataset.qid, answer: '' }); return; }
+  const dismissBtn = e.target.closest('.qa-dismiss-btn');
+  if (dismissBtn) { socket.emit('qa:dismiss', { questionId: dismissBtn.dataset.qid }); }
+});
+
+document.querySelectorAll('[data-qa-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-qa-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    qaFilter = btn.dataset.qaFilter;
+    renderQA();
+  });
+});
+
+socket.on('qa:new', (q) => {
+  qaState.set(q.id, q);
+  renderQA();
+  showToast('New question: ' + q.text.slice(0, 50));
+});
+socket.on('qa:updated', (data) => {
+  const q = qaState.get(data.questionId);
+  if (q) Object.assign(q, data);
+  renderQA();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── FILE SHARING ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+$('#fileUploadInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 50 * 1024 * 1024) return showToast('File too large (max 50 MB)');
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('participantName', myName || 'Unknown');
+  try {
+    showToast('Uploading file…');
+    const res = await fetch(`/api/meetings/${meetingId}/files`, { method: 'POST', body: formData });
+    if (!res.ok) { const err = await res.json(); showToast(err.error || 'Upload failed'); }
+  } catch (err) {
+    showToast('Upload failed');
+  }
+  e.target.value = '';
+});
+
+socket.on('chat:file', ({ fileId, name, size, mimeType, sender, timestamp }) => {
+  const container = $('#chatMessages');
+  const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const sizeStr = size < 1024 ? `${size} B` : size < 1048576 ? `${(size/1024).toFixed(1)} KB` : `${(size/1048576).toFixed(1)} MB`;
+  const isImage = mimeType && mimeType.startsWith('image/');
+  const preview = isImage ? `<img src="/api/meetings/files/${fileId}/download" style="max-width:200px;max-height:150px;border-radius:6px;margin-top:6px;display:block;" alt="${escapeHtml(name)}">` : '';
+  const icon = isImage ? '🖼️' : mimeType?.includes('pdf') ? '📄' : '📎';
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<div class="msg-header"><span class="msg-name">${escapeHtml(sender)}</span><span class="msg-time">${time}</span></div>
+    <div class="msg-body" style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.05);">
+      <a href="/api/meetings/files/${fileId}/download" target="_blank" style="color:#7aa2f7;text-decoration:none;font-size:13px;">${icon} ${escapeHtml(name)} <span style="color:rgba(255,255,255,0.4);font-size:11px;">(${sizeStr})</span></a>
+      ${preview}
+    </div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── MEETING NOTES ────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+let notesDebounce = null;
+const notesTextarea = $('#notesTextarea');
+
+if (!isAdmin) {
+  // Will be set read-only after join
+}
+
+notesTextarea.addEventListener('input', () => {
+  if (!isAdmin) return;
+  clearTimeout(notesDebounce);
+  notesDebounce = setTimeout(() => {
+    socket.emit('notes:update', { content: notesTextarea.value });
+  }, 1000);
+});
+
+$('#downloadNotesBtn').addEventListener('click', () => {
+  const blob = new Blob([notesTextarea.value], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `notes-${meetingId}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+socket.on('notes:updated', ({ content }) => {
+  if (document.activeElement !== notesTextarea || !isAdmin) {
+    notesTextarea.value = content;
+  }
+});
+
+// After join, set notes readonly for non-admin
+socket.on('joined', () => {
+  notesTextarea.readOnly = !isAdmin;
+  notesTextarea.placeholder = isAdmin ? 'Type meeting notes here…' : 'Meeting notes (view only)';
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── BREAKOUT ROOMS ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+let breakoutRooms = [];
+let breakoutIsOpen = false;
+
+$('#createBreakoutBtn').addEventListener('click', () => {
+  const count = parseInt($('#breakoutCount').value) || 2;
+  const rooms = [];
+  for (let i = 1; i <= Math.min(count, 50); i++) rooms.push({ name: `Room ${i}` });
+  socket.emit('breakout:create', { rooms });
+});
+
+$('#autoAssignBtn').addEventListener('click', () => {
+  if (breakoutRooms.length === 0) return showToast('Create rooms first');
+  const pids = Object.keys(participants).filter(id => id !== myParticipantId);
+  const assignments = {};
+  breakoutRooms.forEach(r => assignments[r.id] = []);
+  pids.forEach((pid, i) => {
+    const roomIdx = i % breakoutRooms.length;
+    assignments[breakoutRooms[roomIdx].id].push(pid);
+  });
+  socket.emit('breakout:assign', { assignments });
+});
+
+$('#openBreakoutBtn').addEventListener('click', () => {
+  const timerMinutes = parseInt($('#breakoutTimer').value) || 0;
+  socket.emit('breakout:open', { timerMinutes });
+});
+
+$('#closeBreakoutBtn').addEventListener('click', () => {
+  socket.emit('breakout:close');
+});
+
+$('#breakoutBroadcastInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const text = e.target.value.trim();
+    if (text) { socket.emit('breakout:broadcast', { text }); e.target.value = ''; showToast('Broadcast sent'); }
+  }
+});
+
+function renderBreakoutRooms() {
+  const container = $('#breakoutRoomsList');
+  container.innerHTML = '';
+  if (breakoutRooms.length === 0) {
+    container.innerHTML = '<div style="color:rgba(255,255,255,0.5);text-align:center;padding:20px;font-size:13px;">No rooms created</div>';
+    return;
+  }
+  for (const room of breakoutRooms) {
+    const div = document.createElement('div');
+    div.style.cssText = 'margin-bottom:8px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);';
+    const names = room.participants.map(pid => participants[pid]?.name || pid).join(', ') || 'No participants';
+    div.innerHTML = `<div style="font-weight:500;margin-bottom:4px;">${escapeHtml(room.name)}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);">${escapeHtml(names)}</div>`;
+    container.appendChild(div);
+  }
+  if (breakoutIsOpen) {
+    container.insertAdjacentHTML('beforeend', '<div style="text-align:center;padding:8px;color:#4ade80;font-size:12px;font-weight:500;">Rooms are OPEN</div>');
+  }
+}
+
+socket.on('breakout:updated', ({ rooms, isOpen, timerEndsAt }) => {
+  breakoutRooms = rooms;
+  breakoutIsOpen = isOpen;
+  renderBreakoutRooms();
+});
+
+socket.on('breakout:closed', ({ reason }) => {
+  breakoutIsOpen = false;
+  breakoutRooms.forEach(r => r.participants = []);
+  renderBreakoutRooms();
+  showToast('Breakout rooms closed' + (reason ? `: ${reason}` : ''));
+});
+
+socket.on('breakout:move', ({ roomId, roomName }) => {
+  showToast(`You've been assigned to: ${roomName}`);
+});
+
+socket.on('breakout:message', ({ text, from }) => {
+  showToast(`[${from}] ${text}`);
+});
+
 </script>
 </body>
 </html>

@@ -184,6 +184,104 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_sk_expires ON support_keys(expires_at);
     `);
 
+    // ─── Meeting files (file sharing in chat) ──────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meeting_files (
+        id              SERIAL PRIMARY KEY,
+        meeting_id      VARCHAR(50) NOT NULL,
+        participant_name VARCHAR(60),
+        filename        VARCHAR(255) NOT NULL,
+        original_name   VARCHAR(255) NOT NULL,
+        size_bytes      BIGINT NOT NULL,
+        mime_type       VARCHAR(100),
+        storage_path    VARCHAR(500) NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_mfiles_meeting ON meeting_files(meeting_id);
+    `);
+
+    // ─── Meeting notes ────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meeting_notes (
+        id         SERIAL PRIMARY KEY,
+        meeting_id VARCHAR(50) UNIQUE NOT NULL,
+        content    TEXT NOT NULL DEFAULT '',
+        updated_by VARCHAR(60),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // ─── Meeting attendance ───────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meeting_attendance (
+        id                SERIAL PRIMARY KEY,
+        meeting_id        VARCHAR(50) NOT NULL,
+        participant_id    VARCHAR(50) NOT NULL,
+        participant_name  VARCHAR(60) NOT NULL,
+        joined_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        left_at           TIMESTAMPTZ,
+        duration_seconds  INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_mattend_meeting ON meeting_attendance(meeting_id);
+    `);
+
+    // ─── Meeting templates ────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meeting_templates (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        name        VARCHAR(100) NOT NULL,
+        description VARCHAR(500),
+        settings    JSONB NOT NULL DEFAULT '{}',
+        is_default  BOOLEAN DEFAULT FALSE,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_mtpl_user ON meeting_templates(user_id);
+    `);
+
+    // ─── Recurring meetings ───────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS recurring_meetings (
+        id               SERIAL PRIMARY KEY,
+        user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        company_id       INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+        title            VARCHAR(100) NOT NULL,
+        recurrence       VARCHAR(20) NOT NULL,
+        day_of_week      INTEGER,
+        day_of_month     INTEGER,
+        time_utc         TIME NOT NULL,
+        timezone         VARCHAR(50) DEFAULT 'UTC',
+        settings         JSONB NOT NULL DEFAULT '{}',
+        meeting_id       VARCHAR(50) NOT NULL,
+        admin_token      VARCHAR(64) NOT NULL,
+        is_active        BOOLEAN DEFAULT TRUE,
+        next_occurrence   TIMESTAMPTZ,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_recmtg_user ON recurring_meetings(user_id);
+      CREATE INDEX IF NOT EXISTS idx_recmtg_next ON recurring_meetings(next_occurrence);
+    `);
+
+    // ─── Seed default meeting templates (idempotent) ────────────────────────
+    for (const tpl of [
+      ['All Hands', 'Large team-wide meeting with muted participants', '{"muteOnJoin":true,"maxParticipants":500,"waitingRoom":true}'],
+      ['Interview', 'Small interview session with waiting room', '{"maxParticipants":5,"waitingRoom":true,"videoOffOnJoin":false}'],
+      ['Workshop', 'Interactive workshop for medium groups', '{"maxParticipants":30,"muteOnJoin":false}'],
+      ['Webinar', 'Presentation-style with muted audience', '{"muteOnJoin":true,"maxParticipants":200,"waitingRoom":true}'],
+      ['Quick Sync', 'Fast informal catch-up', '{"maxParticipants":10,"muteOnJoin":false}'],
+    ]) {
+      const { rows: exists } = await client.query(
+        `SELECT id FROM meeting_templates WHERE name = $1 AND is_default = TRUE AND user_id IS NULL`, [tpl[0]]
+      );
+      if (exists.length === 0) {
+        await client.query(
+          `INSERT INTO meeting_templates (user_id, name, description, settings, is_default)
+           VALUES (NULL, $1, $2, $3::jsonb, TRUE)`,
+          [tpl[0], tpl[1], tpl[2]]
+        );
+      }
+    }
+
     // ─── Platform config & monitor state tables ───────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS platform_config (
@@ -302,6 +400,13 @@ async function initDB() {
       ['crypto_enabled',                       'true'],
       ['meeting_cost_per_participant_minute',   '0.01'],
       ['low_balance_threshold_usd',            '2.00'],
+      ['polls_enabled',                        'true'],
+      ['qa_enabled',                           'true'],
+      ['breakout_rooms_enabled',               'true'],
+      ['file_sharing_enabled',                 'true'],
+      ['meeting_notes_enabled',                'true'],
+      ['captions_enabled',                     'true'],
+      ['guest_meetings_enabled',               'true'],
     ];
     for (const [key, value] of defaults) {
       await client.query(

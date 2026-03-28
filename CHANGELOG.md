@@ -2,6 +2,22 @@
 
 All notable changes to onepizza.io are documented in this file.
 
+## [1.0.0] — 2026-03-28
+
+### Added
+- **Breakout Rooms**: Split meetings into sub-rooms with participant assignment, auto-assign, timer, broadcast messaging, and close/reopen — via UI, REST API, Socket.IO, and MCP tools
+- **Polls / Voting**: Create live polls with 2-10 options, real-time vote tracking, bar chart results, and end poll — via UI, REST API, Socket.IO, and MCP tools
+- **Q&A Mode**: Structured question and answer panel with upvoting, mark as answered, dismiss — new side panel tab alongside People and Chat; available via UI, API, Socket.IO, and MCP
+- **File Sharing**: Share files (images, documents, PDFs up to 50 MB) in meeting chat with inline image previews, download links; drag-and-drop support in chat area
+- **Meeting Notes**: Collaborative notepad (host edits, all participants view read-only), auto-saved to DB, downloadable as .txt — via UI, REST API, Socket.IO, and MCP
+- **Attendance Report**: Track join/leave times per participant; downloadable as CSV from More menu (admin only); attendance persisted to DB at meeting end — via UI, REST API, and MCP
+- **Meeting Templates**: Pre-configured meeting presets (All Hands, Interview, Workshop, Webinar, Quick Sync) with custom settings; template selector in dashboard; CRUD via REST API and MCP
+- **Recurring Meetings**: Create meetings that repeat daily, weekly, biweekly, or monthly with stable join links; server-side activation via 60s polling; management UI in dashboard; CRUD via REST API and MCP
+- **DB**: New tables: `meeting_files`, `meeting_notes`, `meeting_attendance`, `meeting_templates`, `recurring_meetings`
+- **MCP**: 16 new tools: `create_poll`, `get_polls`, `end_poll`, `ask_question`, `get_questions`, `answer_question`, `create_breakout_rooms`, `open_breakout_rooms`, `close_breakout_rooms`, `broadcast_breakout_message`, `get_meeting_notes`, `update_meeting_notes`, `get_attendance`, `list_templates`, `create_recurring_meeting`, `list_recurring_meetings`
+- **Settings**: New feature flags: `polls_enabled`, `qa_enabled`, `breakout_rooms_enabled`, `file_sharing_enabled`, `meeting_notes_enabled`, `captions_enabled`, `guest_meetings_enabled`
+- **Analytics**: New event types: `feature.poll`, `feature.qa`, `feature.breakout_rooms`, `feature.file_share`, `feature.meeting_notes`, `feature.attendance_report`, `feature.meeting_template`, `feature.recurring_meeting`
+
 ## [1.0.0] — 2026-03-25
 
 ### Fixed
